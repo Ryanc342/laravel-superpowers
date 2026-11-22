@@ -1,25 +1,20 @@
+/**
+ * A title: the page's own (`default`, the page's one h1) or a part's
+ * (`small`, an h2). It has no description under it.
+ */
 export default function Heading({
     title,
-    description,
     variant = 'default',
 }: {
     title: string;
-    description?: string;
     variant?: 'default' | 'small';
 }) {
     return (
-        <header className={variant === 'small' ? '' : 'mb-8 space-y-0.5'}>
-            <h2
-                className={
-                    variant === 'small'
-                        ? 'mb-0.5 text-base font-medium'
-                        : 'text-xl font-semibold tracking-tight'
-                }
-            >
-                {title}
-            </h2>
-            {description && (
-                <p className="text-sm text-muted-foreground">{description}</p>
+        <header className={variant === 'small' ? '' : 'space-y-0.5'}>
+            {variant === 'small' ? (
+                <h2 className="mb-0.5 text-base font-medium">{title}</h2>
+            ) : (
+                <h1 className="text-xl font-semibold">{title}</h1>
             )}
         </header>
     );

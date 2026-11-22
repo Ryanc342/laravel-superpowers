@@ -107,6 +107,8 @@ return Chisel::script(__DIR__)
             $c->files(
                 'config/fortify.php',
                 'app/Providers/FortifyServiceProvider.php',
+                'resources/js/components/shared/public-header.tsx',
+                'tests/js/components/shared/public-header.test.tsx',
                 $paths['login'],
                 $paths['welcome'],
             )->removeSectionMarkers('registration');
@@ -116,6 +118,8 @@ return Chisel::script(__DIR__)
 
             $c->files(
                 'app/Providers/FortifyServiceProvider.php',
+                'resources/js/components/shared/public-header.tsx',
+                'tests/js/components/shared/public-header.test.tsx',
                 $paths['login'],
                 $paths['welcome'],
             )->removeSection('registration');

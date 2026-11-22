@@ -42,6 +42,8 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            // The rows-per-page choices under every paginated list (components/shared/pagination.tsx).
+            'perPageOptions' => [10, 20, 50, 100],
         ];
     }
 }

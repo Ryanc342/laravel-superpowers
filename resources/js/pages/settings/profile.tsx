@@ -39,11 +39,12 @@ export default function Profile(
             <h1 className="sr-only">Profile settings</h1>
 
             <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Profile"
-                    description="Update your name and email address"
-                />
+                <div>
+                    <Heading variant="small" title="Profile" />
+                    <p className="text-sm text-muted-foreground">
+                        Update your name and email address
+                    </p>
+                </div>
 
                 <Form
                     {...ProfileController.update.form()}
@@ -122,6 +123,7 @@ export default function Profile(
 
                             <div className="flex items-center gap-4">
                                 <Button
+                                    type="submit"
                                     disabled={processing}
                                     data-test="update-profile-button"
                                 >

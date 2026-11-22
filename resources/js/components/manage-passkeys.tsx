@@ -45,11 +45,12 @@ export default function ManagePasskeys(props: Props) {
 
     return (
         <div className="space-y-6">
-            <Heading
-                variant="small"
-                title="Passkeys"
-                description="Manage your passkeys for passwordless sign-in"
-            />
+            <div>
+                <Heading variant="small" title="Passkeys" />
+                <p className="text-sm text-muted-foreground">
+                    Manage your passkeys for passwordless sign-in
+                </p>
+            </div>
 
             <div className="overflow-hidden rounded-lg border border-border">
                 {passkeys.length > 0 ? (

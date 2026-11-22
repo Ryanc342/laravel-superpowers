@@ -33,11 +33,13 @@ export default function Security(props: Props) {
             <h1 className="sr-only">Security settings</h1>
 
             <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Update password"
-                    description="Ensure your account is using a long, random password to stay secure"
-                />
+                <div>
+                    <Heading variant="small" title="Update password" />
+                    <p className="text-sm text-muted-foreground">
+                        Ensure your account is using a long, random password to
+                        stay secure
+                    </p>
+                </div>
 
                 <Form
                     {...SecurityController.update.form()}
@@ -117,6 +119,7 @@ export default function Security(props: Props) {
 
                             <div className="flex items-center gap-4">
                                 <Button
+                                    type="submit"
                                     disabled={processing}
                                     data-test="update-password-button"
                                 >

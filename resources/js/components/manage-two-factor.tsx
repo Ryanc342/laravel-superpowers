@@ -46,11 +46,12 @@ export default function ManageTwoFactor(props: Props) {
 
     return (
         <div className="space-y-6">
-            <Heading
-                variant="small"
-                title="Two-factor authentication"
-                description="Manage your two-factor authentication settings"
-            />
+            <div>
+                <Heading variant="small" title="Two-factor authentication" />
+                <p className="text-sm text-muted-foreground">
+                    Manage your two-factor authentication settings
+                </p>
+            </div>
             {twoFactorEnabled ? (
                 <div className="flex flex-col items-start justify-start space-y-4">
                     <p className="text-sm text-muted-foreground">

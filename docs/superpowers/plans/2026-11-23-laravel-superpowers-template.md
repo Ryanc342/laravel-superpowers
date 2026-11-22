@@ -43,13 +43,16 @@
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
 | 基底         | `laravel/react-starter-kit` main，保留官方历史，加 `upstream` remote 以便合并官方更新                                            |
 | 官方页面     | 结构不动；只给 5 个表单提交按钮补 `type="submit"`。表单字段不在模板里替换，以后各项目自行换成你的带框字段                        |
+| Heading      | 你的版本一字不改（无 description）；官方 7 处调用改为在 Heading 下面自己写一行说明                                               |
+| 分页         | 组件原样搬；后端只补共享 prop `perPageOptions`（10/20/50/100）和它的类型，不搬 `PerPage` 枚举                                    |
+| popover      | 搬，新增依赖 `@radix-ui/react-popover`                                                                                           |
 | 校验错误提示 | 方案 B：只对你的带框字段、以及页面上找不到对应输入框的错误弹 toast；官方页面的输入框保留下方红字，不弹 toast。每个错误只显示一次 |
 | 组件         | 只搬组件（ui、shared 及其依赖），原样复制；不搬页面、布局、应用外壳、`users/*`、`notifications/*`                                |
 | 设计 token   | 整套搬，包括 `qr-background`；另改 `app.blade.php` 一行首屏背景色                                                                |
 | 错误页       | 不带                                                                                                                             |
 | chisel       | 保留                                                                                                                             |
 | 数据库       | MySQL；生产 8.4，CI 用 8.4                                                                                                       |
-| Boost        | 只配 Claude Code                                                                                                                 |
+| Boost        | 先只配 Claude Code；后来要求兼容 Codex，见阶段 11                                                                                |
 | superpowers  | 官方插件市场 `superpowers@claude-plugins-official`                                                                               |
 | 提交前检查   | 不做（和 `composer check` 重合）                                                                                                 |
 | 门禁         | 简单 Stop hook                                                                                                                   |
@@ -286,6 +289,31 @@ composer 脚本：
 - 只在做前端任务时加载。
 
 验收：`composer check` 全绿；`composer check:browser` 全绿；逐字节比对通过；人工在浏览器里过一遍明暗模式和手机宽度。
+
+执行记录（已完成）：
+
+- 先在临时副本里完整试搬，找出计划没预料到的问题，确认清单后才动项目。
+- 搬入 81 个文件：ui 21 个、shared 31 个、两个 toast hook、`lib/pagination`、`types/resource`、`heading`、`input-error`、`app.css`、22 个测试。逐字节比对：76 个与你的仓库完全一致，5 个是登记过的改动，没有未登记的差异。
+- 你的文件的登记改动：
+    1. `shared/form-field.tsx` 的 `FieldError`：多输出一个隐藏标记 `<span data-slot="field-error" hidden />`，有没有错误都在。
+    2. `hooks/use-validation-error-toasts.ts`：按方案 B 判断是否弹 toast；只跳到带框字段。
+    3. 它的测试：字段改用真正的 `FieldError` 组成的带框字段，新增 3 个测试（官方输入框不弹 toast；两者同时出错只弹带框字段的；`FormField` 里嵌套很深的控件也算带框字段）。故意把"往上找标记"改成只查一层，第 3 个测试会失败。
+    4. `shared/public-header.tsx` 及其测试：给 "Get started"（`register` 路由）加注册功能的 chisel 标记，`chisel.php` 也加上这两个文件。不选注册功能时 Wayfinder 不生成 `register`，不处理的话 tsc 和构建会失败。
+- 官方文件的登记改动：
+    - 5 个提交按钮补 `type="submit"`。
+    - `password-input.tsx` 的类型多排除 `size`：你的 Input 有 `size` 样式变体，和 HTML 原生的 `size` 属性冲突。
+    - 7 处 Heading 调用：Heading 加一行说明，用 `<div>` 包起来；设置页大标题原来自带的 `mb-8 space-y-0.5` 移到外层 div 上，视觉不变，标题从 h2 变成 h1。
+    - `HandleInertiaRequests` 共享 `perPageOptions`，`global.d.ts` 补类型，`types/index.ts` 导出 resource 类型，新增 `tests/Feature/Http/Middleware/HandleInertiaRequestsTest.php`（先失败后通过）。
+    - `app.blade.php` 首屏背景色一行。
+    - `vite.config.ts`：`jsx-a11y/prefer-tag-over-role` 改为全局关闭（你的 loading-state、status-message 用的 `role="status"` 是标准写法）。
+- `types/auth.ts`、`types/ui.ts`、`types/navigation.ts` 保留官方：你新增的 `badge` 字段搬来的组件没用到，没有按"取并集"加。
+- 方案 B 的标记为什么要一直在：官方页面用的 `<Form>` 组件是在 Inertia 的 `error` 事件之后才更新错误状态，那次渲染发生在事件之后，时机没有保证。所以判断不能依赖错误已经渲染出来。隐藏元素不占位置、不影响网格间距，读屏软件也读不到。
+- 组件目录 skill：`.ai/skills/frontend-components/SKILL.md`，由 Boost 装到 `.claude/skills/`。内容包括每个组件的用途、两条表单规则、toast 的触发方式、分页的前后端约定和设计 token。组件注释里提到的、模板没有的东西（PublicLayout、`signedIn` 共享 prop、ResponsiveTable、通知行）没有写进去。
+- 验证：
+    - `composer check` 全绿（Vitest 24 个文件、106 个测试；Pest 46 个）；
+    - 浏览器测试 22 个全过；
+    - 在正式代码的副本上按 chisel 功能全关和全开各跑一遍：两种都是 `composer check` 全绿，浏览器测试分别 13 个和 22 个全过，chisel 标记全部清除；
+    - 截图查看了登录、仪表盘、个人资料、安全设置、外观设置在浅色、深色和手机宽度下的样子，以及登录出错（只有官方红字，没有 toast）和保存成功（顶部居中 toast）。
 
 ### 阶段 9：CI
 

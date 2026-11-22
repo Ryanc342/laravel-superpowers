@@ -56,14 +56,17 @@ export default defineConfig({
             // react plugin enabled.
             'react/rules-of-hooks': 'error',
             'react/exhaustive-deps': 'error',
+            // It asks for <output> in place of role="status" and the like,
+            // but a live region on a div or span is the standard ARIA pattern
+            // (the shared loading and status components use it).
+            'jsx-a11y/prefer-tag-over-role': 'off',
         },
         overrides: [
             {
                 // The starter kit's own auth screens order focus with positive
-                // tabIndex values, autofocus their first field and mark a list
-                // up with roles. They stay as the starter kit ships them, so
-                // merging its updates stays easy; every other file is held to
-                // these three rules.
+                // tabIndex values and autofocus their first field. They stay
+                // as the starter kit ships them, so merging its updates stays
+                // easy; every other file is held to these two rules.
                 files: [
                     'resources/js/pages/auth/confirm-password.tsx',
                     'resources/js/pages/auth/forgot-password.tsx',
@@ -78,7 +81,6 @@ export default defineConfig({
                 rules: {
                     'jsx-a11y/tabindex-no-positive': 'off',
                     'jsx-a11y/no-autofocus': 'off',
-                    'jsx-a11y/prefer-tag-over-role': 'off',
                 },
             },
         ],

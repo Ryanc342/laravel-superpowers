@@ -11,11 +11,12 @@ export default function Appearance() {
             <h1 className="sr-only">Appearance settings</h1>
 
             <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Appearance settings"
-                    description="Update the appearance settings for your account"
-                />
+                <div>
+                    <Heading variant="small" title="Appearance settings" />
+                    <p className="text-sm text-muted-foreground">
+                        Update the appearance settings for your account
+                    </p>
+                </div>
                 <AppearanceTabs />
             </div>
         </>
