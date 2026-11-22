@@ -129,6 +129,18 @@ Pest：
 
 验收：浏览器测试在官方原版界面上全绿。
 
+执行记录（已完成）：
+
+- `pestphp/pest-plugin-browser` 4.3.1 + `playwright` 1.65（Chromium）。22 个浏览器测试，约 13 秒。
+- `phpunit.xml` 设了 `defaultTestSuite="Unit,Feature"`：平时 `php artisan test` 不跑浏览器测试；浏览器测试用 `--testsuite=Browser`，跑之前要先 `npm run build`。
+- 文件分布：核心 3 个（登录登出、找回和重置密码、设置），功能 5 个（注册、邮箱验证、密码确认、2FA、passkeys）。
+- 2FA 测试覆盖两条路径：开启 2FA 时用真实密钥算出验证码；登录时分别用验证码和恢复码通过。passkeys 只测页面区块，因为无头浏览器没有 WebAuthn 认证器，注册不了真的 passkey。
+- "先确认密码再进安全设置页"写成 `tests/Pest.php` 里的公共函数 `visitSecurityPage()`，chisel 标记只出现在这个永远存在的文件里，不会落在可能已被 chisel 删掉的功能测试文件中。
+- `chisel.php` 已登记：没选某个功能时，对应的浏览器测试文件一起删除；`tests/Pest.php` 交给 password-confirmation 处理。
+- **安全网验证**：临时把官方 `Button` 的默认 type 改成 `"button"`（就是你组件的行为），8 个测试失败，覆盖了全部 5 个受影响的提交按钮；恢复后全部通过。
+- **chisel 实跑验证**：在仓库副本里分别用"全都不选"和"全部都选"运行 `install:features`，两种情况下 chisel 都删除了自己、标记全部清除，Pint、PHPStan、vp check、tsc、Vitest、Pest、浏览器测试全部通过。
+- 测试失败时的截图保存在 `tests/Browser/Screenshots`，已加入 `.gitignore`。阶段 9 让 CI 在失败时把截图作为附件上传。
+
 ### 阶段 5：`composer check` 与 Oxlint 规则
 
 Oxlint（`vite.config.ts` 的 `lint`）：

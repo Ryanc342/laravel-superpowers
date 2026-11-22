@@ -125,6 +125,7 @@ return Chisel::script(__DIR__)
                 'app/Http/Responses/RegisterResponse.php',
                 $paths['register'],
                 'tests/Feature/Auth/RegistrationTest.php',
+                'tests/Browser/RegistrationTest.php',
             )->delete();
         },
     )
@@ -154,6 +155,7 @@ return Chisel::script(__DIR__)
                 $paths['verify_email'],
                 'tests/Feature/Auth/EmailVerificationTest.php',
                 'tests/Feature/Auth/VerificationNotificationTest.php',
+                'tests/Browser/EmailVerificationTest.php',
             )->delete();
         },
     )
@@ -197,6 +199,7 @@ return Chisel::script(__DIR__)
                 ...$paths['two_factor_files'],
                 'database/migrations/2025_08_14_170933_add_two_factor_columns_to_users_table.php',
                 'tests/Feature/Auth/TwoFactorChallengeTest.php',
+                'tests/Browser/TwoFactorAuthenticationTest.php',
             ])->delete();
         },
     )
@@ -243,6 +246,7 @@ return Chisel::script(__DIR__)
                 ...$paths['passkey_files'],
                 'app/Http/Responses/PasskeyLoginResponse.php',
                 'database/migrations/2024_01_01_000000_create_passkeys_table.php',
+                'tests/Browser/PasskeysTest.php',
             ])->delete();
         },
     )
@@ -266,6 +270,7 @@ return Chisel::script(__DIR__)
                 'app/Providers/FortifyServiceProvider.php',
                 'routes/settings.php',
                 'tests/Feature/Settings/SecurityTest.php',
+                'tests/Pest.php',
             )->removeSectionMarkers('password-confirmation');
         },
         else: function (Chisel $c) use ($paths) {
@@ -276,11 +281,13 @@ return Chisel::script(__DIR__)
                 'app/Providers/FortifyServiceProvider.php',
                 'routes/settings.php',
                 'tests/Feature/Settings/SecurityTest.php',
+                'tests/Pest.php',
             )->removeSection('password-confirmation');
 
             $c->files(
                 $paths['confirm_password'],
                 'tests/Feature/Auth/PasswordConfirmationTest.php',
+                'tests/Browser/PasswordConfirmationTest.php',
             )->delete();
         },
     )
