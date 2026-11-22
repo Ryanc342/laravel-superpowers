@@ -61,14 +61,32 @@
         "lint:check": [
             "pint --parallel --test"
         ],
-        "ci:check": [
+        "check": [
             "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "@lint:check",
+            "@types:check",
+            "@php artisan wayfinder:generate --with-form --ansi",
             "npm run check",
             "npm run types:check",
-            "@test"
+            "npm run test",
+            "@php artisan test --compact"
+        ],
+        "check:browser": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "npm run build",
+            "@php artisan test --testsuite=Browser --compact"
+        ],
+        "fix": [
+            "@lint",
+            "npm run check:fix"
+        ],
+        "ci:check": [
+            "@check"
         ],
         "types:check": [
-            "phpstan analyse"
+            "phpstan analyse --memory-limit=1G"
         ],
         "test": [
             "@php artisan config:clear --ansi",
@@ -118,5 +136,10 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "scripts-descriptions": {
+        "check": "Run every check: Pint, PHPStan, Oxfmt + Oxlint, tsc, Vitest and Pest (no browser tests).",
+        "check:browser": "Build the frontend and run the browser tests.",
+        "fix": "Fix what Pint, Oxfmt and Oxlint can fix on their own."
+    }
 }

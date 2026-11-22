@@ -46,6 +46,41 @@ export default defineConfig({
         setupFiles: ['tests/js/setup.ts'],
     },
     lint: {
+        // Setting plugins replaces Oxlint's default list, so the defaults
+        // (typescript, unicorn, oxc) are named here next to the two added:
+        // react for the rules of hooks, jsx-a11y for accessibility.
+        plugins: ['typescript', 'unicorn', 'oxc', 'react', 'jsx-a11y'],
+        rules: {
+            // In the pedantic category, so not on by default even with the
+            // react plugin enabled.
+            'react/rules-of-hooks': 'error',
+            'react/exhaustive-deps': 'error',
+        },
+        overrides: [
+            {
+                // The starter kit's own auth screens order focus with positive
+                // tabIndex values, autofocus their first field and mark a list
+                // up with roles. They stay as the starter kit ships them, so
+                // merging its updates stays easy; every other file is held to
+                // these three rules.
+                files: [
+                    'resources/js/pages/auth/confirm-password.tsx',
+                    'resources/js/pages/auth/forgot-password.tsx',
+                    'resources/js/pages/auth/login.tsx',
+                    'resources/js/pages/auth/register.tsx',
+                    'resources/js/pages/auth/reset-password.tsx',
+                    'resources/js/pages/auth/two-factor-challenge.tsx',
+                    'resources/js/components/passkey-register.tsx',
+                    'resources/js/components/two-factor-recovery-codes.tsx',
+                    'resources/js/components/two-factor-setup-modal.tsx',
+                ],
+                rules: {
+                    'jsx-a11y/tabindex-no-positive': 'off',
+                    'jsx-a11y/no-autofocus': 'off',
+                    'jsx-a11y/prefer-tag-over-role': 'off',
+                },
+            },
+        ],
         ignorePatterns: [
             'vendor/**',
             'node_modules/**',
