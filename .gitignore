@@ -1,5 +1,6 @@
 /.phpunit.cache
 /tests/Browser/Screenshots
+/.worktrees
 /bootstrap/ssr
 /node_modules
 /public/build
