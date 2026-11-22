@@ -109,6 +109,13 @@ export default defineConfig({
             'composer.json',
             'resources/js/components/ui/*',
             'resources/views/mail/*',
+            // Written by Laravel Boost (boost:install, boost:update and its
+            // record-rule tool), which would undo any reformatting.
+            '.ai/rules/**',
+            '.claude/skills/**',
+            '.mcp.json',
+            'boost.json',
+            'CLAUDE.md',
         ],
         sortTailwindcss: {
             functions: ['clsx', 'cn', 'cva'],

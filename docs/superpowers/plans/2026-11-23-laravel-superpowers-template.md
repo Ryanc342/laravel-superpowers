@@ -187,6 +187,16 @@ composer 脚本：
 
 验收：新会话里 Boost MCP 可用，CLAUDE.md 包含项目规则。
 
+执行记录（已完成）：
+
+- Boost 2.10.4。非交互安装时，AI 工具列表读 `boost.json` 的 `agents`；没有配置时，它会选本机检测到的所有 AI 工具。所以先写好只含 `claude_code` 的 `boost.json`，再运行 `boost:install --guidelines --skills --mcp --no-interaction`。
+- Boost 对 Claude Code 的处理：有 `CLAUDE.md` 就写进 `CLAUDE.md`，否则写 `AGENTS.md`。为确保 Claude Code 读得到，建了 `CLAUDE.md`，不再生成 `AGENTS.md`。
+- 默认开启了 Laravel Cloud 集成（多一个 `deploying-to-cloud` skill）：已关闭并删除这个 skill。Boost 通用规则里还有一句"推荐用 Laravel Cloud 部署"，用空文件 `.ai/guidelines/deployments/core.blade.php` 覆盖掉。
+- 实际安装的 skills：`fortify-development`、`inertia-react-development`、`infer-conventions`、`laravel-best-practices`、`tailwindcss-development`、`testing-best-practices`、`wayfinder-development`（Boost 2.10 已用 `testing-best-practices` 取代 `pest-testing`）。
+- 项目规则 `.ai/guidelines/project.md` 排在 CLAUDE.md 最前面，内容包括：完成标准（`composer check`）、superpowers 流程、spec 和 plan 文档不受"不要新建文档"规则限制、行为改动先写测试而纯样式改动不加测试、worktree 要用独立的 `DB_DATABASE`、MySQL 必须在运行。
+- Boost 生成的文件（`CLAUDE.md`、`boost.json`、`.mcp.json`、`.claude/skills/**`、`.ai/rules/**`）不做 Oxfmt 格式检查，因为每次 `boost:update` 都会重新生成。
+- MCP 实测：`boost:mcp` 能完成初始化，并列出 9 个工具（browser-logs、database-connections、database-query、database-schema、get-absolute-url、last-error、read-log-entries、record-rule、search-docs）。
+
 ### 阶段 7：superpowers 与门禁
 
 - `.claude/settings.json`：
