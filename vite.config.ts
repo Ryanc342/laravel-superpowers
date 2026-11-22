@@ -39,6 +39,12 @@ export default defineConfig({
             ],
         },
     },
+    // Frontend unit tests: `npm run test` (vp test), part of `composer check`.
+    test: {
+        include: ['tests/js/**/*.test.{ts,tsx}'],
+        environment: 'jsdom',
+        setupFiles: ['tests/js/setup.ts'],
+    },
     lint: {
         ignorePatterns: [
             'vendor/**',
