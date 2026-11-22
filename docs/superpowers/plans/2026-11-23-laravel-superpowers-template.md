@@ -329,6 +329,14 @@ composer 脚本：
 
 验收：在 GitHub 上三个 job 全绿（需要先推到仓库，见阶段 10）。
 
+执行记录（本地部分已完成，GitHub 上的验收等推送）：
+
+- 新建 `.github/workflows/check.yml`，删除官方的 `tests.yml`：它用 PHP 8.3 和 SQLite，现在测试需要 MySQL，已经跑不通。
+- 三个 job 并行：`check`（MySQL 8.4 服务、PHP 8.4、Node 读 `.node-version`、composer 和 npm 缓存，`composer setup` 后 `composer check`）、`browser`（同样的环境，加装 Playwright Chromium，`composer check:browser`，失败时上传截图）、`audit`（`composer audit --locked`、`npm audit --audit-level=high`）。同一分支有新的推送时，取消还在跑的旧任务。
+- 12 处 action 都用 40 位 SHA 固定：checkout、setup-node、setup-php 沿用官方的；新增 `actions/cache` v6.1.0 和 `actions/upload-artifact` v7.0.2。
+- 本地模拟：用 Docker 起 `mysql:8.4`（8.4.13，端口 33084），对全新克隆跑 `composer setup`、`composer check`（Pest 46 个全过）、`composer check:browser`（22 个全过）。两个审计命令本地都通过。
+- 官方自带的 `.github/dependabot.yml`（只更新 GitHub Actions 版本）保留未动。
+
 ### 阶段 10：模板化与冒烟测试
 
 - `composer.json`：包名 `ryanc342/laravel-superpowers`，写好描述。
