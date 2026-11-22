@@ -99,6 +99,16 @@ Pest：
 
 验收：全部 Pest 测试在 MySQL 上通过。
 
+执行记录（已完成）：
+
+- Pest 4.7.8；PHPUnit 由 Pest 锁定为 12.5.33。45 个测试通过（官方 42 个 + 3 个架构预设），官方代码没有触发任何架构预设规则。
+- drift 转换丢了 4 个 chisel 标记：`AuthenticationTest` 里包住 2FA 跳转测试的那对，以及 `SecurityTest` 里包住"需要确认密码"测试的那对。两对都已手工补回，现在共 14 个，和转换前一致。方法链中间的标记都保住了。模拟 chisel 删除每个功能段后，两个文件语法都正确。
+- `RefreshDatabase` 统一在 `tests/Pest.php` 对 `Feature` 目录生效，去掉了各文件里重复的声明。
+- 测试库由 `tests/bootstrap.php` 处理：库名固定是开发库名加 `_test`，不存在就自动创建。已用哨兵数据验证：跑完测试，开发库里的数据仍在。
+- 开发库由 `migrate --force` 自动创建（已验证）；`post-create-project-cmd` 去掉了创建 SQLite 文件的那一步。
+- `laravel/pao` 检测到 AI 智能体时会给 Pest 追加 `--no-output --no-progress`，导致 `pest --drift` 报参数错误。转换时临时去掉智能体相关的环境变量才能运行。
+- 本机 MySQL 里已有一个叫 `laravel` 的库，正好是 `.env.example` 的默认库名。阶段 10 要确认安装器建项目时会把库名换成项目名。
+
 ### 阶段 3：Vitest
 
 - 开发依赖只加 `jsdom`、`@testing-library/react`。
