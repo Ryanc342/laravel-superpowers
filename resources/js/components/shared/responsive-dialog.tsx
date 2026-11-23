@@ -34,6 +34,8 @@ type Props = Width & {
     trigger?: ReactNode;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    /** Extra classes for the dialog box: a width neither `narrow` nor `wide` gives. */
+    className?: string;
     children: ReactNode;
 };
 
@@ -52,6 +54,7 @@ export default function ResponsiveDialog({
     trigger,
     open,
     onOpenChange,
+    className,
     children,
 }: Props) {
     const isMobile = useIsMobile();
@@ -69,6 +72,7 @@ export default function ResponsiveDialog({
                     'flex flex-col',
                     narrow && 'sm:max-w-md',
                     wide && 'sm:max-w-3xl',
+                    className,
                 )}
                 onOpenAutoFocus={() => {
                     returnTo.current =

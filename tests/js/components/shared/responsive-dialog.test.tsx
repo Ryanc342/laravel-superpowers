@@ -199,3 +199,24 @@ test('a dialog is the default size unless it asks for narrow or wide', () => {
         'default',
     );
 });
+
+test('a dialog takes extra classes for a width neither narrow nor wide gives', () => {
+    vi.mocked(useIsMobile).mockReturnValue(false);
+
+    render(
+        <ResponsiveDialog
+            open
+            onOpenChange={() => {}}
+            title="Pick a day"
+            className="sm:max-w-xl"
+        >
+            <ResponsiveDialogFooter>
+                <button type="button">Save</button>
+            </ResponsiveDialogFooter>
+        </ResponsiveDialog>,
+    );
+
+    expect(screen.getByRole('dialog').classList.contains('sm:max-w-xl')).toBe(
+        true,
+    );
+});
