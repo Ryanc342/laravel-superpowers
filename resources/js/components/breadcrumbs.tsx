@@ -8,6 +8,7 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { useCurrentUrl } from '@/hooks/use-current-url';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
 export function Breadcrumbs({
@@ -15,6 +16,8 @@ export function Breadcrumbs({
 }: {
     breadcrumbs: BreadcrumbItemType[];
 }) {
+    const { isCurrentUrl } = useCurrentUrl();
+
     return (
         <>
             {breadcrumbs.length > 0 && (
@@ -22,11 +25,15 @@ export function Breadcrumbs({
                     <BreadcrumbList>
                         {breadcrumbs.map((item, index) => {
                             const isLast = index === breadcrumbs.length - 1;
+                            // The last crumb is the page itself, unless it
+                            // points elsewhere: a record's page ends at its
+                            // list, and that crumb is the way back.
+                            const isCurrent = isLast && isCurrentUrl(item.href);
 
                             return (
                                 <Fragment key={index}>
                                     <BreadcrumbItem>
-                                        {isLast ? (
+                                        {isCurrent ? (
                                             <BreadcrumbPage>
                                                 {item.title}
                                             </BreadcrumbPage>
