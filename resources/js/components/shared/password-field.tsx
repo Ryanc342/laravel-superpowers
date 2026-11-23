@@ -12,19 +12,23 @@ import { cn } from '@/lib/utils';
 
 /**
  * A password field: the user's current password or a new one. Use it for
- * every password. A button at its end shows or hides what was typed. Its
- * label is required and floats inside the box; `error` works as in TextField.
+ * every password. A button at its end shows or hides what was typed, unless
+ * `revealable={false}`: a stored secret (an API key) stays masked. Its label
+ * is required and floats inside the box; `error` works as in TextField.
  */
 export default function PasswordField({
     label,
     error,
     id,
     className,
+    revealable = true,
     'aria-describedby': describedBy,
     ...props
 }: Omit<ComponentProps<typeof Input>, 'type' | 'placeholder' | 'size'> & {
     label: string;
     error?: string;
+    /** Whether the show/hide button is there. */
+    revealable?: boolean;
 }) {
     const fallbackId = useId();
     const inputId = id ?? fallbackId;
@@ -35,21 +39,23 @@ export default function PasswordField({
             <Input
                 id={inputId}
                 type={shown ? 'text' : 'password'}
-                size="end-icon"
+                size={revealable ? 'end-icon' : undefined}
                 placeholder=" "
                 className={floatingControl}
                 {...props}
                 {...fieldErrorProps(inputId, error, describedBy)}
             />
             <FloatingLabel htmlFor={inputId}>{label}</FloatingLabel>
-            <IconButton
-                label={shown ? 'Hide password' : 'Show password'}
-                size="icon-sm"
-                className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground"
-                onClick={() => setShown((current) => !current)}
-            >
-                {shown ? <EyeOff /> : <Eye />}
-            </IconButton>
+            {revealable && (
+                <IconButton
+                    label={shown ? 'Hide password' : 'Show password'}
+                    size="icon-sm"
+                    className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground"
+                    onClick={() => setShown((current) => !current)}
+                >
+                    {shown ? <EyeOff /> : <Eye />}
+                </IconButton>
+            )}
             <FieldError htmlFor={inputId} message={error} />
         </div>
     );

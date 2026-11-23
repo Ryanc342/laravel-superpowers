@@ -34,3 +34,16 @@ test('the show button never sends the form', () => {
             .getAttribute('type'),
     ).toBe('button');
 });
+
+test('a secret that is never shown has no show button and stays hidden', () => {
+    render(
+        <TooltipProvider>
+            <PasswordField label="API key" name="key" revealable={false} />
+        </TooltipProvider>,
+    );
+
+    expect((screen.getByLabelText('API key') as HTMLInputElement).type).toBe(
+        'password',
+    );
+    expect(screen.queryByRole('button')).toBeNull();
+});

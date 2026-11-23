@@ -57,7 +57,7 @@ The starter kit's auth and settings pages, and their dialogs, use these componen
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `StackedForm`   | Every form on a page (not in a dialog): an Inertia `<Form>` that takes the Wayfinder route's `.form()` and gives `errors` to its children. `wideButtons` for the narrow sign-in column. |
 | `TextField`     | Any one-line value: name, email, number, code. Label required, floats in the box; `error` from the server.                                                                              |
-| `PasswordField` | Every password, with a show/hide button.                                                                                                                                                |
+| `PasswordField` | Every password, with a show/hide button; `revealable={false}` drops the button for a secret that stays masked (an API key).                                                             |
 | `SelectField`   | One value from a fixed list in a box. `name` sends it with a form.                                                                                                                      |
 | `CheckboxField` | One yes-or-no choice with its label ("Remember me").                                                                                                                                    |
 | `FormField`     | A control without a box of its own: one-time code, file picker. Label above.                                                                                                            |
