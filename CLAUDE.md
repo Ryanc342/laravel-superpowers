@@ -17,6 +17,12 @@
 - Write design specs to `docs/superpowers/specs/` and implementation plans to `docs/superpowers/plans/`. They are part of this workflow, so writing them needs no separate request; this overrides the general rule about creating documentation files.
 - Changes to behaviour or logic are test-driven: write the failing test first. Pure copy, styling and layout changes need no new tests, but `composer check` must still pass.
 
+## Branches
+
+- `main` is what has been released. `develop` is where finished work comes together. Work happens on short-lived branches cut from `develop` (`feature/<name>`, `fix/<name>`) and merges back into `develop` when `composer check` and `composer check:browser` pass. `develop` goes into `main` only as a release, when the user asks for it.
+- Projects started from laravel-superpowers have a `template` remote. Template updates come only from `template/main`: cut `chore/sync-template-<YYYY-MM-DD>` from `develop`, `git merge template/main`, resolve conflicts in favour of the project's own code, run both checks, merge into `develop`. Never merge the template straight into `main`.
+- Never run `composer` or `php artisan boost:update` with `-q`, and never plain `composer update`/`require` without checking afterwards that `git status` shows no template file rewritten.
+
 ## Git Worktrees
 
 - superpowers creates worktrees in `.worktrees/`, which git ignores.
