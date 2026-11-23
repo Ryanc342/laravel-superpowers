@@ -2,6 +2,7 @@ import { useId } from 'react';
 import {
     FieldError,
     FloatingLabel,
+    fieldErrorProps,
     floatingControl,
 } from '@/components/shared/form-field';
 import {
@@ -58,7 +59,7 @@ export default function SelectField({
             >
                 <SelectTrigger
                     id={triggerId}
-                    aria-invalid={error ? true : undefined}
+                    {...fieldErrorProps(triggerId, error)}
                     className={cn(
                         floatingControl,
                         'w-full data-[size=default]:h-12',
@@ -75,7 +76,7 @@ export default function SelectField({
                 </SelectContent>
             </Select>
             <FloatingLabel htmlFor={triggerId}>{label}</FloatingLabel>
-            <FieldError message={error} />
+            <FieldError htmlFor={triggerId} message={error} />
         </div>
     );
 }

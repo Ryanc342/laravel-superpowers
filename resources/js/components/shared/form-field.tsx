@@ -44,18 +44,55 @@ export function FloatingLabel({
     );
 }
 
+/** The id of the line FieldError writes for the control `controlId`. */
+export function fieldErrorId(controlId: string): string {
+    return `${controlId}-error`;
+}
+
+/**
+ * What the control of a boxed field takes so its error belongs to it:
+ * `aria-invalid` while there is an error, and the error's line added to the
+ * control's own `aria-describedby` (`describedBy`).
+ */
+export function fieldErrorProps(
+    controlId: string,
+    error?: string,
+    describedBy?: string,
+): { 'aria-invalid'?: true; 'aria-describedby'?: string } {
+    const ids = [describedBy, error ? fieldErrorId(controlId) : undefined]
+        .filter(Boolean)
+        .join(' ');
+
+    return {
+        'aria-invalid': error ? true : undefined,
+        'aria-describedby': ids === '' ? undefined : ids,
+    };
+}
+
 /**
  * A boxed field's error: never shown under the box. The box gets a red border
  * (its control takes `aria-invalid`), the toast and the focus come from
- * useValidationErrorToasts, and screen readers get this text. The hidden
- * `field-error` mark is there with or without an error: it is how that hook
- * tells a boxed field from a plain input before the error renders.
+ * useValidationErrorToasts, and screen readers get this text, which the
+ * control `htmlFor` lists in its `aria-describedby` (`fieldErrorProps`). The
+ * hidden `field-error` mark is there with or without an error: it is how that
+ * hook tells a boxed field from a plain input before the error renders.
  */
-export function FieldError({ message }: { message?: string }) {
+export function FieldError({
+    htmlFor,
+    message,
+}: {
+    /** The id of the control the error belongs to. */
+    htmlFor: string;
+    message?: string;
+}) {
     return (
         <>
             <span data-slot="field-error" hidden />
-            <InputError message={message} className="sr-only" />
+            <InputError
+                id={fieldErrorId(htmlFor)}
+                message={message}
+                className="sr-only"
+            />
         </>
     );
 }
@@ -76,7 +113,7 @@ type Props = {
  * sits above the control. A boxed field (text, password, several lines, a
  * choice from a list, a date, a search) uses its own component instead, whose
  * label floats inside the box. An error marks the control `aria-invalid` and is
- * read to screen readers, as FieldError says.
+ * tied to it for screen readers, as FieldError says.
  */
 export default function FormField({
     label,
@@ -88,13 +125,30 @@ export default function FormField({
 }: Props) {
     const invalid = Boolean(error);
 
+    // The control is the caller's, so its error is tied to it here.
     useEffect(() => {
         const control = document.getElementById(htmlFor);
 
+        if (!control) {
+            return;
+        }
+
+        const errorId = fieldErrorId(htmlFor);
+        const ids = (control.getAttribute('aria-describedby') ?? '')
+            .split(/\s+/)
+            .filter((id) => id !== '' && id !== errorId);
+
         if (invalid) {
-            control?.setAttribute('aria-invalid', 'true');
+            control.setAttribute('aria-invalid', 'true');
+            ids.push(errorId);
         } else {
-            control?.removeAttribute('aria-invalid');
+            control.removeAttribute('aria-invalid');
+        }
+
+        if (ids.length === 0) {
+            control.removeAttribute('aria-describedby');
+        } else {
+            control.setAttribute('aria-describedby', ids.join(' '));
         }
     }, [invalid, htmlFor]);
 
@@ -104,7 +158,7 @@ export default function FormField({
                 {label}
             </Label>
             {children}
-            <FieldError message={error} />
+            <FieldError htmlFor={htmlFor} message={error} />
         </div>
     );
 }

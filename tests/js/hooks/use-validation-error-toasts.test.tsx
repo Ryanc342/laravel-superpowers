@@ -47,8 +47,8 @@ afterEach(() => {
 function Boxed({ name, label }: { name: string; label: string }) {
     return (
         <div>
-            <input name={name} aria-label={label} />
-            <FieldError />
+            <input id={name} name={name} aria-label={label} />
+            <FieldError htmlFor={name} />
         </div>
     );
 }

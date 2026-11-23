@@ -3,6 +3,7 @@ import { useId, useState, type ComponentProps } from 'react';
 import {
     FieldError,
     FloatingLabel,
+    fieldErrorProps,
     floatingControl,
 } from '@/components/shared/form-field';
 import IconButton from '@/components/shared/icon-button';
@@ -19,6 +20,7 @@ export default function PasswordField({
     error,
     id,
     className,
+    'aria-describedby': describedBy,
     ...props
 }: Omit<ComponentProps<typeof Input>, 'type' | 'placeholder' | 'size'> & {
     label: string;
@@ -35,9 +37,9 @@ export default function PasswordField({
                 type={shown ? 'text' : 'password'}
                 size="end-icon"
                 placeholder=" "
-                aria-invalid={error ? true : undefined}
                 className={floatingControl}
                 {...props}
+                {...fieldErrorProps(inputId, error, describedBy)}
             />
             <FloatingLabel htmlFor={inputId}>{label}</FloatingLabel>
             <IconButton
@@ -48,7 +50,7 @@ export default function PasswordField({
             >
                 {shown ? <EyeOff /> : <Eye />}
             </IconButton>
-            <FieldError message={error} />
+            <FieldError htmlFor={inputId} message={error} />
         </div>
     );
 }

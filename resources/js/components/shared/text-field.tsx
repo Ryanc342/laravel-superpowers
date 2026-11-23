@@ -2,6 +2,7 @@ import { useId, type ComponentProps } from 'react';
 import {
     FieldError,
     FloatingLabel,
+    fieldErrorProps,
     floatingControl,
 } from '@/components/shared/form-field';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,7 @@ export default function TextField({
     error,
     id,
     className,
+    'aria-describedby': describedBy,
     ...props
 }: Omit<ComponentProps<typeof Input>, 'placeholder' | 'size'> & {
     label: string;
@@ -31,12 +33,12 @@ export default function TextField({
             <Input
                 id={inputId}
                 placeholder=" "
-                aria-invalid={error ? true : undefined}
                 className={floatingControl}
                 {...props}
+                {...fieldErrorProps(inputId, error, describedBy)}
             />
             <FloatingLabel htmlFor={inputId}>{label}</FloatingLabel>
-            <FieldError message={error} />
+            <FieldError htmlFor={inputId} message={error} />
         </div>
     );
 }
