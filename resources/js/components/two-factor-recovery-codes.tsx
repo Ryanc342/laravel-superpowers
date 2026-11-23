@@ -1,7 +1,7 @@
-import { Form } from '@inertiajs/react';
-import { Eye, EyeOff, LockKeyhole, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, LockKeyhole } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import AlertError from '@/components/alert-error';
+import ConfirmButton from '@/components/shared/confirm-button';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -80,22 +80,16 @@ export default function TwoFactorRecoveryCodes({
                     </Button>
 
                     {canRegenerateCodes && (
-                        <Form
-                            {...regenerateRecoveryCodes.form()}
-                            options={{ preserveScroll: true }}
-                            onSuccess={fetchRecoveryCodes}
+                        <ConfirmButton
+                            form={regenerateRecoveryCodes.form()}
+                            title="Regenerate recovery codes"
+                            consequence="Your current recovery codes stop working at once. Store the new ones before you close this page."
+                            onSuccess={() => void fetchRecoveryCodes()}
+                            variant="secondary"
+                            aria-describedby="regenerate-warning"
                         >
-                            {({ processing }) => (
-                                <Button
-                                    variant="secondary"
-                                    type="submit"
-                                    disabled={processing}
-                                    aria-describedby="regenerate-warning"
-                                >
-                                    <RefreshCw /> Regenerate codes
-                                </Button>
-                            )}
-                        </Form>
+                            Regenerate codes
+                        </ConfirmButton>
                     )}
                 </div>
                 <div

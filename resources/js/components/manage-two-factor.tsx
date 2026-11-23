@@ -1,7 +1,9 @@
 import { Form } from '@inertiajs/react';
 import { ShieldCheck } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import Heading from '@/components/heading';
+import ConfirmButton from '@/components/shared/confirm-button';
+import Section from '@/components/shared/section';
+import SubmitButton from '@/components/shared/submit-button';
 import TwoFactorRecoveryCodes from '@/components/two-factor-recovery-codes';
 import TwoFactorSetupModal from '@/components/two-factor-setup-modal';
 import { Button } from '@/components/ui/button';
@@ -45,13 +47,10 @@ export default function ManageTwoFactor(props: Props) {
     }
 
     return (
-        <div className="space-y-6">
-            <div>
-                <Heading variant="small" title="Two-factor authentication" />
-                <p className="text-sm text-muted-foreground">
-                    Manage your two-factor authentication settings
-                </p>
-            </div>
+        <Section title="Two-factor authentication">
+            <p className="text-sm text-muted-foreground">
+                Manage your two-factor authentication settings
+            </p>
             {twoFactorEnabled ? (
                 <div className="flex flex-col items-start justify-start space-y-4">
                     <p className="text-sm text-muted-foreground">
@@ -60,19 +59,14 @@ export default function ManageTwoFactor(props: Props) {
                         application on your phone.
                     </p>
 
-                    <div className="relative inline">
-                        <Form {...disable.form()}>
-                            {({ processing }) => (
-                                <Button
-                                    variant="destructive"
-                                    type="submit"
-                                    disabled={processing}
-                                >
-                                    Disable 2FA
-                                </Button>
-                            )}
-                        </Form>
-                    </div>
+                    <ConfirmButton
+                        form={disable.form()}
+                        title="Disable two-factor authentication"
+                        consequence="You will sign in with your password only, and your recovery codes will stop working."
+                        variant="destructive"
+                    >
+                        Disable 2FA
+                    </ConfirmButton>
 
                     <TwoFactorRecoveryCodes
                         recoveryCodesList={recoveryCodesList}
@@ -100,11 +94,7 @@ export default function ManageTwoFactor(props: Props) {
                                 {...enable.form()}
                                 onSuccess={() => setShowSetupModal(true)}
                             >
-                                {({ processing }) => (
-                                    <Button type="submit" disabled={processing}>
-                                        Enable 2FA
-                                    </Button>
-                                )}
+                                <SubmitButton>Enable 2FA</SubmitButton>
                             </Form>
                         )}
                     </div>
@@ -122,6 +112,6 @@ export default function ManageTwoFactor(props: Props) {
                 fetchSetupData={fetchSetupData}
                 errors={errors}
             />
-        </div>
+        </Section>
     );
 }
