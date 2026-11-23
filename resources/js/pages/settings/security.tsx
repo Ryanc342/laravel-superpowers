@@ -5,7 +5,6 @@ import PasswordField from '@/components/shared/password-field';
 import Section from '@/components/shared/section';
 import StackedForm from '@/components/shared/stacked-form';
 import SubmitButton from '@/components/shared/submit-button';
-import { edit } from '@/routes/security';
 /* @chisel-passkeys */
 import type { Props as ManagePasskeysProps } from '@/components/manage-passkeys';
 import ManagePasskeys from '@/components/manage-passkeys';
@@ -100,11 +99,7 @@ export default function Security(props: Props) {
     );
 }
 
+// The settings layout names the page and its sub-nav; no breadcrumbs.
 Security.layout = {
-    breadcrumbs: [
-        {
-            title: 'Security settings',
-            href: edit(),
-        },
-    ],
+    breadcrumbs: [],
 };

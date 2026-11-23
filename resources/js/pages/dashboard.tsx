@@ -1,12 +1,13 @@
 import { Head } from '@inertiajs/react';
+import PageHeader from '@/components/shared/page-header';
 import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
-import { dashboard } from '@/routes';
 
 export default function Dashboard() {
     return (
         <>
             <Head title="Dashboard" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+                <PageHeader title="Dashboard" />
                 <div className="grid auto-rows-min gap-4 md:grid-cols-3">
                     <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                         <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
@@ -26,11 +27,7 @@ export default function Dashboard() {
     );
 }
 
+// Reached from the sidebar: its name is its title, with no breadcrumbs.
 Dashboard.layout = {
-    breadcrumbs: [
-        {
-            title: 'Dashboard',
-            href: dashboard(),
-        },
-    ],
+    breadcrumbs: [],
 };

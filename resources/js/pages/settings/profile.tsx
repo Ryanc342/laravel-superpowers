@@ -11,7 +11,6 @@ import StatusMessage from '@/components/shared/status-message';
 import SubmitButton from '@/components/shared/submit-button';
 import TextField from '@/components/shared/text-field';
 import { textLinkClassName } from '@/components/text-link';
-import { edit } from '@/routes/profile';
 import type { Auth } from '@/types';
 /* @chisel-email-verification */
 import { send } from '@/routes/verification';
@@ -115,11 +114,7 @@ export default function Profile(
     );
 }
 
+// The settings layout names the page and its sub-nav; no breadcrumbs.
 Profile.layout = {
-    breadcrumbs: [
-        {
-            title: 'Profile settings',
-            href: edit(),
-        },
-    ],
+    breadcrumbs: [],
 };

@@ -51,6 +51,18 @@ test('a user deletes their account', function () {
     expect(User::find($user->id))->toBeNull();
 });
 
+test('pages reached from the sidebar name themselves once, as their title, with no breadcrumbs', function (string $path, string $title) {
+    $this->actingAs(User::factory()->create());
+
+    visit($path)
+        ->assertScript("document.querySelector('h1')?.textContent", $title)
+        ->assertMissing('nav[aria-label="breadcrumb"]');
+})->with([
+    'dashboard' => ['/dashboard', 'Dashboard'],
+    'profile' => ['/settings/profile', 'Settings'],
+    'appearance' => ['/settings/appearance', 'Settings'],
+]);
+
 test('the main pages render without JavaScript errors', function (string $mode) {
     $this->actingAs(User::factory()->create());
 

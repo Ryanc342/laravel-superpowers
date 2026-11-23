@@ -41,6 +41,14 @@ The starter kit's auth and settings pages, and their dialogs, use these componen
 
 `components/heading` (`Heading`) is what `PageHeader` and `Section` use. It renders an h1 by default and an h2 with `variant="small"`, and it has no description. Put any description in a `<p className="text-sm text-muted-foreground">` under it, as the settings pages do.
 
+### Breadcrumbs
+
+A page sets them as `Page.layout = { breadcrumbs: [...] }`.
+
+- A page reached from the sidebar or the user menu is top-level: `breadcrumbs: []`. Its name appears once, as its `PageHeader` title.
+- A page about one record (or any page below a list) ends its breadcrumbs at that list, as a link. Its own name appears only as its page title.
+- Never show the same text as both the last breadcrumb and the page title.
+
 ### Public pages
 
 | Component      | Use                                                                                                                                                                                           |

@@ -1,7 +1,6 @@
 import { Head } from '@inertiajs/react';
 import AppearanceTabs from '@/components/appearance-tabs';
 import Section from '@/components/shared/section';
-import { edit as editAppearance } from '@/routes/appearance';
 
 export default function Appearance() {
     return (
@@ -18,11 +17,7 @@ export default function Appearance() {
     );
 }
 
+// The settings layout names the page and its sub-nav; no breadcrumbs.
 Appearance.layout = {
-    breadcrumbs: [
-        {
-            title: 'Appearance settings',
-            href: editAppearance(),
-        },
-    ],
+    breadcrumbs: [],
 };
