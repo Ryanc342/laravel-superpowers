@@ -112,6 +112,9 @@ export default defineConfig({
             'composer.json',
             'resources/js/components/ui/*',
             'resources/views/mail/*',
+            // Claude Code rewrites it with two-space indents whenever it
+            // saves a permission.
+            '.claude/settings.json',
             // Written by Laravel Boost (boost:install, boost:update and its
             // record-rule tool), which would undo any reformatting.
             '.agents/skills/**',
