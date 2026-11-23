@@ -39,24 +39,24 @@
 
 ### 已确定
 
-| 项           | 决定                                                                                                                             |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| 基底         | `laravel/react-starter-kit` main，保留官方历史，加 `upstream` remote 以便合并官方更新                                            |
-| 官方页面     | 结构不动；只给 5 个表单提交按钮补 `type="submit"`。表单字段不在模板里替换，以后各项目自行换成你的带框字段                        |
-| Heading      | 你的版本一字不改（无 description）；官方 7 处调用改为在 Heading 下面自己写一行说明                                               |
-| 分页         | 组件原样搬；后端只补共享 prop `perPageOptions`（10/20/50/100）和它的类型，不搬 `PerPage` 枚举                                    |
-| popover      | 搬，新增依赖 `@radix-ui/react-popover`                                                                                           |
-| 校验错误提示 | 方案 B：只对你的带框字段、以及页面上找不到对应输入框的错误弹 toast；官方页面的输入框保留下方红字，不弹 toast。每个错误只显示一次 |
-| 组件         | 只搬组件（ui、shared 及其依赖），原样复制；不搬页面、布局、应用外壳、`users/*`、`notifications/*`                                |
-| 设计 token   | 整套搬，包括 `qr-background`；另改 `app.blade.php` 一行首屏背景色                                                                |
-| 错误页       | 不带                                                                                                                             |
-| chisel       | 保留                                                                                                                             |
-| 数据库       | MySQL；生产 8.4，CI 用 8.4                                                                                                       |
-| Boost        | 先只配 Claude Code；后来要求兼容 Codex，见阶段 11                                                                                |
-| superpowers  | 官方插件市场 `superpowers@claude-plugins-official`                                                                               |
-| 提交前检查   | 不做（和 `composer check` 重合）                                                                                                 |
-| 门禁         | 简单 Stop hook                                                                                                                   |
-| 发布         | 本地做完、验收通过后再定                                                                                                         |
+| 项           | 决定                                                                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 基底         | `laravel/react-starter-kit` main，保留官方历史，加 `upstream` remote 以便合并官方更新                                                      |
+| 官方页面     | 2026-11-23 改：官方页面、设置页、对话框和首页全部换成 shared 组件（带框字段、StackedForm、SubmitButton、ConfirmButton 等），颜色改用 token |
+| Heading      | 你的版本一字不改（无 description）；官方 7 处调用改为在 Heading 下面自己写一行说明                                                         |
+| 分页         | 组件原样搬；后端只补共享 prop `perPageOptions`（10/20/50/100）和它的类型，不搬 `PerPage` 枚举                                              |
+| popover      | 搬，新增依赖 `@radix-ui/react-popover`                                                                                                     |
+| 校验错误提示 | 方案 B：只对你的带框字段、以及页面上找不到对应输入框的错误弹 toast；官方页面的输入框保留下方红字，不弹 toast。每个错误只显示一次           |
+| 组件         | 只搬组件（ui、shared 及其依赖），原样复制；不搬页面、布局、应用外壳、`users/*`、`notifications/*`                                          |
+| 设计 token   | 整套搬，包括 `qr-background`；另改 `app.blade.php` 一行首屏背景色                                                                          |
+| 错误页       | 不带                                                                                                                                       |
+| chisel       | 保留                                                                                                                                       |
+| 数据库       | MySQL；生产 8.4，CI 用 8.4                                                                                                                 |
+| Boost        | 先只配 Claude Code；后来要求兼容 Codex，见阶段 11                                                                                          |
+| superpowers  | 官方插件市场 `superpowers@claude-plugins-official`                                                                                         |
+| 提交前检查   | 不做（和 `composer check` 重合）                                                                                                           |
+| 门禁         | 简单 Stop hook                                                                                                                             |
+| 发布         | 本地做完、验收通过后再定                                                                                                                   |
 
 ### 待定
 

@@ -19,7 +19,7 @@ description: "Catalog of this app's React components (resources/js/components/sh
 
 How this works: `useValidationErrorToasts` (registered once by the `Toaster` in `app.tsx`) toasts an error when its input sits in a boxed field, or when no input on the page has its name. It recognises a boxed field by the hidden mark `FieldError` renders. Never call the hook yourself.
 
-The starter kit's auth and settings pages still use plain inputs with `InputError` under them. When one of their fields is replaced by a boxed field, its error moves to the toast by itself; never show both.
+The starter kit's auth and settings pages, and their dialogs, use these components too. An error that does not come from an Inertia request (a failed passkey prompt) is a `toast.error` too; never show a field's error both under it and as a toast.
 
 ## Feedback
 
