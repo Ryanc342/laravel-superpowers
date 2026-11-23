@@ -1,9 +1,7 @@
-import { Form, Head } from '@inertiajs/react';
-import InputError from '@/components/input-error';
-import PasswordInput from '@/components/password-input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
+import { Head } from '@inertiajs/react';
+import PasswordField from '@/components/shared/password-field';
+import StackedForm from '@/components/shared/stacked-form';
+import SubmitButton from '@/components/shared/submit-button';
 import { store } from '@/routes/password/confirm';
 /* @chisel-passkeys */
 import {
@@ -30,36 +28,28 @@ export default function ConfirmPassword() {
             />
             {/* @end-chisel-passkeys */}
 
-            <Form {...store.form()} resetOnSuccess={['password']}>
-                {({ processing, errors }) => (
-                    <div className="space-y-6">
-                        <div className="grid gap-2">
-                            <Label htmlFor="password">Password</Label>
-                            <PasswordInput
-                                id="password"
-                                name="password"
-                                placeholder="Password"
-                                autoComplete="current-password"
-                                autoFocus
-                            />
+            <StackedForm
+                {...store.form()}
+                resetOnSuccess={['password']}
+                wideButtons
+            >
+                {({ errors }) => (
+                    <>
+                        <PasswordField
+                            id="password"
+                            label="Password"
+                            name="password"
+                            autoComplete="current-password"
+                            autoFocus
+                            error={errors.password}
+                        />
 
-                            <InputError message={errors.password} />
-                        </div>
-
-                        <div className="flex items-center">
-                            <Button
-                                type="submit"
-                                className="w-full"
-                                disabled={processing}
-                                data-test="confirm-password-button"
-                            >
-                                {processing && <Spinner />}
-                                Confirm password
-                            </Button>
-                        </div>
-                    </div>
+                        <SubmitButton data-test="confirm-password-button">
+                            Confirm password
+                        </SubmitButton>
+                    </>
                 )}
-            </Form>
+            </StackedForm>
         </>
     );
 }

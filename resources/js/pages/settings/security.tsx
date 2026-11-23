@@ -1,11 +1,10 @@
-import { Form, Head } from '@inertiajs/react';
-import { useRef } from 'react';
+import { Head } from '@inertiajs/react';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
-import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
-import PasswordInput from '@/components/password-input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import Actions from '@/components/shared/actions';
+import PasswordField from '@/components/shared/password-field';
+import Section from '@/components/shared/section';
+import StackedForm from '@/components/shared/stacked-form';
+import SubmitButton from '@/components/shared/submit-button';
 import { edit } from '@/routes/security';
 /* @chisel-passkeys */
 import type { Props as ManagePasskeysProps } from '@/components/manage-passkeys';
@@ -23,25 +22,17 @@ type Props = {
     ManageTwoFactorProps; /* @end-chisel-2fa */
 
 export default function Security(props: Props) {
-    const passwordInput = useRef<HTMLInputElement>(null);
-    const currentPasswordInput = useRef<HTMLInputElement>(null);
-
     return (
         <>
             <Head title="Security settings" />
 
-            <h1 className="sr-only">Security settings</h1>
+            <Section title="Update password">
+                <p className="text-sm text-muted-foreground">
+                    Ensure your account is using a long, random password to stay
+                    secure
+                </p>
 
-            <div className="space-y-6">
-                <div>
-                    <Heading variant="small" title="Update password" />
-                    <p className="text-sm text-muted-foreground">
-                        Ensure your account is using a long, random password to
-                        stay secure
-                    </p>
-                </div>
-
-                <Form
+                <StackedForm
                     {...SecurityController.update.form()}
                     options={{
                         preserveScroll: true,
@@ -52,84 +43,44 @@ export default function Security(props: Props) {
                         'current_password',
                     ]}
                     resetOnSuccess
-                    onError={(errors) => {
-                        if (errors.password) {
-                            passwordInput.current?.focus();
-                        }
-
-                        if (errors.current_password) {
-                            currentPasswordInput.current?.focus();
-                        }
-                    }}
-                    className="space-y-6"
                 >
-                    {({ errors, processing }) => (
+                    {({ errors }) => (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="current_password">
-                                    Current password
-                                </Label>
+                            <PasswordField
+                                id="current_password"
+                                label="Current password"
+                                name="current_password"
+                                autoComplete="current-password"
+                                error={errors.current_password}
+                            />
 
-                                <PasswordInput
-                                    id="current_password"
-                                    ref={currentPasswordInput}
-                                    name="current_password"
-                                    className="mt-1 block w-full"
-                                    autoComplete="current-password"
-                                    placeholder="Current password"
-                                />
+                            <PasswordField
+                                id="password"
+                                label="New password"
+                                name="password"
+                                autoComplete="new-password"
+                                passwordrules={props.passwordRules}
+                                error={errors.password}
+                            />
 
-                                <InputError message={errors.current_password} />
-                            </div>
+                            <PasswordField
+                                id="password_confirmation"
+                                label="Confirm password"
+                                name="password_confirmation"
+                                autoComplete="new-password"
+                                passwordrules={props.passwordRules}
+                                error={errors.password_confirmation}
+                            />
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="password">New password</Label>
-
-                                <PasswordInput
-                                    id="password"
-                                    ref={passwordInput}
-                                    name="password"
-                                    className="mt-1 block w-full"
-                                    autoComplete="new-password"
-                                    placeholder="New password"
-                                    passwordrules={props.passwordRules}
-                                />
-
-                                <InputError message={errors.password} />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="password_confirmation">
-                                    Confirm password
-                                </Label>
-
-                                <PasswordInput
-                                    id="password_confirmation"
-                                    name="password_confirmation"
-                                    className="mt-1 block w-full"
-                                    autoComplete="new-password"
-                                    placeholder="Confirm password"
-                                    passwordrules={props.passwordRules}
-                                />
-
-                                <InputError
-                                    message={errors.password_confirmation}
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                                <Button
-                                    type="submit"
-                                    disabled={processing}
-                                    data-test="update-password-button"
-                                >
+                            <Actions>
+                                <SubmitButton data-test="update-password-button">
                                     Save
-                                </Button>
-                            </div>
+                                </SubmitButton>
+                            </Actions>
                         </>
                     )}
-                </Form>
-            </div>
+                </StackedForm>
+            </Section>
 
             {/* @chisel-2fa */}
             <ManageTwoFactor

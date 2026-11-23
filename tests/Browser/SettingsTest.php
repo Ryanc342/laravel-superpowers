@@ -45,7 +45,7 @@ test('a user deletes their account', function () {
     visit('/settings/profile')
         ->press('@delete-user-button')
         ->type('password', 'password')
-        ->press('@confirm-delete-user-button')
+        ->press('[role="dialog"] button[type="submit"]')
         ->assertPathIs('/');
 
     expect(User::find($user->id))->toBeNull();

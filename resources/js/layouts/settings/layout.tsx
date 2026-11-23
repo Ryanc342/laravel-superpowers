@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
-import Heading from '@/components/heading';
+import PageHeader from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/hooks/use-current-url';
@@ -34,7 +34,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
     return (
         <div className="px-4 py-6">
             <div className="mb-8 space-y-0.5">
-                <Heading title="Settings" />
+                <PageHeader title="Settings" />
                 <p className="text-sm text-muted-foreground">
                     Manage your profile and account settings
                 </p>
@@ -70,9 +70,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                 <Separator className="my-6 lg:hidden" />
 
                 <div className="flex-1 md:max-w-2xl">
-                    <section className="max-w-xl space-y-12">
-                        {children}
-                    </section>
+                    <div className="max-w-xl space-y-12">{children}</div>
                 </div>
             </div>
         </div>

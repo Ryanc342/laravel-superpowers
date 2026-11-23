@@ -1,8 +1,8 @@
-// Components
-import { Form, Head } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
+import StackedForm from '@/components/shared/stacked-form';
+import StatusMessage from '@/components/shared/status-message';
+import SubmitButton from '@/components/shared/submit-button';
 import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
 import { logout } from '@/routes';
 import { send } from '@/routes/verification';
 
@@ -11,34 +11,25 @@ export default function VerifyEmail({ status }: { status?: string }) {
         <>
             <Head title="Email verification" />
 
-            {status === 'verification-link-sent' && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
-                    A new verification link has been sent to the email address
-                    you provided during registration.
-                </div>
-            )}
+            <div className="grid gap-6">
+                <StatusMessage
+                    message={
+                        status === 'verification-link-sent'
+                            ? 'A new verification link has been sent to the email address you provided during registration.'
+                            : undefined
+                    }
+                />
 
-            <Form {...send.form()} className="space-y-6 text-center">
-                {({ processing }) => (
-                    <>
-                        <Button
-                            type="submit"
-                            disabled={processing}
-                            variant="secondary"
-                        >
-                            {processing && <Spinner />}
-                            Resend verification email
-                        </Button>
+                <StackedForm {...send.form()} wideButtons>
+                    <SubmitButton variant="secondary">
+                        Resend verification email
+                    </SubmitButton>
+                </StackedForm>
 
-                        <TextLink
-                            href={logout()}
-                            className="mx-auto block text-sm"
-                        >
-                            Log out
-                        </TextLink>
-                    </>
-                )}
-            </Form>
+                <TextLink href={logout()} className="mx-auto text-sm">
+                    Log out
+                </TextLink>
+            </div>
         </>
     );
 }

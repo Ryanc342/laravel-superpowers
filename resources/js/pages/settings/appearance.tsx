@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import AppearanceTabs from '@/components/appearance-tabs';
-import Heading from '@/components/heading';
+import Section from '@/components/shared/section';
 import { edit as editAppearance } from '@/routes/appearance';
 
 export default function Appearance() {
@@ -8,17 +8,12 @@ export default function Appearance() {
         <>
             <Head title="Appearance settings" />
 
-            <h1 className="sr-only">Appearance settings</h1>
-
-            <div className="space-y-6">
-                <div>
-                    <Heading variant="small" title="Appearance settings" />
-                    <p className="text-sm text-muted-foreground">
-                        Update the appearance settings for your account
-                    </p>
-                </div>
+            <Section title="Appearance settings">
+                <p className="text-sm text-muted-foreground">
+                    Update the appearance settings for your account
+                </p>
                 <AppearanceTabs />
-            </div>
+            </Section>
         </>
     );
 }
