@@ -114,9 +114,12 @@ export default defineConfig({
             'resources/views/mail/*',
             // Written by Laravel Boost (boost:install, boost:update and its
             // record-rule tool), which would undo any reformatting.
+            '.agents/skills/**',
             '.ai/rules/**',
             '.claude/skills/**',
+            '.codex/config.toml',
             '.mcp.json',
+            'AGENTS.md',
             'boost.json',
             'CLAUDE.md',
         ],

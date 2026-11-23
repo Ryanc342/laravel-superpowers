@@ -348,6 +348,21 @@ composer 脚本：
 - 确认 `laravel new` 时安装器对数据库的提问，保证默认就是 MySQL。
 - 推 GitHub、提交 Packagist：等你决定。
 
+### 阶段 11：兼容 Codex
+
+- Boost 同时配 Claude Code 和 Codex（`boost.json` 的 `agents`），`boost:update` 生成 `AGENTS.md`、`.agents/skills/`、`.codex/config.toml`（Boost MCP）。这些文件从 `.gitignore` 里移出，随模板提交；Oxfmt 跳过 Boost 写的文件。
+- 门禁脚本移到两边共用的 `.ai/hooks/check.sh`：Claude Code 在 `.claude/settings.json` 里接，Codex 在 `.codex/hooks.json` 里接，都是 Stop 事件、超时 600 秒。
+- 脚本找项目根目录：有 `CLAUDE_PROJECT_DIR` 就用它，没有就用 `git rev-parse --show-toplevel`。Codex 的命令在会话目录里运行，没有这个变量。
+- 失败时退出码 2，把 `composer check` 输出的最后 60 行交回 AI 继续修；`stop_hook_active` 为真（已经被拦过一次）时放行，只用 `systemMessage` 提醒。Codex 官方文档确认这两种写法和这个字段它都支持。
+
+验收：Boost 生成的 `CLAUDE.md` 和 `AGENTS.md` 写的是新路径；`composer check` 全绿。
+
+执行记录（已完成）：
+
+- 模拟 Codex 的调用方式（不设 `CLAUDE_PROJECT_DIR`、从 `resources/js` 子目录启动）跑脚本：`composer check` 通过，退出码 0，并记下通过状态。
+- 用一个必定失败的假 `composer` 模拟失败：第一次退出码 2 并输出错误；`stop_hook_active` 为真时退出码 0，只输出 `systemMessage`。
+- **Codex 的项目 hook 要先信任才会运行**：在 Codex 里打开项目，用 `/hooks` 审核并信任 `.codex/hooks.json`。hook 内容改了以后要重新信任。
+
 ## 5. 不做的事
 
 - 从 agent kit 搬页面、布局、应用外壳、`users/*`、通知功能、资源层、Actions 层、Enums、自定义 ArchTest、plan-gate hook、自定义 skills、AGENTS.md 和 CLAUDE.md 的内容、`scripts/setup.php`、dependabot。

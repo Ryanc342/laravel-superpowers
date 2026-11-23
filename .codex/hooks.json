@@ -1,0 +1,15 @@
+{
+    "hooks": {
+        "Stop": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "bash \"$(git rev-parse --show-toplevel)/.ai/hooks/check.sh\"",
+                        "timeout": 600
+                    }
+                ]
+            }
+        ]
+    }
+}

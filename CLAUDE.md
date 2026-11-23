@@ -9,7 +9,7 @@
 - Run `composer fix` to apply the fixes Pint, Oxfmt and Oxlint can make on their own, then run `composer check` again.
 - After changing a page, a form or anything a user clicks through, also run `composer check:browser`. It builds the frontend and runs the browser tests in `tests/Browser`.
 - While working, run the narrowest tests that cover the change (`php artisan test --compact --filter=...`, `npm run test -- <file>`). `composer check` is the final gate.
-- A Stop hook (`.claude/hooks/check.sh`) runs `composer check` when a turn ends with uncommitted changes that have not passed it yet. When it reports failures, fix them before finishing.
+- A Stop hook (`.ai/hooks/check.sh`, wired up in `.claude/settings.json` for Claude Code and `.codex/hooks.json` for Codex) runs `composer check` when a turn ends with uncommitted changes that have not passed it yet. When it reports failures, fix them before finishing.
 
 ## Development Workflow (superpowers)
 

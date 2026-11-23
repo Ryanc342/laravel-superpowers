@@ -29,16 +29,13 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
-/.agents
 /.amp
 /.claude/settings.local.json
-/.codex
 /.cursor
 /.factory
 /.grok
 /.junie
 /.kiro
 /.pi
-/AGENTS.md
 /opencode.json
 /opencode.jsonc
