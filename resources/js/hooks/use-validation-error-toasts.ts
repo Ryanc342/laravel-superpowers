@@ -107,6 +107,54 @@ function firstFieldWithError(names: string[]): HTMLElement | null {
     );
 }
 
+/** Whether the user can reach the element: it is not hidden from them nor taken out of the tab order. */
+function isReachable(element: HTMLElement): boolean {
+    return (
+        element.tabIndex >= 0 &&
+        !element.hidden &&
+        element.closest('[aria-hidden="true"]') === null
+    );
+}
+
+/**
+ * What to focus for a field with an error. A choice from a list carries its
+ * name on a native select that Radix hides (`aria-hidden`, out of the tab
+ * order); the user's control is the box's visible one, the button its label
+ * points at.
+ */
+function focusTarget(field: HTMLElement): HTMLElement {
+    if (isReachable(field)) {
+        return field;
+    }
+
+    for (
+        let parent = field.parentElement;
+        parent !== null;
+        parent = parent.parentElement
+    ) {
+        if (!parent.querySelector(':scope > [data-slot="field-error"]')) {
+            continue;
+        }
+
+        const label = parent.querySelector<HTMLLabelElement>('label[for]');
+        const labelled = label ? document.getElementById(label.htmlFor) : null;
+
+        if (labelled && isReachable(labelled)) {
+            return labelled;
+        }
+
+        return (
+            Array.from(
+                parent.querySelectorAll<HTMLElement>(
+                    'button, input, select, textarea, [tabindex]',
+                ),
+            ).find(isReachable) ?? field
+        );
+    }
+
+    return field;
+}
+
 function focusField(field: HTMLElement): void {
     const reduceMotion = window.matchMedia(
         '(prefers-reduced-motion: reduce)',
@@ -153,7 +201,7 @@ export function useValidationErrorToasts(): void {
                 const field = firstFieldWithError(names);
 
                 if (field) {
-                    focusField(field);
+                    focusField(focusTarget(field));
                 }
             }, 0);
         });

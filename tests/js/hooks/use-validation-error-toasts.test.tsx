@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test';
 import FormField, { FieldError } from '@/components/shared/form-field';
+import SelectField from '@/components/shared/select-field';
 import { useValidationErrorToasts } from '@/hooks/use-validation-error-toasts';
 
 const on = vi.hoisted(() => vi.fn());
@@ -404,5 +405,35 @@ test('a control deep inside FormField (a one-time code) is a boxed field: its er
     });
     await waitFor(() =>
         expect(document.activeElement).toBe(screen.getByLabelText('Code')),
+    );
+});
+
+test('a choice from a list is focused at its visible button, not at the hidden native select that carries its name', async () => {
+    render(
+        <form>
+            <Listener />
+            <SelectField
+                id="country"
+                name="country"
+                label="Country"
+                options={[{ value: 'nz', label: 'New Zealand' }]}
+                defaultValue="nz"
+            />
+        </form>,
+    );
+    expect(
+        document.querySelector('select[name="country"]'),
+        'Radix renders the native select inside a form',
+    ).not.toBeNull();
+
+    fail({ country: 'Choose a country.' });
+
+    await waitFor(() =>
+        expect(document.activeElement).toBe(
+            screen.getByRole('combobox', { name: 'Country' }),
+        ),
+    );
+    expect(scrollIntoView.mock.contexts[0]).toBe(
+        screen.getByRole('combobox', { name: 'Country' }),
     );
 });
