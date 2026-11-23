@@ -1,9 +1,10 @@
 import { usePasskeyRegister } from '@laravel/passkeys/react';
 import { useState } from 'react';
-import InputError from '@/components/input-error';
+import { toast } from 'sonner';
+import Actions from '@/components/shared/actions';
+import SubmitButton from '@/components/shared/submit-button';
+import TextField from '@/components/shared/text-field';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 type Props = {
     onSuccess: () => void;
@@ -33,12 +34,13 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
     });
 
     const [showForm, setShowForm] = useState(false);
-    const { register, isLoading, error, isSupported } = usePasskeyRegister({
+    const { register, isLoading, isSupported } = usePasskeyRegister({
         onSuccess: () => {
             setName('');
             setShowForm(false);
             onSuccess();
         },
+        onError: (error) => toast.error(error.message),
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -78,31 +80,32 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
             className="space-y-4 rounded-lg border border-border bg-muted/50 p-4"
         >
             <div className="grid gap-2">
-                <Label htmlFor="passkey-name">Passkey name</Label>
-                <Input
+                <TextField
                     id="passkey-name"
+                    label="Passkey name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g., MacBook Pro, iPhone"
-                    className="mt-1 block w-full border-foreground/20"
+                    aria-describedby="passkey-name-hint"
                     autoFocus
                 />
-                <p className="text-xs text-muted-foreground">
-                    A name helps you identify this passkey later.
+                <p
+                    id="passkey-name-hint"
+                    className="text-xs text-muted-foreground"
+                >
+                    A name helps you identify this passkey later, such as
+                    MacBook Pro or iPhone.
                 </p>
             </div>
 
-            {error && <InputError message={error} />}
-
-            <div className="flex gap-2">
-                <Button type="submit" disabled={isLoading || !name.trim()}>
-                    {isLoading ? 'Registering...' : 'Register passkey'}
-                </Button>
+            <Actions>
                 <Button type="button" variant="ghost" onClick={handleCancel}>
                     Cancel
                 </Button>
-            </div>
+                <SubmitButton sending={isLoading} disabled={!name.trim()}>
+                    Register passkey
+                </SubmitButton>
+            </Actions>
         </form>
     );
 }
