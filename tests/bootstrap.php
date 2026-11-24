@@ -43,3 +43,43 @@ $pdo->exec(sprintf(
     $env('DB_CHARSET', 'utf8mb4'),
     $env('DB_COLLATION', 'utf8mb4_unicode_ci'),
 ));
+
+/*
+|--------------------------------------------------------------------------
+| One Test Run at a Time
+|--------------------------------------------------------------------------
+|
+| Two runs against the same test database break each other: one drops the
+| tables while the other is still inside a test, and MySQL either reports
+| a deadlock or waits on the lock with no end. It happens when the Stop
+| hook's `composer check` starts while an agent's browser tests are still
+| running in the background. So each run takes a MySQL lock named after
+| the database and holds it until it exits, and a second run waits for
+| it. The run passes the lock's name on in TEST_DATABASE_LOCK, so the
+| processes it starts, such as parallel workers, know it is held.
+|
+*/
+
+if (getenv('TEST_DATABASE_LOCK') === false) {
+    $waitMinutes = 10;
+    $lock = $pdo->prepare('SELECT GET_LOCK(?, ?)');
+    $lock->execute([$database, 0]);
+
+    if ((int) $lock->fetchColumn() !== 1) {
+        fwrite(STDERR, "Another test run is using the {$database} database. Waiting up to {$waitMinutes} minutes for it to finish.\n");
+
+        $lock->execute([$database, $waitMinutes * 60]);
+
+        if ((int) $lock->fetchColumn() !== 1) {
+            fwrite(STDERR, "Another test run kept the {$database} database for {$waitMinutes} minutes. Stop it, then run the tests again.\n");
+
+            exit(1);
+        }
+    }
+
+    // The lock ends with its connection, and PHPUnit includes this file inside a method whose variables are freed on return.
+    $GLOBALS['testDatabaseLock'] = $pdo;
+
+    putenv("TEST_DATABASE_LOCK={$database}");
+    $_ENV['TEST_DATABASE_LOCK'] = $_SERVER['TEST_DATABASE_LOCK'] = $database;
+}
