@@ -62,6 +62,14 @@ $pdo->exec(sprintf(
 | is not set. With 0 it gives up at once and exits with 1, for a caller
 | that would rather skip its run than queue behind another.
 |
+| A run that is killed, with `kill -9` for one, leaves its workers and the
+| Playwright server of the browser tests behind. They keep the lock and the
+| stdout of whoever started the run, and a command waiting on that stdout
+| never returns. So the run that takes the lock also starts
+| tests/process-watchdog.sh, cut loose from the caller's stdin, stdout and
+| stderr. It ends the run's processes when the run is gone but its marker
+| file, which the run removes when it ends on its own, is still there.
+|
 */
 
 if (getenv('TEST_DATABASE_LOCK') === false) {
@@ -93,6 +101,18 @@ if (getenv('TEST_DATABASE_LOCK') === false) {
 
     // The lock ends with its connection, and PHPUnit includes this file inside a method whose variables are freed on return.
     $GLOBALS['testDatabaseLock'] = $pdo;
+
+    $watchdogMarker = sprintf('%s/test-run-%d.marker', sys_get_temp_dir(), getmypid());
+
+    touch($watchdogMarker);
+    register_shutdown_function(static fn (): bool => @unlink($watchdogMarker));
+
+    exec(sprintf(
+        'bash %s %d %s < /dev/null > /dev/null 2>&1 &',
+        escapeshellarg(__DIR__.'/process-watchdog.sh'),
+        getmypid(),
+        escapeshellarg($watchdogMarker),
+    ));
 
     putenv("TEST_DATABASE_LOCK={$database}");
     $_ENV['TEST_DATABASE_LOCK'] = $_SERVER['TEST_DATABASE_LOCK'] = $database;
