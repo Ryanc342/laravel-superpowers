@@ -36,11 +36,20 @@ pest()->beforeEach(fn () => $this->withoutVite())->in('Feature');
 | Helpers
 |--------------------------------------------------------------------------
 |
-| Every file in tests/Support is loaded here. Put your project's own test
-| helper functions in that directory.
+| Put your project's own helper functions, custom expectations and classes
+| in tests/Support/*.php: every file there is loaded here. Configuration with
+| pest() or uses() stays in this file, with the rest of the suite's setup.
+|
+| The template's own helpers are in tests/Support/Template and load after
+| yours. Each is declared only when no function of its name exists yet, so a
+| function of yours with the same name, here or in tests/Support, replaces it.
 |
 */
 
 foreach (glob(__DIR__.'/Support/*.php') as $helperFile) {
+    require_once $helperFile;
+}
+
+foreach (glob(__DIR__.'/Support/Template/*.php') as $helperFile) {
     require_once $helperFile;
 }
