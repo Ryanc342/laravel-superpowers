@@ -5,7 +5,7 @@
 #     bash tests/process-watchdog.sh <pid> <marker-file>
 #
 # <pid> is the process of the test run and <marker-file> a file that process
-# removes when it ends on its own. Once a second the watchdog notes every
+# removes when it ends on its own. Five times a second the watchdog notes every
 # descendant of <pid>: the parallel workers and the Playwright server. When
 # <pid> is gone and the marker is still there, the run was killed, and with
 # `kill -9` nothing else cleans up behind it. The watchdog ends the descendants
@@ -86,11 +86,22 @@ descendantsOf() {
 noted=""
 
 while [ -e "$marker" ]; do
+    # List first and only keep the list when the run was still there after it:
+    # once the run has gone its children belong to init, so a list taken after
+    # that is empty and would wipe the one worth keeping.
+    snapshot=$(descendantsOf "$pid")
+
     if isRunning "$pid"; then
-        noted=$(descendantsOf "$pid")
-        sleep 1
+        noted=$snapshot
+        sleep 0.2
 
         continue
+    fi
+
+    # A run that ends on its own removes the marker just before it exits, so
+    # look again now that the run is gone.
+    if [ ! -e "$marker" ]; then
+        exit 0
     fi
 
     for descendant in $noted; do
