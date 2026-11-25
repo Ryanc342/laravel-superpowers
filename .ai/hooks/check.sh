@@ -32,6 +32,10 @@
 # other worktree is checked. Neither a busy database nor the deadline stops
 # the agent or counts as a pass; the user is told to run composer check, and
 # the next Stop checks again.
+#
+# With a controlling terminal, the check runs in a background process group,
+# so a check step that read from or changed the terminal would stop until the
+# deadline. Today's composer check has no such step.
 
 unset CDPATH
 input=$(cat)
@@ -74,9 +78,12 @@ lines() {
 }
 
 # The fields of the input this hook uses, each followed by a NUL. Input that
-# is not a JSON object gives empty fields: a Stop without a session.
+# is not a JSON object gives empty fields: a Stop without a session. PHP runs
+# without any php.ini (json is built in) and sends its errors to stderr, so
+# that a startup warning, such as one about an extension php.ini names but
+# PHP cannot load, does not end up in front of the first field.
 input_fields() {
-    printf '%s' "$input" | php -r '
+    printf '%s' "$input" | php -n -d display_errors=stderr -r '
         $input = json_decode(stream_get_contents(STDIN), true);
         $input = is_array($input) ? $input : [];
 
@@ -372,8 +379,13 @@ if [ "$event" = SessionStart ]; then
     exit 0
 fi
 
-# Any other event, or none, is a Stop.
-scratch=$(mktemp -d "${TMPDIR:-/tmp}/claude-check.XXXXXX") || exit 0
+# Any other event, or none, is a Stop. Without a directory for the checks'
+# output nothing can be checked, which is no pass either.
+if ! scratch=$(mktemp -d "${TMPDIR:-/tmp}/claude-check.XXXXXX" 2>/dev/null); then
+    echo '{"systemMessage": "composer check did not run because the hook could not create a temporary directory. Run composer check yourself."}'
+    exit 0
+fi
+
 trap 'rm -rf "$scratch"' EXIT
 
 # A TERM, INT or HUP stops the hook itself: the agent's own timeout, or an

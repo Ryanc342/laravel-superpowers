@@ -8,11 +8,15 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vite-plus/test';
-import { cleanUp, git, makeRepo, runHook } from './harness';
+import { cleanUp, git, makeRepo, runHook, temporaryDirectory } from './harness';
 
 const sessionId = 'session-1';
 
-const sessionStart = (dir: string, source = 'startup') =>
+const sessionStart = (
+    dir: string,
+    source = 'startup',
+    env?: Record<string, string>,
+) =>
     runHook(
         {
             hook_event_name: 'SessionStart',
@@ -20,7 +24,7 @@ const sessionStart = (dir: string, source = 'startup') =>
             cwd: dir,
             source,
         },
-        { projectDir: dir },
+        { projectDir: dir, env },
     );
 
 const stop = (
@@ -225,6 +229,42 @@ describe('.ai/hooks/check.sh', { timeout: 30_000 }, () => {
 
         expect(calls).toContain(`${dir} composer check`);
         expect(code).toBe(0);
+    });
+
+    it('keeps the baseline when PHP prints a startup warning', async () => {
+        const { dir } = await makeRepo();
+        // An extension in php.ini that no longer loads: PHP warns about it on
+        // stdout before the script prints anything.
+        const iniDirectory = temporaryDirectory('check-hook-php-ini-');
+        writeFileSync(
+            join(iniDirectory, 'broken.ini'),
+            'display_errors=1\ndisplay_startup_errors=1\nextension=check_hook_missing_extension\n',
+        );
+        const env = { PHP_INI_SCAN_DIR: iniDirectory };
+        write(join(dir, 'app.php'));
+        const start = await sessionStart(dir, 'startup', env);
+
+        const { code, calls } = await stop(dir, { env });
+
+        expect([...start.calls, ...calls]).toEqual([]);
+        expect(code).toBe(0);
+    });
+
+    it('tells the user when it cannot create a temporary directory', async () => {
+        const { dir } = await makeRepo();
+        await sessionStart(dir);
+        write(join(dir, 'app.php'));
+
+        const { code, stdout, calls } = await stop(dir, {
+            env: { TMPDIR: join(dir, 'missing') },
+        });
+
+        expect(code).toBe(0);
+        expect(JSON.parse(stdout)).toEqual({
+            systemMessage:
+                'composer check did not run because the hook could not create a temporary directory. Run composer check yourself.',
+        });
+        expect(calls).toEqual([]);
     });
 
     it('hands a failure back to the agent once', async () => {

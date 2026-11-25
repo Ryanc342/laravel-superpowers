@@ -47,7 +47,7 @@ const isolatedEnvironment = (): NodeJS.ProcessEnv => {
 };
 
 /** A new empty directory, removed by cleanUp(). */
-const temporaryDirectory = (prefix: string): string => {
+export const temporaryDirectory = (prefix: string): string => {
     const directory = realpathSync(mkdtempSync(join(tmpdir(), prefix)));
     temporaryDirectories.push(directory);
 
