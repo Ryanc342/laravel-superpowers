@@ -68,6 +68,11 @@ jobs:
 
       - name: Run every check
         run: composer check
+        env:
+          # Vitest loads vite.config.ts, and laravel-vite-plugin refuses to
+          # start anything but a build when CI is set (it guards against a dev
+          # server in a deploy). Running the tests is not that.
+          LARAVEL_BYPASS_ENV_CHECK: '1'
 
   browser:
     name: browser tests
