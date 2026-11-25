@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Pest\Browser\Api\PendingAwaitablePage;
 use Tests\TestCase;
 
 /*
@@ -21,22 +20,27 @@ pest()->extend(TestCase::class)
 
 /*
 |--------------------------------------------------------------------------
-| Browser Helpers
+| Vite
 |--------------------------------------------------------------------------
+|
+| Feature tests never load Vite's assets, so they need neither the dev
+| server nor a built manifest. Browser tests load the built assets for real.
+| TestCase keeps both suites away from the dev server's public/hot file.
+|
 */
 
-/**
- * Open the security settings page as the signed-in user, confirming the
- * password first (the password confirmation feature).
- */
-function visitSecurityPage(string $password = 'password'): PendingAwaitablePage
-{
-    $page = visit('/settings/security');
+pest()->beforeEach(fn () => $this->withoutVite())->in('Feature');
 
-    $page->assertPathIs('/user/confirm-password')
-        ->type('password', $password)
-        ->press('@confirm-password-button')
-        ->assertPathIs('/settings/security');
+/*
+|--------------------------------------------------------------------------
+| Helpers
+|--------------------------------------------------------------------------
+|
+| Every file in tests/Support is loaded here. Put your project's own test
+| helper functions in that directory.
+|
+*/
 
-    return $page;
+foreach (glob(__DIR__.'/Support/*.php') as $helperFile) {
+    require_once $helperFile;
 }
