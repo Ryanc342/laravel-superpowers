@@ -24,11 +24,12 @@
 ## Branches
 
 - `main` is what has been released. `develop` is where finished work comes together. Work happens on short-lived branches cut from `develop` (`feature/<name>`, `fix/<name>`) and merges back into `develop` when `composer check` and `composer check:browser` pass. `develop` goes into `main` only as a release, when the user asks for it.
-- Projects started from laravel-superpowers have a `template` remote. Template updates come only from `template/main`: cut `chore/sync-template-<YYYY-MM-DD>` from `develop`, `git merge template/main`, resolve conflicts in favour of the project's own code, run both checks, merge into `develop`. Never merge the template straight into `main`.
+- Projects started from laravel-superpowers have a `template` remote. Template updates come only from `template/main`: cut `chore/sync-template-<YYYY-MM-DD>` from `develop`, `git merge template/main`, resolve conflicts in favour of the project's own code except in the template's tooling files (below), run both checks, merge into `develop`. Never merge the template straight into `main`.
+    - Before you resolve the lock files, read `UPGRADING.md` and do what it lists for each template version (`sp-vX.Y.Z` tag) newer than the last one merged. Some of its steps change how the lock files are resolved.
+    - The template owns its tooling files: `tests/Pest.php`, `tests/bootstrap.php`, `tests/TestCase.php`, `tests/process-watchdog.sh`, `.ai/hooks/check.sh`, and the hooks block of `.claude/settings.json` and `.codex/hooks.json`. In a conflict in one of them, take the template's version (`git checkout --theirs <file>`), then add the project's own additions back.
     - Merge both sides of a `composer.json` conflict by hand.
     - For `composer.lock`, start from the project's version (`git checkout --ours composer.lock`), then run `composer update <the packages whose constraints the template changed> --no-scripts`, then `php artisan package:discover` and `php artisan boost:update`. Never add `-W`. When other packages must move too, use `--with-dependencies` and name the package.
-    - Treat `package-lock.json` the same way: start from the project's version, merge `package.json` by hand, then run `npm update <the packages the template changed>`.
-    - After every merge read `UPGRADING.md` and do what it lists for each template version (`sp-vX.Y.Z` tag) newer than the last one merged.
+    - Treat `package-lock.json` the same way: start from the project's version, merge `package.json` by hand, then run `npm update <the packages the template changed>`. Never add `--force` or `--legacy-peer-deps`.
 - Only laravel-superpowers has an `upstream` remote (laravel/react-starter-kit). Merge its updates the same way: cut `chore/sync-upstream-<YYYY-MM-DD>` from `develop`, `git merge upstream/main`, run both checks, merge into `develop`. "Ours" is always the template. Resolve conflicts like this:
     - Pages, components and styles: ours.
     - Versions of tools and dependencies: the newer official one.
@@ -48,10 +49,12 @@
 
 ## Test Runs
 
-- Never stop processes by name: no `pkill -f`, no `killall`, no `kill $(pgrep ...)`. They also hit the test runs of other projects. Stop a stuck test run only by the PID or process group you started.
+- Never stop processes by name: no `pkill -f`, no `killall`, no `kill $(pgrep ...)`. They also hit the test runs of other projects.
+- Stop a stuck test run only by the process group of the command you started: `kill -- -<pgid>`, with the group from `ps -o pgid= -p <pid>`, and only when it differs from your own shell's group, `ps -o pgid= -p $$`. That stops Pest with it. Killing only the PID of `composer` or `php artisan test` leaves Pest running to the end of the suite, still holding the test database.
 - One test run uses a test database at a time. `tests/bootstrap.php` takes a MySQL lock on it, and a second run waits `TEST_DATABASE_LOCK_WAIT` seconds (600 by default) for the lock before it gives up. `TEST_DATABASE_LOCK_WAIT=0` makes it give up at once.
-- When a test run is killed, a watchdog that `tests/bootstrap.php` starts ends the Pest workers and the Playwright server it left behind. There is nothing to clean up by hand.
-- Put your project's own Pest helper functions and expectations in `tests/Support/*.php`. `tests/Pest.php` loads every file there. Do not edit `tests/Pest.php` for them: the template owns that file, and changes to it conflict at every template sync.
+- When Pest itself is killed, a watchdog that `tests/bootstrap.php` starts ends the Pest workers and the Playwright server it left behind.
+- Put your project's own Pest helper functions, custom expectations and classes in `tests/Support/*.php`. `tests/Pest.php` loads every file there. Keep `pest()` and `uses()` configuration in `tests/Pest.php`, with the rest of the suite's setup. Do not edit `tests/Pest.php` for helpers: the template owns that file, and changes to it conflict at template syncs.
+- The template's own helpers are in `tests/Support/Template/`, which belongs to the template. They load after yours, and each is declared only when no function of its name exists yet, so a function of yours with the same name, in `tests/Pest.php` or `tests/Support`, replaces the template's.
 
 ## Architecture Rules
 
@@ -75,7 +78,7 @@
 
 ## CI
 
-- After you push `main`, watch its CI run: find it with `gh run list --branch main --limit 1`, then run `gh run watch <run-id> --exit-status`. When it fails, fix it before you merge or push anything else.
+- After you push `main`, watch its CI run: find it with `gh run list --branch main --commit "$(git rev-parse HEAD)"`, which lists nothing until GitHub has created the run, then run `gh run watch <run-id> --exit-status`. When it fails, fix it before you merge or push anything else.
 
 ## Generated Files
 

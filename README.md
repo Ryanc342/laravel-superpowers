@@ -34,17 +34,20 @@ You need PHP 8.4, Composer, Node (the version in `.node-version`), Git, and MySQ
     git push -u origin main develop
     ```
 
-4. Copy `.env.example` to `.env`, and set your own `APP_NAME` and a `DB_DATABASE` that no other project or checkout uses. The tests run in `<DB_DATABASE>_test` on the same server.
+4. Copy `.env.example` to `.env`, and set your own `APP_NAME` and a `DB_DATABASE` that no other project or checkout uses. The tests run in `<DB_DATABASE>_test` on the same server. Give `package.json` the project's own `"name"` too, in lowercase: it still has the template's.
 
     ```bash
     cp .env.example .env
     perl -pi -e 's/^APP_NAME=.*/APP_NAME="<Your App>"/; s/^DB_DATABASE=.*/DB_DATABASE=<your_app>/' .env
+    npm pkg set name=<your-app>
     ```
 
-5. Run the setup. It installs the Composer and npm packages, generates the app key, migrates (creating the database when it does not exist yet) and builds the frontend.
+5. Run the setup. It installs the Composer and npm packages (npm writes the new name into `package-lock.json`), generates the app key, migrates (creating the database when it does not exist yet) and builds the frontend. Then commit the new name.
 
     ```bash
     composer setup
+    git commit -m "Name the project" package.json package-lock.json
+    git push
     ```
 
 6. Install superpowers for Claude Code (user scope) and for Codex, and confirm both.
@@ -84,7 +87,7 @@ git fetch template --tags
 git merge template/main
 ```
 
-Resolve the conflicts as those rules say for `composer.json`, `composer.lock` and `package-lock.json`, do what [`UPGRADING.md`](UPGRADING.md) lists for every version newer than the one you were on, run `composer check` and `composer check:browser`, and merge the branch into `develop`. Never merge the template into `main`.
+Read [`UPGRADING.md`](UPGRADING.md) before you resolve the lock files, and do what it lists for every version newer than the one you were on. Resolve the conflicts as those rules say, for `composer.json`, `composer.lock`, `package-lock.json` and the template's own tooling files, run `composer check` and `composer check:browser`, and merge the branch into `develop`. Never merge the template into `main`.
 
 Merging the official starter kit's updates into the template itself follows the same rules and is described in the same place.
 
