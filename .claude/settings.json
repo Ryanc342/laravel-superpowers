@@ -1,19 +1,32 @@
 {
-    "enabledMcpjsonServers": ["laravel-boost"],
-    "hooks": {
-        "Stop": [
-            {
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "bash \"$CLAUDE_PROJECT_DIR/.ai/hooks/check.sh\"",
-                        "timeout": 600
-                    }
-                ]
-            }
+  "enabledMcpjsonServers": [
+    "laravel-boost"
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.ai/hooks/check.sh\"",
+            "timeout": 30
+          }
         ]
-    },
-    "enabledPlugins": {
-        "superpowers@claude-plugins-official": true
-    }
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.ai/hooks/check.sh\"",
+            "timeout": 600
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true
+  }
 }
