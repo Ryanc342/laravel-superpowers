@@ -58,20 +58,34 @@ $pdo->exec(sprintf(
 | it. The run passes the lock's name on in TEST_DATABASE_LOCK, so the
 | processes it starts, such as parallel workers, know it is held.
 |
+| A second run waits up to TEST_DATABASE_LOCK_WAIT seconds, 600 when it
+| is not set. With 0 it gives up at once and exits with 1, for a caller
+| that would rather skip its run than queue behind another.
+|
 */
 
 if (getenv('TEST_DATABASE_LOCK') === false) {
-    $waitMinutes = 10;
+    $waitSeconds = max(0, (int) $env('TEST_DATABASE_LOCK_WAIT', '600'));
     $lock = $pdo->prepare('SELECT GET_LOCK(?, ?)');
     $lock->execute([$database, 0]);
 
     if ((int) $lock->fetchColumn() !== 1) {
-        fwrite(STDERR, "Another test run is using the {$database} database. Waiting up to {$waitMinutes} minutes for it to finish.\n");
+        if ($waitSeconds === 0) {
+            fwrite(STDERR, "Another test run is using the {$database} database.\n");
 
-        $lock->execute([$database, $waitMinutes * 60]);
+            exit(1);
+        }
+
+        $waitTime = $waitSeconds % 60 === 0
+            ? intdiv($waitSeconds, 60).' '.($waitSeconds === 60 ? 'minute' : 'minutes')
+            : $waitSeconds.' '.($waitSeconds === 1 ? 'second' : 'seconds');
+
+        fwrite(STDERR, "Another test run is using the {$database} database. Waiting up to {$waitTime} for it to finish.\n");
+
+        $lock->execute([$database, $waitSeconds]);
 
         if ((int) $lock->fetchColumn() !== 1) {
-            fwrite(STDERR, "Another test run kept the {$database} database for {$waitMinutes} minutes. Stop it, then run the tests again.\n");
+            fwrite(STDERR, "Another test run kept the {$database} database for {$waitTime}. Stop it, then run the tests again.\n");
 
             exit(1);
         }
