@@ -8,7 +8,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vite-plus/test';
-import { git, makeRepo, removeTemporaryDirectories, runHook } from './harness';
+import { cleanUp, git, makeRepo, runHook } from './harness';
 
 const sessionId = 'session-1';
 
@@ -49,7 +49,17 @@ const write = (path: string, contents = 'changed\n') => {
 const composerChecks = (calls: string[]) =>
     calls.filter((call) => call.endsWith(' composer check'));
 
-afterEach(removeTemporaryDirectories);
+const isAlive = (pid: number): boolean => {
+    try {
+        process.kill(pid, 0);
+
+        return true;
+    } catch {
+        return false;
+    }
+};
+
+afterEach(cleanUp);
 
 describe('.ai/hooks/check.sh', { timeout: 30_000 }, () => {
     it('does not check changes that were there before the session started', async () => {
@@ -244,6 +254,63 @@ describe('.ai/hooks/check.sh', { timeout: 30_000 }, () => {
         expect(code).toBe(0);
         expect(JSON.parse(stdout)).toHaveProperty('systemMessage');
     });
+
+    it('does not block the agent when another test run holds the database', async () => {
+        const { dir } = await makeRepo();
+        await sessionStart(dir);
+        write(join(dir, 'app.php'));
+
+        const { code, stdout, commands } = await stop(dir, {
+            env: {
+                STUB_COMPOSER_EXIT: '1',
+                STUB_COMPOSER_OUTPUT:
+                    'Another test run is using the x_test database.',
+            },
+        });
+        const next = await stop(dir);
+
+        expect(code).toBe(0);
+        expect(JSON.parse(stdout)).toEqual({
+            systemMessage:
+                'Another test run is using the test database, so composer check did not run. Run composer check once it finishes.',
+        });
+        expect(commands).toContainEqual({
+            cwd: dir,
+            command: 'composer',
+            args: ['check'],
+            env: { TEST_DATABASE_LOCK_WAIT: '0' },
+        });
+        // A check that did not run is not a pass: the next stop checks.
+        expect(composerChecks(next.calls)).toHaveLength(1);
+    });
+
+    it(
+        'stops composer check at the deadline and leaves nothing running',
+        { timeout: 15_000 },
+        async () => {
+            const { dir } = await makeRepo();
+            await sessionStart(dir);
+            write(join(dir, 'app.php'));
+            const startedAt = Date.now();
+
+            const { code, stdout, childPids } = await stop(dir, {
+                env: {
+                    CHECK_HOOK_DEADLINE: '2',
+                    STUB_COMPOSER_SLEEP: '60',
+                    STUB_COMPOSER_CHILD_SLEEP: '60',
+                },
+            });
+
+            expect(Date.now() - startedAt).toBeLessThan(6_000);
+            expect(code).toBe(0);
+            expect(JSON.parse(stdout)).toEqual({
+                systemMessage:
+                    'composer check did not finish within 2 seconds and was stopped. Run composer check yourself.',
+            });
+            expect(childPids).toHaveLength(1);
+            expect(childPids.filter(isAlive)).toEqual([]);
+        },
+    );
 
     it('does not run composer check twice for changes that already passed', async () => {
         const { dir } = await makeRepo();

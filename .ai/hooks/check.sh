@@ -23,9 +23,27 @@
 # Markdown the session changed is formatted first, with the worktree's own
 # Vite+. When it changed nothing but Markdown, `vp check` on those files is
 # the whole check and Pest does not run.
+#
+# The checks run with TEST_DATABASE_LOCK_WAIT=0, so that when another test
+# run holds a worktree's test database, Pest gives up at once instead of
+# waiting for it. The whole hook has CHECK_HOOK_DEADLINE seconds, 540 by
+# default, less than the 600 the hook configurations allow it: at the
+# deadline the running check is stopped with everything it started, and no
+# other worktree is checked. Neither a busy database nor the deadline stops
+# the agent or counts as a pass; the user is told to run composer check, and
+# the next Stop checks again.
 
 unset CDPATH
 input=$(cat)
+
+# Bash counts $SECONDS from its start, so the deadline covers the whole run.
+# Anything but a whole number of seconds above 0, without leading zeros
+# (which bash arithmetic reads as octal), gets the default.
+deadline=${CHECK_HOOK_DEADLINE:-540}
+
+case $deadline in
+    '' | *[!0-9]* | 0*) deadline=540 ;;
+esac
 
 # The physical path of directory $1, so that two spellings of one directory
 # compare equal.
@@ -133,16 +151,98 @@ state_of() {
     { git -C "$1" rev-parse HEAD 2>/dev/null; lines "$2"; } | sha1
 }
 
-# Runs the command $2... in worktree $1 and puts its output in $output.
+# Ends process group $1: TERM, then KILL when anything in it is still there
+# three seconds later. Returns once the group is gone, or three seconds after
+# the KILL. It only ever signals that group.
+end_group() {
+    local signal tries
+
+    if [ -z "$1" ]; then
+        return
+    fi
+
+    for signal in TERM KILL; do
+        kill -"$signal" -- "-$1" 2>/dev/null || return 0
+        tries=0
+
+        while [ "$tries" -lt 30 ] && kill -0 -- "-$1" 2>/dev/null; do
+            sleep 0.1
+            tries=$((tries + 1))
+        done
+    done
+}
+
+# The process groups of the running check and of its watchdog, and the
+# directory that holds the check's output.
+check_group=
+watchdog_group=
+scratch=
+
+# Runs the command $2... in worktree $1, with TEST_DATABASE_LOCK_WAIT=0, and
+# puts its output in $output. The command gets a process group of its own,
+# and a watchdog ends that group, with everything the command started, when
+# the deadline comes first; $timed_out then says so. Past the deadline,
+# nothing runs.
 run_in() {
-    output=$(cd "$1" && shift && "$@" 2>&1)
+    local worktree=$1 remaining=$((deadline - SECONDS)) status
+    shift
+
+    if [ -n "$timed_out" ] || [ "$remaining" -le 0 ]; then
+        timed_out=1
+        return 1
+    fi
+
+    # With job control on, each background job gets a process group of its
+    # own, whose id is the job's pid. Neither job keeps the hook's stdout or
+    # stderr, which would keep whoever reads them waiting.
+    set -m
+    (cd "$worktree" && export TEST_DATABASE_LOCK_WAIT=0 && exec "$@") \
+        < /dev/null > "$scratch/output" 2>&1 &
+    check_group=$!
+    (sleep "$remaining" && : > "$scratch/expired" && end_group "$check_group") \
+        < /dev/null > /dev/null 2>&1 &
+    watchdog_group=$!
+    set +m
+
+    # Bash reports on stderr a job that a signal ended.
+    wait "$check_group" 2>/dev/null
+    status=$?
+
+    if [ -e "$scratch/expired" ]; then
+        # The watchdog is ending the check's group: wait until it is done.
+        wait "$watchdog_group" 2>/dev/null
+        timed_out=1
+    else
+        kill -- "-$watchdog_group" 2>/dev/null
+        wait "$watchdog_group" 2>/dev/null
+    fi
+
+    check_group= watchdog_group=
+    output=$(cat "$scratch/output")
+
+    if [ -n "$timed_out" ]; then
+        return 1
+    fi
+
+    return "$status"
+}
+
+# Whether $1, the output of a check, says that Pest gave up because another
+# test run holds the test database (tests/bootstrap.php, with
+# TEST_DATABASE_LOCK_WAIT=0).
+database_busy() {
+    printf '%s\n' "$1" | grep -q '^Another test run is using the '
 }
 
 failures=
+busy=
+timed_out=
 
 # Checks worktree $1, whose snapshot is $2, for the paths this session
 # changed there, listed in $3. Skips the check when these exact changes
-# already passed. A failed check adds the end of its output to $failures.
+# already passed. A failed check adds the end of its output to $failures;
+# one that found the test database busy sets $busy instead, and one the
+# deadline stopped sets $timed_out (run_in).
 check() {
     local worktree=$1 path passed state markdown=() only_markdown=1
     local vp=$1/node_modules/.bin/vp
@@ -172,7 +272,12 @@ check() {
     # which without it (before npm install) would fetch and run an unrelated
     # `vp` package from the npm registry.
     if [ ${#markdown[@]} -gt 0 ] && [ -x "$vp" ]; then
-        (cd "$worktree" && "$vp" fmt "${markdown[@]}") >/dev/null 2>&1
+        run_in "$worktree" "$vp" fmt "${markdown[@]}"
+
+        if [ -n "$timed_out" ]; then
+            return
+        fi
+
         state=$(state_of "$worktree" "$(snapshot "$worktree")")
     fi
 
@@ -190,8 +295,14 @@ check() {
         return
     fi
 
+    # A check that the deadline stopped, or that Pest could not run because
+    # the test database was busy, neither passed nor failed.
     if [ $# -eq 0 ] || run_in "$worktree" "$@"; then
         printf '%s\n' "$state" > "$passed"
+    elif [ -n "$timed_out" ]; then
+        return
+    elif database_busy "$output"; then
+        busy=1
     else
         failures+="
 --- $* in $worktree ---
@@ -262,9 +373,31 @@ if [ "$event" = SessionStart ]; then
 fi
 
 # Any other event, or none, is a Stop.
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/claude-check.XXXXXX") || exit 0
+trap 'rm -rf "$scratch"' EXIT
+
+# A TERM, INT or HUP stops the hook itself: the agent's own timeout, or an
+# interrupt. Whatever sends it does not reach the check's process group, so
+# end that group first. Bash would report on stderr the jobs this ends.
+stop_with() {
+    exec 2>/dev/null
+    end_group "$watchdog_group"
+    end_group "$check_group"
+    exit "$1"
+}
+
+trap 'stop_with 143' TERM
+trap 'stop_with 130' INT
+trap 'stop_with 129' HUP
+
 note_worked_in "$cwd_worktree"
 
 for worktree in "${all_worktrees[@]}"; do
+    # Past the deadline, no other worktree is checked.
+    if [ -n "$timed_out" ]; then
+        break
+    fi
+
     # Changes in a worktree the session does not work in are another
     # session's.
     if ! works_in "$worktree"; then
@@ -286,7 +419,24 @@ for worktree in "${all_worktrees[@]}"; do
     fi
 done
 
+# A check that did not run or did not finish lets the turn end and tells the
+# user. A failure in another worktree still goes back to the agent below;
+# the next Stop checks the rest again anyway.
 if [ -z "$failures" ]; then
+    message=
+
+    if [ -n "$busy" ]; then
+        message="Another test run is using the test database, so composer check did not run. Run composer check once it finishes."
+    fi
+
+    if [ -n "$timed_out" ]; then
+        message="${message:+$message }composer check did not finish within $deadline seconds and was stopped. Run composer check yourself."
+    fi
+
+    if [ -n "$message" ]; then
+        printf '{"systemMessage": "%s"}\n' "$message"
+    fi
+
     exit 0
 fi
 

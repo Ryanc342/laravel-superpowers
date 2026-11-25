@@ -17,17 +17,24 @@ const hookScript = resolve(__dirname, '../../../.ai/hooks/check.sh');
 
 const temporaryDirectories: string[] = [];
 
+/** The files the composer stubs write the pids of their background sleeps to. */
+const childPidFiles: string[] = [];
+
 /**
  * The environment of the git commands and of the hook: the test run's own,
- * without the variables of an outer git command, an outer agent session or
- * an outer run of the stubs, and with no global or system git config, so
- * that the user's settings cannot change what the tests see.
+ * without the variables of an outer git command, an outer agent session, an
+ * outer run of the hook (whose `composer check` runs these tests) or an outer
+ * run of the stubs, and with no global or system git config, so that the
+ * user's settings cannot change what the tests see.
  */
 const isolatedEnvironment = (): NodeJS.ProcessEnv => {
     const environment: NodeJS.ProcessEnv = {};
 
     for (const [key, value] of Object.entries(process.env)) {
-        if (!/^(GIT_|CLAUDE_|STUB_)/.test(key)) {
+        if (
+            !/^(GIT_|CLAUDE_|STUB_)/.test(key) &&
+            !['CHECK_HOOK_DEADLINE', 'TEST_DATABASE_LOCK_WAIT'].includes(key)
+        ) {
             environment[key] = value;
         }
     }
@@ -39,7 +46,7 @@ const isolatedEnvironment = (): NodeJS.ProcessEnv => {
     };
 };
 
-/** A new empty directory, removed by removeTemporaryDirectories(). */
+/** A new empty directory, removed by cleanUp(). */
 const temporaryDirectory = (prefix: string): string => {
     const directory = realpathSync(mkdtempSync(join(tmpdir(), prefix)));
     temporaryDirectories.push(directory);
@@ -47,8 +54,28 @@ const temporaryDirectory = (prefix: string): string => {
     return directory;
 };
 
-/** Removes every directory the harness created; call it after each test. */
-export const removeTemporaryDirectories = () => {
+/** The pids written, one per line, to the file at `path`, if it exists. */
+const pidsIn = (path: string): number[] =>
+    existsSync(path)
+        ? readFileSync(path, 'utf8').split('\n').filter(Boolean).map(Number)
+        : [];
+
+/**
+ * Kills every background sleep a composer stub started that is still there,
+ * as it is when a hook under test did not stop it, and removes every
+ * directory the harness created. Call it after each test.
+ */
+export const cleanUp = () => {
+    for (const pid of childPidFiles.flatMap(pidsIn)) {
+        try {
+            process.kill(pid, 'SIGKILL');
+        } catch {
+            // Already gone.
+        }
+    }
+
+    childPidFiles.length = 0;
+
     for (const directory of temporaryDirectories) {
         rmSync(directory, { force: true, recursive: true });
     }
@@ -84,14 +111,26 @@ const recordCall = String.raw`#!/usr/bin/env bash
 
 /**
  * The stubs on the PATH of the hook. After recording its call, the composer
- * stub prints $STUB_COMPOSER_OUTPUT, sleeps for $STUB_COMPOSER_SLEEP seconds
- * and exits with $STUB_COMPOSER_EXIT (0 when unset). The npx stub, which the
- * hook must never call, exits with 0.
+ * stub records the TEST_DATABASE_LOCK_WAIT it was given, if any, as a line
+ * "env<tab>TEST_DATABASE_LOCK_WAIT<tab><value>". It then starts a background
+ * sleep of $STUB_COMPOSER_CHILD_SLEEP seconds, when that is set, and appends
+ * its pid to $STUB_CHILD_PIDS; prints $STUB_COMPOSER_OUTPUT; sleeps for
+ * $STUB_COMPOSER_SLEEP seconds; and exits with $STUB_COMPOSER_EXIT (0 when
+ * unset). The npx stub, which the hook must never call, exits with 0.
  */
 const stubs = {
     composer:
         recordCall +
         String.raw`
+if [ -n "$TEST_DATABASE_LOCK_WAIT" ]; then
+    printf 'env\tTEST_DATABASE_LOCK_WAIT\t%s\n' "$TEST_DATABASE_LOCK_WAIT" >> "$STUB_CALLS"
+fi
+
+if [ -n "$STUB_COMPOSER_CHILD_SLEEP" ]; then
+    sleep "$STUB_COMPOSER_CHILD_SLEEP" &
+    printf '%s\n' "$!" >> "$STUB_CHILD_PIDS"
+fi
+
 if [ -n "$STUB_COMPOSER_OUTPUT" ]; then
     printf '%s\n' "$STUB_COMPOSER_OUTPUT"
 fi
@@ -149,14 +188,21 @@ export const makeRepo = async (): Promise<{
     };
 };
 
-export type Command = { cwd: string; command: string; args: string[] };
+export type Command = {
+    cwd: string;
+    command: string;
+    args: string[];
+    env?: Record<string, string>;
+};
 
 /**
  * Runs .ai/hooks/check.sh with the given input on stdin, from projectDir and
  * with CLAUDE_PROJECT_DIR set to it, and with the composer and npx stubs
  * first on the PATH. `calls` lists each call of a stub as
  * "<cwd> <command> <arguments>"; `commands` lists the same calls with their
- * arguments kept apart.
+ * arguments kept apart, and with the environment variables the stub recorded
+ * in `env`. `childPids` are the pids of the background sleeps the composer
+ * stub started.
  */
 export const runHook = async (
     input: object | string,
@@ -167,9 +213,12 @@ export const runHook = async (
     stderr: string;
     calls: string[];
     commands: Command[];
+    childPids: number[];
 }> => {
     const directory = temporaryDirectory('check-hook-stubs-');
     const callsFile = join(directory, 'calls');
+    const childPidsFile = join(directory, 'child-pids');
+    childPidFiles.push(childPidsFile);
     mkdirSync(join(directory, 'bin'));
 
     for (const [name, script] of Object.entries(stubs)) {
@@ -184,6 +233,7 @@ export const runHook = async (
             PATH: `${join(directory, 'bin')}:${process.env.PATH}`,
             CLAUDE_PROJECT_DIR: opts.projectDir,
             STUB_CALLS: callsFile,
+            STUB_CHILD_PIDS: childPidsFile,
             ...opts.env,
         },
     });
@@ -198,16 +248,25 @@ export const runHook = async (
         hook.once('close', (exitCode) => done(exitCode ?? -1)),
     );
 
-    const commands = existsSync(callsFile)
-        ? readFileSync(callsFile, 'utf8')
-              .split('\n')
-              .filter(Boolean)
-              .map((line) => {
-                  const [cwd, command, ...args] = line.split('\t');
-
-                  return { cwd, command, args };
-              })
+    const commands: Command[] = [];
+    const lines = existsSync(callsFile)
+        ? readFileSync(callsFile, 'utf8').split('\n').filter(Boolean)
         : [];
+
+    for (const line of lines) {
+        const [first, ...rest] = line.split('\t');
+
+        // A path is absolute, so a first field "env" is an environment
+        // variable of the call recorded just before.
+        if (first === 'env') {
+            const [name, value] = rest;
+            const call = commands[commands.length - 1];
+            call.env = { ...call.env, [name]: value };
+        } else {
+            const [command, ...args] = rest;
+            commands.push({ cwd: first, command, args });
+        }
+    }
 
     return {
         code,
@@ -217,5 +276,6 @@ export const runHook = async (
             [cwd, command, ...args].join(' '),
         ),
         commands,
+        childPids: pidsIn(childPidsFile),
     };
 };
