@@ -15,10 +15,24 @@ chisel is removed. The Stop hook now checks only what a session changed, with a 
     php artisan boost:update
     ```
 
-- Find the chisel markers that are left. Delete each `@chisel-` and `@end-chisel-` marker line, and keep the code between them:
+- Find the files that still hold chisel markers:
 
     ```bash
-    grep -rln '@chisel-' . --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=vendor
+    grep -rlE '@(end-)?chisel-' . --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=vendor
+    ```
+
+    A marker is a comment: `/* @chisel-x */` and `/* @end-chisel-x */`, written `{/* @chisel-x */}` inside JSX. chisel also accepted `<!-- @chisel-x -->` and `{{-- @chisel-x --}}`. Delete the comments and keep all the code, including everything between a start and an end marker. Delete a whole line only when the marker is all that is on it. When code shares the line, delete just the comment and the space beside it. The template had one such line pair, in `resources/js/pages/settings/security.tsx`:
+
+    ```tsx
+    } /* @chisel-passkeys */ & ManagePasskeysProps /* @end-chisel-passkeys */ /* @chisel-2fa */ &
+        ManageTwoFactorProps; /* @end-chisel-2fa */
+    ```
+
+    which becomes:
+
+    ```tsx
+    } & ManagePasskeysProps &
+        ManageTwoFactorProps;
     ```
 
 - Run `npm install`.

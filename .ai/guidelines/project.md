@@ -29,7 +29,7 @@
 - Only laravel-superpowers has an `upstream` remote (laravel/react-starter-kit). Merge its updates the same way: cut `chore/sync-upstream-<YYYY-MM-DD>` from `develop`, `git merge upstream/main`, run both checks, merge into `develop`. "Ours" is always the template. Resolve conflicts like this:
     - Pages, components and styles: ours.
     - Versions of tools and dependencies: the newer official one.
-    - chisel stays removed: keep its files deleted, keep `laravel/chisel` out of `composer.json`, and delete any `@chisel-` marker line the merge brings back, keeping the code between the markers.
+    - chisel stays removed: keep its files deleted and `laravel/chisel` out of `composer.json`. Strip any chisel marker the merge brings back by deleting only the comment (`/* @chisel-x */`, `/* @end-chisel-x */`, `{/* ... */}` in JSX, `<!-- ... -->`, `{{-- ... --}}`) and keeping all the code around and between the markers. Delete a whole line only when the marker is all that is on it; `UPGRADING.md` has an example of a line shared with code.
     - Everything else: keep the changes of both sides.
 - Never run `composer` or `php artisan boost:update` with `-q`, and after any `composer update`, `require` or `remove` check that `git status` shows no template file rewritten.
 
