@@ -35,7 +35,22 @@ chisel is removed. The Stop hook now checks only what a session changed, with a 
         ManageTwoFactorProps;
     ```
 
-- Run `npm install`.
+- Install the new frontend packages. The merge moves `vite-plus` to 1.8.0 and swaps the Babel React Compiler (`@rolldown/plugin-babel`, `babel-plugin-react-compiler`) for the Oxc one (`oxc-transform-react`, set up as `react({ compiler: true })` in `vite.config.ts`). A plain `npm install` stops with `ERESOLVE could not resolve`, because your `package-lock.json` still pins the exact peers of `vite-plus` 1.4.0 (`oxfmt`, `oxlint`, `vitest`) and npm cannot move them. Delete the `vite-plus` family from the lock first, so npm resolves it again against 1.8.0 and leaves every other package where it is:
+
+    ```bash
+    node -e '
+    const fs = require("fs");
+    const raw = fs.readFileSync("package-lock.json", "utf8");
+    const lock = JSON.parse(raw);
+    const family = /^node_modules\/(vite-plus|vitest|oxfmt|oxlint|oxlint-tsgolint|@vitest\/|@oxfmt\/|@oxlint\/|@oxlint-tsgolint\/|@voidzero-dev\/vite-plus-)/;
+    for (const key of Object.keys(lock.packages)) {
+        if (family.test(key)) delete lock.packages[key];
+    }
+    fs.writeFileSync("package-lock.json", JSON.stringify(lock, null, /\n( +)"/.exec(raw)[1]) + "\n");
+    '
+    npm install
+    ```
+
 - If `DB_DATABASE` in your `.env` is still `laravel`, give it a name no other project uses. The tests run in `<DB_DATABASE>_test`, so two projects that share a name also share a test database and break each other's runs. Then run `php artisan migrate --force`, which creates the new database.
 - Install superpowers for Claude Code (user scope) and for Codex, as in step 6 of "Start a new project" in the [README](README.md#start-a-new-project).
 - The new SessionStart hook in `.claude/settings.json` and `.codex/hooks.json` starts working with the next session. Until then, the Stop hook of a session that is already running has no record of what was there before, so it checks every change in the worktree it ends a turn in.
