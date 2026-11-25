@@ -1,5 +1,11 @@
 // @vitest-environment node
-import { existsSync, mkdirSync, utimesSync, writeFileSync } from 'node:fs';
+import {
+    existsSync,
+    mkdirSync,
+    rmSync,
+    utimesSync,
+    writeFileSync,
+} from 'node:fs';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vite-plus/test';
 import { git, makeRepo, removeTemporaryDirectories, runHook } from './harness';
@@ -103,6 +109,46 @@ describe('.ai/hooks/check.sh', { timeout: 30_000 }, () => {
         expect(composerChecks(calls)).toEqual([]);
     });
 
+    it("skips another session's changes in an existing worktree", async () => {
+        const { dir, addWorktree } = await makeRepo();
+        const worktree = await addWorktree('y');
+        write(join(worktree, 'other.php'));
+        await sessionStart(dir);
+        write(join(worktree, 'other.php'), 'changed again\n');
+        write(join(worktree, 'notes.md'), '# Notes\n');
+
+        const { calls } = await stop(dir);
+
+        expect(calls).toEqual([]);
+    });
+
+    it('checks what the session left in the worktree it started in', async () => {
+        const { dir, addWorktree } = await makeRepo();
+        await sessionStart(dir);
+        write(join(dir, 'app.php'));
+        const worktree = await addWorktree('x');
+
+        const { calls } = await stop(dir, { cwd: worktree });
+
+        expect(calls).toContain(`${dir} composer check`);
+    });
+
+    it('keeps checking a worktree the session worked in at an earlier stop', async () => {
+        const { dir, addWorktree } = await makeRepo();
+        await sessionStart(dir);
+        const worktree = await addWorktree('x');
+        write(join(worktree, 'app.php'));
+        const failing = { STUB_COMPOSER_EXIT: '1' };
+        await stop(dir, { cwd: worktree, env: failing });
+
+        const { calls } = await stop(dir, {
+            stopHookActive: true,
+            env: failing,
+        });
+
+        expect(calls).toContain(`${worktree} composer check`);
+    });
+
     it('keeps the first baseline when a session resumes', async () => {
         const { dir } = await makeRepo();
         await sessionStart(dir);
@@ -123,13 +169,25 @@ describe('.ai/hooks/check.sh', { timeout: 30_000 }, () => {
 
         expect(commands).toContainEqual({
             cwd: dir,
-            command: 'npx',
-            args: ['vp', 'fmt', 'docs/调研 笔记.md'],
+            command: 'vp',
+            args: ['fmt', 'docs/调研 笔记.md'],
         });
         expect(
-            calls.filter((call) => call.startsWith(`${dir} npx vp check`)),
+            calls.filter((call) => call.startsWith(`${dir} vp check`)),
         ).toHaveLength(1);
         expect(composerChecks(calls)).toEqual([]);
+    });
+
+    it('never formats Markdown when vite-plus is not installed', async () => {
+        const { dir } = await makeRepo();
+        rmSync(join(dir, 'node_modules'), { force: true, recursive: true });
+        await sessionStart(dir);
+        write(join(dir, 'notes.md'), '# Notes\n');
+
+        const { code, calls } = await stop(dir);
+
+        expect(calls).toEqual([]);
+        expect(code).toBe(0);
     });
 
     it("formats only the session's Markdown", async () => {
@@ -143,11 +201,9 @@ describe('.ai/hooks/check.sh', { timeout: 30_000 }, () => {
 
         expect(
             commands.filter(
-                ({ command, args }) => command === 'npx' && args[1] === 'fmt',
+                ({ command, args }) => command === 'vp' && args[0] === 'fmt',
             ),
-        ).toEqual([
-            { cwd: dir, command: 'npx', args: ['vp', 'fmt', 'mine.md'] },
-        ]);
+        ).toEqual([{ cwd: dir, command: 'vp', args: ['fmt', 'mine.md'] }]);
         expect(calls).toContain(`${dir} composer check`);
     });
 

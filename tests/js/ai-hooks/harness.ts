@@ -67,37 +67,7 @@ export const git = async (cwd: string, ...args: string[]) => {
 };
 
 /**
- * Creates a git repository with one commit (README.md, and a .gitignore that
- * ignores .worktrees/ as the project's does). The path is a physical one, so
- * it compares equal to the working directory the stubs record.
- */
-export const makeRepo = async (): Promise<{
-    dir: string;
-    addWorktree: (name: string) => Promise<string>;
-}> => {
-    const dir = temporaryDirectory('check-hook-repo-');
-
-    await git(dir, 'init', '-q', '-b', 'main');
-    await git(dir, 'config', 'user.email', 'test@example.com');
-    await git(dir, 'config', 'user.name', 'Test');
-    writeFileSync(join(dir, 'README.md'), '# Test\n');
-    writeFileSync(join(dir, '.gitignore'), '/.worktrees/\n');
-    await git(dir, 'add', 'README.md', '.gitignore');
-    await git(dir, 'commit', '-q', '-m', 'Start');
-
-    return {
-        dir,
-        addWorktree: async (name: string) => {
-            const worktree = join(dir, '.worktrees', name);
-            await git(dir, 'worktree', 'add', '-q', worktree);
-
-            return worktree;
-        },
-    };
-};
-
-/**
- * The start of both stubs: it appends the stub's working directory, its name
+ * The start of every stub: it appends the stub's working directory, its name
  * and its arguments, separated by tabs, as one line to $STUB_CALLS.
  */
 const recordCall = String.raw`#!/usr/bin/env bash
@@ -113,9 +83,10 @@ const recordCall = String.raw`#!/usr/bin/env bash
 `;
 
 /**
- * The stubs. After recording its call, the composer stub prints
- * $STUB_COMPOSER_OUTPUT, sleeps for $STUB_COMPOSER_SLEEP seconds and exits
- * with $STUB_COMPOSER_EXIT (0 when unset). The npx stub exits with 0.
+ * The stubs on the PATH of the hook. After recording its call, the composer
+ * stub prints $STUB_COMPOSER_OUTPUT, sleeps for $STUB_COMPOSER_SLEEP seconds
+ * and exits with $STUB_COMPOSER_EXIT (0 when unset). The npx stub, which the
+ * hook must never call, exits with 0.
  */
 const stubs = {
     composer:
@@ -132,6 +103,50 @@ fi
 exit $((STUB_COMPOSER_EXIT))
 `,
     npx: recordCall,
+};
+
+/**
+ * Puts a stub for the vite-plus binary, which records its calls and exits
+ * with 0, where npm would install it: node_modules/.bin/vp.
+ */
+const installVitePlus = (directory: string) => {
+    mkdirSync(join(directory, 'node_modules', '.bin'), { recursive: true });
+    writeFileSync(join(directory, 'node_modules', '.bin', 'vp'), recordCall);
+    chmodSync(join(directory, 'node_modules', '.bin', 'vp'), 0o755);
+};
+
+/**
+ * Creates a git repository with one commit (README.md, and a .gitignore that
+ * ignores .worktrees/ and node_modules/ as the project's does) and the
+ * vite-plus stub. A worktree added with addWorktree() gets the stub too. The
+ * paths are physical ones, so they compare equal to the working directory
+ * the stubs record.
+ */
+export const makeRepo = async (): Promise<{
+    dir: string;
+    addWorktree: (name: string) => Promise<string>;
+}> => {
+    const dir = temporaryDirectory('check-hook-repo-');
+
+    await git(dir, 'init', '-q', '-b', 'main');
+    await git(dir, 'config', 'user.email', 'test@example.com');
+    await git(dir, 'config', 'user.name', 'Test');
+    writeFileSync(join(dir, 'README.md'), '# Test\n');
+    writeFileSync(join(dir, '.gitignore'), '/.worktrees/\nnode_modules/\n');
+    await git(dir, 'add', 'README.md', '.gitignore');
+    await git(dir, 'commit', '-q', '-m', 'Start');
+    installVitePlus(dir);
+
+    return {
+        dir,
+        addWorktree: async (name: string) => {
+            const worktree = join(dir, '.worktrees', name);
+            await git(dir, 'worktree', 'add', '-q', worktree);
+            installVitePlus(worktree);
+
+            return worktree;
+        },
+    };
 };
 
 export type Command = { cwd: string; command: string; args: string[] };

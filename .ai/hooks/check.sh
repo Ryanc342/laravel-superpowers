@@ -8,18 +8,21 @@
 #
 # SessionStart records a baseline: for each worktree of the project's
 # repository (the main checkout and .worktrees/*), the files that already had
-# uncommitted changes, with a hash of their contents. At Stop, the files this
-# session changed are those whose hash differs from the baseline, the new
-# ones, and the ones it put back as they are in HEAD. A worktree is checked
-# when it has any. A worktree that appeared after SessionStart has no
-# baseline: it is checked, with all its changes, only when the session works
-# in it (the cwd of the input), since any other one most likely belongs to
-# another session. Without a session id there is no baseline, and the current
-# worktree is checked with all its changes.
+# uncommitted changes, with a hash of their contents. It also notes the
+# worktree the session starts in, and each Stop notes the worktree of its
+# cwd: the worktrees the session works in.
 #
-# Markdown the session changed is formatted first. When it changed nothing
-# but Markdown, `vp check` on those files is the whole check and Pest does
-# not run.
+# At Stop, each worktree the session works in is checked when the session
+# changed something there: a file whose hash differs from the baseline, a new
+# one, or one it put back as it is in HEAD. In a worktree that appeared after
+# SessionStart there is no baseline, so all its changes count. Changes in any
+# other worktree are another session's and are left alone. Without a session
+# id there is no baseline, and the current worktree is checked with all its
+# changes.
+#
+# Markdown the session changed is formatted first, with the worktree's own
+# Vite+. When it changed nothing but Markdown, `vp check` on those files is
+# the whole check and Pest does not run.
 
 unset CDPATH
 input=$(cat)
@@ -37,6 +40,12 @@ sha1() {
     else
         sha1sum
     fi | cut -d' ' -f1
+}
+
+# The name of the files about worktree $1 in a session's directory: the
+# SHA-1 of its path.
+key_of() {
+    printf '%s' "$1" | sha1
 }
 
 # $1 followed by a newline, or nothing when $1 is empty.
@@ -136,6 +145,7 @@ failures=
 # already passed. A failed check adds the end of its output to $failures.
 check() {
     local worktree=$1 path passed state markdown=() only_markdown=1
+    local vp=$1/node_modules/.bin/vp
 
     passed="$(git -C "$worktree" rev-parse --absolute-git-dir)/claude-check-passed"
     state=$(state_of "$worktree" "$2")
@@ -158,20 +168,26 @@ check() {
 
     # Only the session's Markdown is formatted; Markdown someone else left
     # is not touched. A check below reports what formatting could not fix.
-    if [ ${#markdown[@]} -gt 0 ]; then
-        (cd "$worktree" && npx vp fmt "${markdown[@]}") >/dev/null 2>&1
+    # Vite+ runs from the worktree's node_modules and never through npx,
+    # which without it (before npm install) would fetch and run an unrelated
+    # `vp` package from the npm registry.
+    if [ ${#markdown[@]} -gt 0 ] && [ -x "$vp" ]; then
+        (cd "$worktree" && "$vp" fmt "${markdown[@]}") >/dev/null 2>&1
         state=$(state_of "$worktree" "$(snapshot "$worktree")")
     fi
 
     if [ -z "$only_markdown" ]; then
         set -- composer check
-    elif [ ${#markdown[@]} -gt 0 ]; then
-        # Oxlint has nothing to lint in Markdown, and Oxfmt may ignore the
-        # files; neither is an error here.
-        set -- npx vp check --no-error-on-unmatched-pattern "${markdown[@]}"
-    else
+    elif [ ${#markdown[@]} -eq 0 ]; then
         # Only Markdown files were deleted: nothing to check.
         set --
+    elif [ -x "$vp" ]; then
+        # Oxlint has nothing to lint in Markdown, and Oxfmt may ignore the
+        # files; neither is an error here.
+        set -- "$vp" check --no-error-on-unmatched-pattern "${markdown[@]}"
+    else
+        # No Vite+ to check the Markdown with: no check, and no pass either.
+        return
     fi
 
     if [ $# -eq 0 ] || run_in "$worktree" "$@"; then
@@ -206,6 +222,24 @@ while IFS= read -r worktree; do
     all_worktrees+=("$worktree")
 done < <(worktrees)
 
+# The worktree the input's cwd is in.
+cwd_worktree=$(physical "$(git -C "${session_cwd:-$project}" rev-parse --show-toplevel 2>/dev/null)")
+
+# Notes in the session's directory, when it has one, that the session works
+# in worktree $1.
+note_worked_in() {
+    if [ -n "$session_id" ] && [ -d "$session_baselines" ] && [ -n "$1" ]; then
+        : > "$session_baselines/$(key_of "$1").worked-in"
+    fi
+}
+
+# Whether the session works in worktree $1: the one of the input's cwd, the
+# one it started in, or one of an earlier Stop's cwd.
+works_in() {
+    [ "$1" = "$cwd_worktree" ] ||
+        { [ -n "$session_id" ] && [ -f "$session_baselines/$(key_of "$1").worked-in" ]; }
+}
+
 if [ "$event" = SessionStart ]; then
     # Claude Code and Codex add what a SessionStart hook prints to the
     # conversation.
@@ -218,26 +252,29 @@ if [ "$event" = SessionStart ]; then
     # are still its own.
     if [ -n "$session_id" ] && mkdir -p "$baselines" && mkdir "$session_baselines" 2>/dev/null; then
         for worktree in "${all_worktrees[@]}"; do
-            snapshot "$worktree" > "$session_baselines/$(printf '%s' "$worktree" | sha1)"
+            snapshot "$worktree" > "$session_baselines/$(key_of "$worktree")"
         done
+
+        note_worked_in "$cwd_worktree"
     fi
 
     exit 0
 fi
 
 # Any other event, or none, is a Stop.
-current_worktree=$(physical "$(git -C "${session_cwd:-$project}" rev-parse --show-toplevel 2>/dev/null)")
+note_worked_in "$cwd_worktree"
 
 for worktree in "${all_worktrees[@]}"; do
-    baseline=$session_baselines/$(printf '%s' "$worktree" | sha1)
+    # Changes in a worktree the session does not work in are another
+    # session's.
+    if ! works_in "$worktree"; then
+        continue
+    fi
 
-    # Without a baseline, only the worktree the session works in is checked,
-    # and all its changes count as the session's.
+    # Without a baseline, all its changes count as the session's.
+    baseline=$session_baselines/$(key_of "$worktree")
+
     if [ -z "$session_id" ] || [ ! -f "$baseline" ]; then
-        if [ "$worktree" != "$current_worktree" ]; then
-            continue
-        fi
-
         baseline=/dev/null
     fi
 
