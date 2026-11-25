@@ -3,20 +3,17 @@ import PasswordField from '@/components/shared/password-field';
 import StackedForm from '@/components/shared/stacked-form';
 import SubmitButton from '@/components/shared/submit-button';
 import { store } from '@/routes/password/confirm';
-/* @chisel-passkeys */
 import {
     index as confirmOptions,
     store as confirmStore,
 } from '@/actions/Laravel/Passkeys/Http/Controllers/PasskeyConfirmationController';
 import PasskeyVerify from '@/components/passkey-verify';
-/* @end-chisel-passkeys */
 
 export default function ConfirmPassword() {
     return (
         <>
             <Head title="Confirm password" />
 
-            {/* @chisel-passkeys */}
             <PasskeyVerify
                 routes={{
                     options: confirmOptions(),
@@ -26,7 +23,6 @@ export default function ConfirmPassword() {
                 loadingLabel="Confirming..."
                 separator="Or confirm with password"
             />
-            {/* @end-chisel-passkeys */}
 
             <StackedForm
                 {...store.form()}

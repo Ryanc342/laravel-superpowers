@@ -22,7 +22,6 @@
 - `main` is what has been released. `develop` is where finished work comes together. Work happens on short-lived branches cut from `develop` (`feature/<name>`, `fix/<name>`) and merges back into `develop` when `composer check` and `composer check:browser` pass. `develop` goes into `main` only as a release, when the user asks for it.
 - Projects started from laravel-superpowers have a `template` remote. Template updates come only from `template/main`: cut `chore/sync-template-<YYYY-MM-DD>` from `develop`, `git merge template/main`, resolve conflicts in favour of the project's own code, run both checks, merge into `develop`. Never merge the template straight into `main`.
 - Never run `composer` or `php artisan boost:update` with `-q`, and after any `composer update`, `require` or `remove` check that `git status` shows no template file rewritten.
-- While `composer.json` still lists `php artisan install:features` under `post-update-cmd` (in laravel-superpowers itself; a new project's first run removes it), pass `--no-scripts` to `composer update`, `require` and `remove`. Otherwise `install:features` runs on the template, strips its optional features and deletes chisel. Then run `php artisan package:discover` and `php artisan boost:update` yourself.
 
 ## Git Worktrees
 

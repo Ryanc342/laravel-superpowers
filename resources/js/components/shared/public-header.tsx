@@ -12,9 +12,7 @@ import {
 } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { dashboard, home, login } from '@/routes';
-/* @chisel-registration */
 import { register } from '@/routes';
-/* @end-chisel-registration */
 import type { NavItem } from '@/types';
 
 export type PublicLink = Pick<NavItem, 'title' | 'href'>;
@@ -48,11 +46,9 @@ export default function PublicHeader({
             <Button asChild variant={isMobile ? 'outline' : 'ghost'}>
                 <Link href={login()}>Log in</Link>
             </Button>
-            {/* @chisel-registration */}
             <Button asChild>
                 <Link href={register()}>Get started</Link>
             </Button>
-            {/* @end-chisel-registration */}
         </>
     );
 

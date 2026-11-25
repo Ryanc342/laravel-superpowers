@@ -57,9 +57,7 @@ test('signed out, the bar has the logo, the page links, Log in and Get started',
     }
 
     expect(screen.getByRole('link', { name: 'Log in' })).toBeTruthy();
-    /* @chisel-registration */
     expect(screen.getByRole('link', { name: 'Get started' })).toBeTruthy();
-    /* @end-chisel-registration */
     expect(screen.queryByRole('link', { name: 'Dashboard' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Open menu' })).toBeNull();
 });
@@ -78,9 +76,7 @@ test('a bar with no page links shows only the logo and the buttons', () => {
     header(false, []);
 
     expect(screen.queryByRole('navigation', { name: 'Pages' })).toBeNull();
-    /* @chisel-registration */
     expect(screen.getByRole('link', { name: 'Get started' })).toBeTruthy();
-    /* @end-chisel-registration */
 });
 
 test('on a phone the links and buttons wait in a sheet that a menu button opens', () => {
@@ -101,11 +97,9 @@ test('on a phone the links and buttons wait in a sheet that a menu button opens'
     }
 
     expect(within(menu).getByRole('link', { name: 'Log in' })).toBeTruthy();
-    /* @chisel-registration */
     expect(
         within(menu).getByRole('link', { name: 'Get started' }),
     ).toBeTruthy();
-    /* @end-chisel-registration */
 });
 
 test('on a phone, signed in, the sheet holds the links and Dashboard', () => {

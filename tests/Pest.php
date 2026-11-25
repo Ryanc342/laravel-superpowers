@@ -27,20 +27,16 @@ pest()->extend(TestCase::class)
 
 /**
  * Open the security settings page as the signed-in user, confirming the
- * password first when the app asks for it (the password confirmation
- * feature). Kept here, in a file every app keeps, so the chisel markers
- * never sit in a test file that chisel may already have deleted.
+ * password first (the password confirmation feature).
  */
 function visitSecurityPage(string $password = 'password'): PendingAwaitablePage
 {
     $page = visit('/settings/security');
 
-    /* @chisel-password-confirmation */
     $page->assertPathIs('/user/confirm-password')
         ->type('password', $password)
         ->press('@confirm-password-button')
         ->assertPathIs('/settings/security');
-    /* @end-chisel-password-confirmation */
 
     return $page;
 }
