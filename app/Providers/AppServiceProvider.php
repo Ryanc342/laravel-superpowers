@@ -69,14 +69,20 @@ class AppServiceProvider extends ServiceProvider
             app()->isProduction(),
         );
 
-        Password::defaults(fn (): ?Password => app()->isProduction()
-            ? Password::min(12)
+        Password::defaults(function (): ?Password {
+            if (! app()->isProduction()) {
+                return null;
+            }
+
+            $password = Password::min(12)
                 ->mixedCase()
                 ->letters()
                 ->numbers()
-                ->symbols()
-                ->uncompromised()
-            : null,
-        );
+                ->symbols();
+
+            // The breach check calls haveibeenpwned, so it runs on a send only,
+            // never on a check while the user types (Precognition).
+            return request()->isPrecognitive() ? $password : $password->uncompromised();
+        });
     }
 }

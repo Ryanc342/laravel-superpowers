@@ -111,3 +111,17 @@ test('the examples menu is not shared outside local and testing', function () {
     $this->get('/dashboard')
         ->assertInertia(fn (Assert $page) => $page->where('examples', false));
 });
+
+test('a long user name does not make the page wider than a phone', function (string $path) {
+    $name = 'Bartholomew Maximilian Featherstonehaugh-Wolfeschlegelstein';
+    $this->actingAs(User::factory()->create(['name' => $name]));
+
+    // The header is up once the user menu is, so the width is measured after it.
+    // On a phone the browser widens `innerWidth` to fit what overflows, so the
+    // screen's width is the visual viewport's, which is 375.
+    visit($path)->on()->mobile()
+        ->assertPresent('@user-menu-button')
+        ->assertScript('window.visualViewport.width', 375)
+        ->assertScript('document.documentElement.scrollWidth <= window.visualViewport.width', true)
+        ->assertAttribute('@user-menu-button', 'aria-label', $name);
+})->with(['/dashboard', '/settings/profile']);

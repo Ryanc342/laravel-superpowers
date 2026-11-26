@@ -20,13 +20,15 @@ export function signOut(): void {
 
 /**
  * The signed-in user's menu, in the layout: their settings, then signing
- * out. The button shows the user's avatar, with their name unless the side
- * menu is collapsed.
+ * out. The button shows the user's avatar, with their name unless `avatarOnly`
+ * (the side menu is collapsed, or the screen is a phone's, where a long name
+ * would make the header wider than the screen). The name is then the button's
+ * accessible name.
  */
 export default function UserMenu({
-    collapsed = false,
+    avatarOnly = false,
 }: {
-    collapsed?: boolean;
+    avatarOnly?: boolean;
 }) {
     const { user } = usePage().props.auth;
 
@@ -63,10 +65,10 @@ export default function UserMenu({
                         icon={<UserOutlined />}
                     />
                 }
-                aria-label={collapsed ? user.name : undefined}
+                aria-label={avatarOnly ? user.name : undefined}
                 data-test="user-menu-button"
             >
-                {collapsed ? null : user.name}
+                {avatarOnly ? null : user.name}
             </Button>
         </Dropdown>
     );

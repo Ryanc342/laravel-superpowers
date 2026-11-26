@@ -36,6 +36,31 @@ test('a user turns on two-factor authentication', function () {
     expect($user->fresh()->two_factor_confirmed_at)->not->toBeNull();
 });
 
+/*
+ * The same button is "Continue" and then "Confirm": a click on it must only
+ * move to the code step. Sent as it is, the click would submit the still empty
+ * code, show an error before the user typed anything, and (as Fortify treats an
+ * empty code as leaving the setup) turn two-factor authentication off again.
+ */
+test('continuing to the code step sends nothing', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $page = visitSecurityPage()
+        ->press('Enable 2FA')
+        ->assertSee('Enable two-factor authentication')
+        ->press('Continue')
+        ->assertSee('Verify authentication code');
+
+    // Nothing is sent after the click, so there is nothing to wait for: a
+    // fixed wait gives a request that was sent the time to come back.
+    $page->wait(1)
+        ->assertDontSee('The provided two factor authentication code was invalid.')
+        ->assertScript("performance.getEntriesByType('resource').filter((entry) => entry.name.includes('confirmed-two-factor-authentication')).length", 0);
+
+    expect($user->fresh()->two_factor_secret)->not->toBeNull();
+});
+
 test('the setup dialog shows the key to enter by hand', function () {
     $user = User::factory()->create();
     $this->actingAs($user);

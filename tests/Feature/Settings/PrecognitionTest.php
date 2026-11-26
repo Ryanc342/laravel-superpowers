@@ -1,7 +1,9 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 
 /*
  * The settings forms are checked on the server while the user types: the same
@@ -182,4 +184,55 @@ test('the errors of the settings forms name their fields in Chinese', function (
     ])
         ->assertJsonPath('errors.current_password.0', '当前密码不能为空。')
         ->assertJsonPath('errors.password.0', '密码两次输入不一致。');
+});
+
+/*
+ * In production the password rule also asks haveibeenpwned whether the password
+ * has been in a breach. A check while typing never does: it would be a request
+ * to another service each time the user stops typing, and the send asks anyway.
+ * Outside the testing environment CSRF is checked, which these requests skip.
+ */
+describe('in production', function () {
+    beforeEach(function () {
+        app()->detectEnvironment(fn () => 'production');
+        $this->withoutMiddleware(PreventRequestForgery::class);
+    });
+
+    $newPassword = [
+        'current_password' => 'password',
+        'password' => 'Correct-Horse-Battery-9',
+        'password_confirmation' => 'Correct-Horse-Battery-9',
+    ];
+
+    test('a precognitive check never asks haveibeenpwned about the new password', function () use ($newPassword) {
+        Http::fake();
+
+        $this->actingAs(User::factory()->create())
+            ->withPrecognition()
+            ->putJson(route('user-password.update'), $newPassword)
+            ->assertNoContent();
+
+        Http::assertNothingSent();
+    });
+
+    test('a send asks haveibeenpwned about the new password', function () use ($newPassword) {
+        Http::fake();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->putJson(route('user-password.update'), $newPassword)
+            ->assertRedirect();
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.pwnedpasswords.com'));
+        expect(Hash::check('Correct-Horse-Battery-9', $user->fresh()->password))->toBeTrue();
+    });
+
+    test('a send with a password that is in a breach is refused', function () use ($newPassword) {
+        $hash = strtoupper(sha1('Correct-Horse-Battery-9'));
+        Http::fake(['api.pwnedpasswords.com/*' => Http::response(substr($hash, 5).':9999')]);
+
+        $this->actingAs(User::factory()->create())
+            ->putJson(route('user-password.update'), $newPassword)
+            ->assertJsonValidationErrors('password');
+    });
 });

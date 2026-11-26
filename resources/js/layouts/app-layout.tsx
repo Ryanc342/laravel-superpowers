@@ -200,7 +200,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             actionsRender={() => [<LanguageSwitch key="language" />]}
             avatarProps={{
                 render: (_avatar, _dom, menuProps) => (
-                    <UserMenu collapsed={menuProps.collapsed && !isPhone} />
+                    <UserMenu avatarOnly={isPhone || menuProps.collapsed} />
                 ),
             }}
             pageTitleRender={() => ''}

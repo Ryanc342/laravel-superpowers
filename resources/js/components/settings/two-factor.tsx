@@ -25,9 +25,6 @@ import {
 import { ResponsiveModal } from '@/ui/dialog';
 import { useInertiaForm } from '@/ui/form';
 
-/** Ties the dialog's OK button to its form, which is rendered in the dialog. */
-const FORM_ID = 'confirm-two-factor-form';
-
 /** Sends a request and settles when the server has answered, which keeps a popconfirm's button busy. */
 function sendRequest(
     route: Parameters<typeof router.visit>[0],
@@ -150,7 +147,9 @@ function SetupDialog({
                 open={open}
                 title={t('Verify authentication code')}
                 okText={t('Confirm')}
-                okButtonProps={{ htmlType: 'submit', form: FORM_ID }}
+                // The button is "Continue" on the step before, and the same
+                // element: a submit button here would submit on that click.
+                onOk={() => formProps.form.submit()}
                 cancelText={t('Back')}
                 cancelButtonProps={{
                     onClick: () => setIsVerifying(false),
@@ -168,7 +167,7 @@ function SetupDialog({
                             title={unplacedErrors.join(' ')}
                         />
                     )}
-                    <Form {...formProps} id={FORM_ID} preserve={false}>
+                    <Form {...formProps} preserve={false}>
                         <Form.Item name="code">
                             <Input.OTP
                                 length={OTP_MAX_LENGTH}

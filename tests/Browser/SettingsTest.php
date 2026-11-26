@@ -140,9 +140,7 @@ test('a user deletes their account', function () {
 });
 
 test('a user deletes their account from the sheet that rises on a phone', function () {
-    // A short name: the phone header is wider than the screen for a long one,
-    // which moves the sheet's button out of the visible part of the screen.
-    $user = User::factory()->create(['name' => 'Ann']);
+    $user = User::factory()->create();
     $this->actingAs($user);
 
     // The settings menu lies across on a phone: the page has taken the width,
