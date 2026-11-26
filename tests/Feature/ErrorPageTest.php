@@ -17,7 +17,7 @@ use Symfony\Component\HttpFoundation\Cookie;
 beforeEach(function () {
     config(['app.debug' => false]);
 
-    Route::middleware('web')->match(['get', 'post'], 'test/abort/{status}', fn (int $status) => abort($status));
+    Route::middleware('web')->any('test/abort/{status}', fn (int $status) => abort($status));
 });
 
 test('each of the six statuses renders the error page with its status', function (int $status) {
@@ -104,20 +104,37 @@ test('maintenance mode starts the 503 page in the theme the visitor chose', func
         ->assertSee('<html lang="en" class="dark">', false);
 });
 
+test('a 419 from a GET renders the error page, with its Refresh button', function () {
+    $this->get('test/abort/419')
+        ->assertStatus(419)
+        ->assertInertia(fn (Assert $page) => $page->component('error')->where('status', 419));
+});
+
+// A form submit is an Inertia visit with a method other than GET. It has to see a 303 and not a 302 after
+// a PUT, a PATCH or a DELETE, and the page it goes back to keeps what was typed (state is kept on a visit
+// that is not a GET).
+test('a 419 from a submit goes back with a translated error toast', function (string $method) {
+    $this->withUnencryptedCookie('locale', 'zh_CN')
+        ->from('/settings/profile')
+        ->{$method}('test/abort/419')
+        ->assertStatus(303)
+        ->assertRedirect('/settings/profile')
+        ->assertInertiaFlash('toast', ['type' => 'error', 'message' => '页面已过期，请重试。']);
+})->with(['post', 'put', 'patch', 'delete']);
+
 // The test environment skips CSRF; a local one checks it, as production does. The check comes before the
-// language is set, so the page is in the language the user saved only if the error page sets it itself.
-test('a form sent with a stale CSRF token gets the 419 page in the signed-in user\'s language', function () {
+// language is set, so the toast is in the language the user saved only if the handler sets it itself.
+test('a form sent with a stale CSRF token goes back with the toast in the signed-in user\'s language', function () {
     $user = User::factory()->create(['locale' => 'zh_CN']);
     app()->detectEnvironment(fn () => 'local');
 
     $this->actingAs($user)
+        ->from('/settings/profile')
         ->post(route('logout'))
-        ->assertStatus(419)
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('error')
-            ->where('status', 419)
-            ->where('locale', 'zh_CN')
-            ->where('auth.user.id', $user->id));
+        ->assertRedirect('/settings/profile')
+        ->assertInertiaFlash('toast', ['type' => 'error', 'message' => '页面已过期，请重试。']);
+
+    $this->assertAuthenticatedAs($user);
 });
 
 test('a throttled login gets the 429 page, with its sentences in the visitor\'s language', function () {

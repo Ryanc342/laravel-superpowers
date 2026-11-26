@@ -150,5 +150,6 @@
     "We're updating the system. Try again in a few minutes.": "我们正在更新系统，请几分钟后重试。",
     "Back to dashboard": "返回仪表盘",
     "Back to home": "返回首页",
-    "Refresh the page": "刷新页面"
+    "Refresh the page": "刷新页面",
+    "The page expired. Try again.": "页面已过期，请重试。"
 }

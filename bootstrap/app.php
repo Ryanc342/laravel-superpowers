@@ -40,6 +40,10 @@ return Application::configure(basePath: dirname(__DIR__))
          * (503) ahead of the whole web group. So the theme and the language are set here and the shared
          * props are added here, whether or not the middleware ran. If the page cannot be made (the
          * database is down, say), the plain response stays.
+         *
+         * An expired page (419) on a submit does not replace the form: it goes back, with a flashed toast,
+         * and the form keeps what was typed. The redirect is a 303, as Inertia needs after a PUT, a PATCH
+         * or a DELETE. On a GET it is the error page, with its Refresh button.
          */
         Inertia::handleExceptionsUsing(function (ExceptionResponse $error) use ($rendersJson): ?Response {
             $status = $error->statusCode();
@@ -53,6 +57,12 @@ return Application::configure(basePath: dirname(__DIR__))
             try {
                 foreach ([HandleAppearance::class, SetLocale::class] as $middleware) {
                     app($middleware)->handle($error->request, fn () => $error->response);
+                }
+
+                if ($status === 419 && ! $error->request->isMethodSafe()) {
+                    Inertia::flash('toast', ['type' => 'error', 'message' => __('The page expired. Try again.')]);
+
+                    return back(303);
                 }
 
                 $page = $error->render('error', ['status' => $status])

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Facades\Route;
 
 /*
  * The error page in a browser: a URL no route matches is the 404 page, with
@@ -49,3 +50,18 @@ test('the error page renders in dark mode and on a phone without JavaScript erro
     $page->assertSee('Page not found')
         ->assertNoJavaScriptErrors();
 })->with(['dark', 'mobile']);
+
+// Laravel lets a same-origin browser request pass the CSRF check on its origin alone, so a stale token
+// cannot make a 419 here: the profile route answers 419 itself, as the check would.
+test('a form sent after its page expired stays filled in and shows a toast', function () {
+    $this->actingAs(User::factory()->create());
+    Route::getRoutes()->getByName('profile.update')->uses(fn () => abort(419));
+
+    visit('/settings/profile')
+        ->type('name', 'A New Name')
+        ->press('@update-profile-button')
+        ->assertSee('The page expired. Try again.')
+        ->assertValue('name', 'A New Name')
+        ->assertPathIs('/settings/profile')
+        ->assertNoJavaScriptErrors();
+});
