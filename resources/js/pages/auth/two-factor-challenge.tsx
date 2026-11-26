@@ -1,125 +1,90 @@
 import { Head, setLayoutProps } from '@inertiajs/react';
-import { REGEXP_ONLY_DIGITS } from 'input-otp';
-import { useMemo, useState } from 'react';
-import FormField from '@/components/shared/form-field';
-import StackedForm from '@/components/shared/stacked-form';
-import SubmitButton from '@/components/shared/submit-button';
-import TextField from '@/components/shared/text-field';
-import { textLinkClassName } from '@/components/text-link';
-import {
-    InputOTP,
-    InputOTPGroup,
-    InputOTPSlot,
-} from '@/components/ui/input-otp';
-import { OTP_MAX_LENGTH } from '@/hooks/use-two-factor-auth';
+import { Button, Flex, Form, Input } from 'antd';
+import { useState } from 'react';
+import FormAlerts from '@/components/auth/form-alerts';
+import { msg, t } from '@/lib/i18n';
 import { store } from '@/routes/two-factor/login';
+import { useInertiaForm } from '@/ui/form';
+
+/** The page's title and description for each way of confirming the sign-in. */
+const CODE_LAYOUT = {
+    title: msg('Authentication code'),
+    description: msg('Enter the code from your authenticator app'),
+};
+const RECOVERY_LAYOUT = {
+    title: msg('Recovery code'),
+    description: msg('Enter one of your emergency recovery codes'),
+};
 
 export default function TwoFactorChallenge() {
-    const [showRecoveryInput, setShowRecoveryInput] = useState<boolean>(false);
-    const [code, setCode] = useState<string>('');
+    const [usesRecoveryCode, setUsesRecoveryCode] = useState(false);
+    const { formProps, processing, unplacedErrors } = useInertiaForm(
+        store(),
+        { code: '', recovery_code: '' },
+        { precognitive: false },
+    );
 
-    const authConfigContent = useMemo<{
-        title: string;
-        description: string;
-        toggleText: string;
-    }>(() => {
-        if (showRecoveryInput) {
-            return {
-                title: 'Recovery code',
-                description:
-                    'Please confirm access to your account by entering one of your emergency recovery codes.',
-                toggleText: 'login using an authentication code',
-            };
-        }
-
-        return {
-            title: 'Authentication code',
-            description:
-                'Enter the authentication code provided by your authenticator application.',
-            toggleText: 'login using a recovery code',
-        };
-    }, [showRecoveryInput]);
-
-    setLayoutProps({
-        title: authConfigContent.title,
-        description: authConfigContent.description,
-    });
-
-    const toggleRecoveryMode = (clearErrors: () => void): void => {
-        setShowRecoveryInput(!showRecoveryInput);
-        clearErrors();
-        setCode('');
+    // A visit starts with the code's title (`layout` below), which is also the
+    // server render's. A switch is a click, not a render, so it can set them.
+    const toggleRecoveryCode = (): void => {
+        setLayoutProps(usesRecoveryCode ? CODE_LAYOUT : RECOVERY_LAYOUT);
+        setUsesRecoveryCode(!usesRecoveryCode);
     };
 
     return (
         <>
-            <Head title="Two-factor authentication" />
+            <Head title={t('Two-factor authentication')} />
 
-            <StackedForm
-                {...store.form()}
-                resetOnError
-                resetOnSuccess={!showRecoveryInput}
-                wideButtons
-            >
-                {({ errors, processing, clearErrors }) => (
-                    <>
-                        {showRecoveryInput ? (
-                            <TextField
-                                label="Recovery code"
-                                name="recovery_code"
-                                type="text"
-                                autoFocus={showRecoveryInput}
-                                required
-                                error={errors.recovery_code}
-                            />
-                        ) : (
-                            <FormField
-                                label="Authentication code"
-                                htmlFor="code"
-                                error={errors.code}
-                                hideLabel
-                                className="justify-items-center"
-                            >
-                                <InputOTP
-                                    id="code"
-                                    name="code"
-                                    maxLength={OTP_MAX_LENGTH}
-                                    value={code}
-                                    onChange={(value) => setCode(value)}
-                                    disabled={processing}
-                                    pattern={REGEXP_ONLY_DIGITS}
-                                    autoFocus
-                                >
-                                    <InputOTPGroup>
-                                        {Array.from(
-                                            { length: OTP_MAX_LENGTH },
-                                            (_, index) => (
-                                                <InputOTPSlot
-                                                    key={index}
-                                                    index={index}
-                                                />
-                                            ),
-                                        )}
-                                    </InputOTPGroup>
-                                </InputOTP>
-                            </FormField>
-                        )}
+            <FormAlerts errors={unplacedErrors} />
 
-                        <SubmitButton>Continue</SubmitButton>
-
-                        <p className="text-center text-sm text-muted-foreground">
-                            <span>or you can </span>
-                            <button
-                                type="button"
-                                className={`cursor-pointer ${textLinkClassName}`}
-                                onClick={() => toggleRecoveryMode(clearErrors)}
-                            >
-                                {authConfigContent.toggleText}
-                            </button>
-                        </p>
-                    </>
+            {/* A field that leaves the form takes its value and error with it. */}
+            <Form {...formProps} noValidate preserve={false}>
+                {usesRecoveryCode ? (
+                    <Form.Item
+                        label={t('Recovery code')}
+                        name="recovery_code"
+                        required
+                    >
+                        <Input
+                            name="recovery_code"
+                            autoFocus
+                            autoComplete="off"
+                        />
+                    </Form.Item>
+                ) : (
+                    <Form.Item name="code">
+                        <Input.OTP
+                            length={6}
+                            autoFocus
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            aria-label={t('Authentication code')}
+                            data-test="code"
+                            formatter={(value) => value.replaceAll(/\D/g, '')}
+                        />
+                    </Form.Item>
                 )}
-            </StackedForm>
+
+                <Form.Item>
+                    <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={processing}
+                    >
+                        {t('Continue')}
+                    </Button>
+                </Form.Item>
+
+                <Flex justify="center">
+                    <Button type="link" onClick={toggleRecoveryCode}>
+                        {usesRecoveryCode
+                            ? t('Use an authentication code')
+                            : t('Use a recovery code')}
+                    </Button>
+                </Flex>
+            </Form>
         </>
     );
 }
+
+TwoFactorChallenge.layout = CODE_LAYOUT;

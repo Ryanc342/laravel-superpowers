@@ -1,8 +1,9 @@
 import { act, render, screen } from '@testing-library/react';
+import { App } from 'antd';
 import { toast } from 'sonner';
 import { afterEach, expect, test, vi } from 'vite-plus/test';
+import PasskeySignIn from '@/components/auth/passkey-sign-in';
 import PasskeyRegistration from '@/components/passkey-register';
-import PasskeyVerify from '@/components/passkey-verify';
 
 type HookOptions = { onError?: (error: Error) => void };
 
@@ -37,12 +38,29 @@ afterEach(() => {
     passkeys.error = null;
 });
 
-test.each([
-    ['signing in', () => <PasskeyVerify />],
-    ['adding a passkey', () => <PasskeyRegistration onSuccess={vi.fn()} />],
-])('a failed passkey prompt while %s is a toast', (_, component) => {
+test('a failed passkey prompt while signing in is an antd message, not text in the page', async () => {
     passkeys.error = 'The passkey prompt was cancelled.';
-    render(component());
+    const { container } = render(
+        <App>
+            <PasskeySignIn />
+        </App>,
+    );
+
+    act(() => {
+        passkeys.options?.onError?.(
+            new Error('The passkey prompt was cancelled.'),
+        );
+    });
+
+    const shown = await screen.findByText('The passkey prompt was cancelled.');
+
+    expect(shown.closest('.ant-message')).not.toBeNull();
+    expect(container.contains(shown)).toBe(false);
+});
+
+test('a failed passkey prompt while adding a passkey is a toast', () => {
+    passkeys.error = 'The passkey prompt was cancelled.';
+    render(<PasskeyRegistration onSuccess={vi.fn()} />);
 
     act(() => {
         passkeys.options?.onError?.(

@@ -3,14 +3,17 @@ import { Card, Col, Flex, Row, theme, Typography } from 'antd';
 import type { ReactNode } from 'react';
 import AppLogo from '@/components/app-logo';
 import LanguageSwitch from '@/components/language-switch';
+import { t } from '@/lib/i18n';
 import { home } from '@/routes';
 
 /**
  * The layout of the sign-in pages: a card in the middle of the screen, with
  * the language switch, the app's mark (a link home), the page's title and
- * description, and the page. The page sets `title` and `description`, already
- * translated, as layout props. The title is the page's one h1, in the size of
- * antd's third heading level.
+ * description, and the page. The page sets `title` and `description` as layout
+ * props, in English and marked with `msg()`, and the layout translates them:
+ * a page's layout props are read before the root layout hands over the
+ * language, so only here is `t()` in the page's language. The title is the
+ * page's one h1, in the size of antd's third heading level.
  */
 export default function AuthLayout({
     title = '',
@@ -49,11 +52,11 @@ export default function AuthLayout({
                                     lineHeight: token.lineHeightHeading3,
                                 }}
                             >
-                                {title}
+                                {t(title)}
                             </Typography.Title>
                             {description && (
                                 <Typography.Text type="secondary">
-                                    {description}
+                                    {t(description)}
                                 </Typography.Text>
                             )}
                         </Flex>

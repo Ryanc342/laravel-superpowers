@@ -57,7 +57,6 @@ function page(component: string, url: string): Page {
             examples: true,
             sidebarOpen: true,
             perPageOptions: [10, 20, 50, 100],
-            canResetPassword: true,
         },
     } as unknown as Page;
 }

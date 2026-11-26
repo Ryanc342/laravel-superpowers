@@ -14,6 +14,9 @@ import type { RouteDefinition } from '@/wayfinder';
  * the server's errors show under their fields. Prefer Pro's date fields, which
  * format their own value; a plain antd picker with a time names its format in
  * `dateFormats`.
+ *
+ * Fortify's forms are submit-only (`precognitive: false`), because Fortify
+ * validates inside its actions, which Precognition cannot reach.
  */
 
 /** A field's name as antd writes it: `['items', 0, 'name']`. */

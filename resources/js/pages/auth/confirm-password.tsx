@@ -1,57 +1,66 @@
-import { Head } from '@inertiajs/react';
-import PasswordField from '@/components/shared/password-field';
-import StackedForm from '@/components/shared/stacked-form';
-import SubmitButton from '@/components/shared/submit-button';
-import { store } from '@/routes/password/confirm';
+import { Head, usePage } from '@inertiajs/react';
+import { Button, Form, Input } from 'antd';
 import {
     index as confirmOptions,
     store as confirmStore,
 } from '@/actions/Laravel/Passkeys/Http/Controllers/PasskeyConfirmationController';
-import PasskeyVerify from '@/components/passkey-verify';
+import FormAlerts from '@/components/auth/form-alerts';
+import PasskeySignIn from '@/components/auth/passkey-sign-in';
+import { msg, t } from '@/lib/i18n';
+import { store } from '@/routes/password/confirm';
+import { useInertiaForm } from '@/ui/form';
 
 export default function ConfirmPassword() {
+    const { features } = usePage().props;
+    const { formProps, processing, unplacedErrors } = useInertiaForm(
+        store(),
+        { password: '' },
+        { precognitive: false, resetOnSuccess: ['password'] },
+    );
+
     return (
         <>
-            <Head title="Confirm password" />
+            <Head title={t('Confirm password')} />
 
-            <PasskeyVerify
-                routes={{
-                    options: confirmOptions(),
-                    submit: confirmStore(),
-                }}
-                label="Confirm with passkey"
-                loadingLabel="Confirming..."
-                separator="Or confirm with password"
-            />
+            {features.passkeys && (
+                <PasskeySignIn
+                    routes={{
+                        options: confirmOptions(),
+                        submit: confirmStore(),
+                    }}
+                    label={t('Confirm with passkey')}
+                    loadingLabel={t('Confirming...')}
+                    separator={t('Or confirm with password')}
+                />
+            )}
 
-            <StackedForm
-                {...store.form()}
-                resetOnSuccess={['password']}
-                wideButtons
-            >
-                {({ errors }) => (
-                    <>
-                        <PasswordField
-                            id="password"
-                            label="Password"
-                            name="password"
-                            autoComplete="current-password"
-                            autoFocus
-                            error={errors.password}
-                        />
+            <FormAlerts errors={unplacedErrors} />
 
-                        <SubmitButton data-test="confirm-password-button">
-                            Confirm password
-                        </SubmitButton>
-                    </>
-                )}
-            </StackedForm>
+            <Form {...formProps} noValidate>
+                <Form.Item label={t('Password')} name="password" required>
+                    <Input.Password
+                        name="password"
+                        autoFocus
+                        autoComplete="current-password"
+                    />
+                </Form.Item>
+
+                <Form.Item>
+                    <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={processing}
+                        data-test="confirm-password-button"
+                    >
+                        {t('Confirm password')}
+                    </Button>
+                </Form.Item>
+            </Form>
         </>
     );
 }
 
 ConfirmPassword.layout = {
-    title: 'Confirm password',
-    description:
-        'This is a secure area of the application. Please confirm your password before continuing.',
+    title: msg('Confirm password'),
+    description: msg('Confirm your password to continue'),
 };

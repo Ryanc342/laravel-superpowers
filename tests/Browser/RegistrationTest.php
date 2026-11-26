@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Laravel\Fortify\Features;
 
 test('a visitor creates an account', function () {
     visit('/register')
@@ -17,4 +18,19 @@ test('a visitor creates an account', function () {
 
 test('the registration page renders without JavaScript errors', function () {
     visit('/register')->assertNoJavaScriptErrors();
+});
+
+test('the login page links to registration', function () {
+    visit('/login')
+        ->assertSee("Don't have an account?")
+        ->assertSee('Sign up');
+});
+
+test('registration turned off hides every sign-up link', function () {
+    turnFortifyFeatureOff(Features::registration());
+
+    visit('/login')
+        ->assertSee('Log in to your account')
+        ->assertDontSee("Don't have an account?")
+        ->assertDontSee('Sign up');
 });

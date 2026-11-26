@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Laravel\Fortify\Features;
 
 /*
  * Registering a real passkey needs a WebAuthn authenticator, which a
@@ -14,4 +15,16 @@ test('the security page shows the passkeys section', function () {
         ->assertSee('Passkeys')
         ->assertSee('No passkeys yet')
         ->assertNoJavaScriptErrors();
+});
+
+test('the login page offers to sign in with a passkey', function () {
+    visit('/login')->assertSee('Sign in with a passkey');
+});
+
+test('passkeys turned off hide the passkey sign-in on the login page', function () {
+    turnFortifyFeatureOff(Features::passkeys());
+
+    visit('/login')
+        ->assertSee('Log in to your account')
+        ->assertDontSee('Sign in with a passkey');
 });

@@ -13,7 +13,7 @@ import { edit } from '@/routes/profile';
  * Signing out drops the pages Inertia prefetched, so the next user of the
  * browser cannot be shown this user's pages from the cache.
  */
-function signOut(): void {
+export function signOut(): void {
     router.flushAll();
     router.visit(logout());
 }
