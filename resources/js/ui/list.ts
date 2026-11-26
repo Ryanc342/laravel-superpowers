@@ -1,0 +1,268 @@
+import { router } from '@inertiajs/react';
+import type {
+    ProFormInstance,
+    ProTableProps,
+} from '@ant-design/pro-components';
+import { Grid } from 'antd';
+import { useEffect, useRef } from 'react';
+import type { Key, RefObject } from 'react';
+import { tChoice } from '@/lib/i18n';
+
+/**
+ * The glue between a list on the server and `ProTable`. A list's page, rows
+ * per page, sort and filters live in the URL, so a visit to a detail page and
+ * back shows the same page, and rows per page is nowhere else. The server half
+ * is `App\Http\Requests\ListRequest`: it reads the URL and sends the list as
+ * one prop, which is `ListProps`. `useInertiaTable` turns that prop into
+ * `ProTable`'s props, and every change the user makes becomes an Inertia
+ * visit that reloads only that prop.
+ *
+ * Two lists on one page have their own `prefix` (`orders_`), and so their own
+ * query keys: `orders_page`, `orders_per_page`, `orders_sort` and
+ * `orders_filter[status]`.
+ */
+
+/** A list as `ListRequest::toProps` sends it. */
+export type ListProps<Row> = {
+    rows: Row[];
+    total: number;
+    page: number;
+    perPage: number;
+    /** The choices for rows per page: the server validates `per_page` against them. */
+    perPageOptions: number[];
+    /** `total` or `-total` (descending), or null for the list's own order. */
+    sort: string | null;
+    /** The filters in force, by name. PHP sends none as `[]`, not `{}`. */
+    filters: Record<string, unknown> | [];
+    /** The start of this list's query keys: `''`, or `orders_`. */
+    prefix: string;
+};
+
+/** What the user changed. Anything not named stays as the URL has it. */
+export type ListChange = {
+    page?: number;
+    perPage?: number;
+    /** `total` or `-total`, or null to clear the sort. */
+    sort?: string | null;
+    /**
+     * All the filters at once: they replace the URL's. A date goes in as text,
+     * which is what Pro's search form gives for a date column.
+     */
+    filters?: Record<string, unknown>;
+};
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    return (
+        typeof value === 'object' &&
+        value !== null &&
+        Object.getPrototypeOf(value) === Object.prototype
+    );
+}
+
+/** A filter that says nothing. A switch that is off is not empty: it filters. */
+function isEmptyFilter(value: unknown): boolean {
+    return (
+        value === undefined ||
+        value === null ||
+        value === '' ||
+        (Array.isArray(value) && value.length === 0)
+    );
+}
+
+/**
+ * Writes a filter value under `key` as the text PHP reads back: a list as
+ * `key[0]`, `key[1]`, an object as `key[name]`, and a switch as `1` or `0`,
+ * which is what Laravel's `boolean` rule accepts.
+ */
+function flattenFilter(
+    key: string,
+    value: unknown,
+    into: Record<string, string>,
+): void {
+    if (isEmptyFilter(value)) {
+        return;
+    }
+
+    if (Array.isArray(value)) {
+        value.forEach((item, index) =>
+            flattenFilter(`${key}[${index}]`, item, into),
+        );
+    } else if (isPlainObject(value)) {
+        for (const [name, item] of Object.entries(value)) {
+            flattenFilter(`${key}[${name}]`, item, into);
+        }
+    } else if (typeof value === 'boolean') {
+        into[key] = value ? '1' : '0';
+    } else {
+        into[key] = String(value);
+    }
+}
+
+/**
+ * The query string after a change, as the data of an Inertia visit. It keeps
+ * every key the change does not name, including another list's, and writes
+ * this list's keys under its prefix. A list goes back to its first page when
+ * anything but the page changes, because the page that was shown may not exist
+ * any more. Empty filters are left out. A key that repeats (`a[]=1&a[]=2`)
+ * keeps only its last value.
+ */
+export function listQuery(
+    list: ListProps<unknown>,
+    change: ListChange,
+    current: URLSearchParams,
+): Record<string, string> {
+    const { prefix } = list;
+    const filterPrefix = `${prefix}filter[`;
+    const keepsFilters = change.filters === undefined;
+
+    const query: Record<string, string> = {};
+
+    for (const [key, value] of current) {
+        if (keepsFilters || !key.startsWith(filterPrefix)) {
+            query[key] = value;
+        }
+    }
+
+    for (const [name, value] of Object.entries(change.filters ?? {})) {
+        flattenFilter(`${filterPrefix}${name}]`, value, query);
+    }
+
+    if (change.perPage !== undefined) {
+        query[`${prefix}per_page`] = String(change.perPage);
+    }
+
+    if (change.sort === null || change.sort === '') {
+        delete query[`${prefix}sort`];
+    } else if (change.sort !== undefined) {
+        query[`${prefix}sort`] = change.sort;
+    }
+
+    const changesTheRows =
+        change.perPage !== undefined ||
+        change.sort !== undefined ||
+        change.filters !== undefined;
+
+    if (change.page !== undefined) {
+        query[`${prefix}page`] = String(change.page);
+    } else if (changesTheRows) {
+        query[`${prefix}page`] = '1';
+    }
+
+    return query;
+}
+
+type Params = Record<string, unknown>;
+
+type Table<Row> = ProTableProps<Row, Params>;
+
+/** The props `useInertiaTable` gives `ProTable`: spread them on it. */
+export type InertiaTableProps<Row> = Required<
+    Pick<
+        Table<Row>,
+        | 'dataSource'
+        | 'pagination'
+        | 'onChange'
+        | 'form'
+        | 'onSubmit'
+        | 'onReset'
+        | 'scroll'
+    >
+> & { formRef: RefObject<ProFormInstance | undefined> };
+
+/** What the sort of a table change holds that matters here: antd's `SorterResult`, for any row type. */
+type Sorter = {
+    field?: Key | readonly Key[];
+    order?: 'ascend' | 'descend' | null;
+};
+
+/** The sort a table change names, as `total` or `-total`, or null for none. */
+function sortOf(sorter: Sorter | Sorter[]): string | null {
+    const active = [sorter].flat().find((one) => one.order);
+
+    if (active?.field === undefined) {
+        return null;
+    }
+
+    const column = Array.isArray(active.field)
+        ? active.field.join('.')
+        : String(active.field);
+
+    return active.order === 'descend' ? `-${column}` : column;
+}
+
+/**
+ * `ProTable`'s props for a list: its rows and paging come from the server, and
+ * every change visits the list again. Name the prop the list comes in
+ * (`propName`), so only it is reloaded. A column that sorts has `sorter: true`
+ * and a `dataIndex` the server's `sortable()` names; a search field's name is
+ * the name of a filter.
+ *
+ * ```tsx
+ * const table = useInertiaTable(orders, 'orders');
+ * <ProTable rowKey="id" columns={columns} {...table} />
+ * ```
+ */
+export function useInertiaTable<Row>(
+    list: ListProps<Row>,
+    propName: string,
+): InertiaTableProps<Row> {
+    const screens = Grid.useBreakpoint();
+    const formRef = useRef<ProFormInstance | undefined>(undefined);
+    const filters = Array.isArray(list.filters) ? {} : list.filters;
+
+    // The search form is filled once, with the filters the page loaded with. When the
+    // server sends other filters (reset, the back button) the form goes back to them.
+    const filtersKey = JSON.stringify(filters);
+
+    useEffect(() => {
+        formRef.current?.resetFields();
+    }, [filtersKey]);
+
+    function visit(change: ListChange): void {
+        router.get(
+            location.pathname,
+            listQuery(list, change, new URLSearchParams(location.search)),
+            {
+                only: [propName],
+                preserveState: true,
+                preserveScroll: true,
+                replace: false,
+            },
+        );
+    }
+
+    return {
+        dataSource: list.rows,
+        pagination: {
+            current: list.page,
+            pageSize: list.perPage,
+            total: list.total,
+            pageSizeOptions: list.perPageOptions,
+            showSizeChanger: true,
+            showTotal: (total) =>
+                tChoice('Total :count item|Total :count items', total),
+            // Hiding the pager hides the size menu with it. So a list that fits one
+            // page of 50 still shows it: the menu is the way back to 10.
+            hideOnSinglePage: list.total <= Math.min(...list.perPageOptions),
+            simple: screens.md !== true,
+        },
+        onChange: (pagination, _filters, sorter, extra) => {
+            if (extra.action === 'paginate') {
+                const perPage = pagination.pageSize ?? list.perPage;
+
+                visit(
+                    perPage === list.perPage
+                        ? { page: pagination.current ?? list.page }
+                        : { perPage },
+                );
+            } else if (extra.action === 'sort') {
+                visit({ sort: sortOf(sorter) });
+            }
+        },
+        form: { initialValues: filters },
+        formRef,
+        onSubmit: (params) => visit({ filters: params }),
+        onReset: () => visit({ filters: {} }),
+        scroll: { x: 'max-content' },
+    };
+}
