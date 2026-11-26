@@ -36,7 +36,7 @@ export default function ConfirmPassword() {
 
             <FormAlerts errors={unplacedErrors} />
 
-            <Form {...formProps} noValidate>
+            <Form {...formProps}>
                 <Form.Item label={t('Password')} name="password" required>
                     <Input.Password
                         name="password"

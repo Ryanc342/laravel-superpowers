@@ -28,7 +28,7 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
 
             <FormAlerts errors={unplacedErrors} />
 
-            <Form {...formProps} noValidate>
+            <Form {...formProps}>
                 <Form.Item label={t('Email address')} name="email">
                     <Input
                         name="email"

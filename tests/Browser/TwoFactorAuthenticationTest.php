@@ -9,6 +9,10 @@ use PragmaRX\Google2FA\Google2FA;
  */
 const FIRST_CODE_DIGIT = '[data-test="code"] input >> nth=0';
 
+/*
+ * Pest retries an assertion on the page until it passes or the browser times
+ * out, so one made right after a click waits for the heading to change.
+ */
 const PAGE_HEADINGS = "[...document.querySelectorAll('h1')].map((heading) => heading.textContent)";
 
 test('a user turns on two-factor authentication', function () {

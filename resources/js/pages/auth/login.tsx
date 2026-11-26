@@ -24,7 +24,7 @@ export default function Login({ status }: { status?: string }) {
 
             <FormAlerts status={status} errors={unplacedErrors} />
 
-            <Form {...formProps} noValidate>
+            <Form {...formProps}>
                 <Form.Item label={t('Email address')} name="email" required>
                     <Input
                         name="email"

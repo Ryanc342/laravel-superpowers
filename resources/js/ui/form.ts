@@ -49,6 +49,11 @@ export type InertiaAntdFormProps<T> = {
     form: FormInstance<T>;
     initialValues: T;
     layout: 'vertical';
+    /**
+     * Turns the browser's own checks off (`type="email"`, `required`): the
+     * server is the only validator, and its errors show under the fields.
+     */
+    noValidate: true;
     scrollToFirstError: true;
     onValuesChange: (changedValues: object, values: object) => void;
     /**
@@ -535,6 +540,7 @@ export function useInertiaForm<T extends Record<string, unknown>>(
             form,
             initialValues,
             layout: 'vertical',
+            noValidate: true,
             scrollToFirstError: true,
             onValuesChange,
             onFinish,

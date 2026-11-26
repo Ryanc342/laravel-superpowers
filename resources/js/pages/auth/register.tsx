@@ -22,7 +22,7 @@ export default function Register({ passwordRules }: { passwordRules: string }) {
 
             <FormAlerts errors={unplacedErrors} />
 
-            <Form {...formProps} noValidate>
+            <Form {...formProps}>
                 <Form.Item label={t('Name')} name="name" required>
                     <Input name="name" autoFocus autoComplete="name" />
                 </Form.Item>

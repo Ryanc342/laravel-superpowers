@@ -38,7 +38,7 @@ export default function TwoFactorChallenge() {
             <FormAlerts errors={unplacedErrors} />
 
             {/* A field that leaves the form takes its value and error with it. */}
-            <Form {...formProps} noValidate preserve={false}>
+            <Form {...formProps} preserve={false}>
                 {usesRecoveryCode ? (
                     <Form.Item
                         label={t('Recovery code')}

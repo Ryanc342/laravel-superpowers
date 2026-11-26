@@ -475,6 +475,20 @@ test('formProps spread onto antd Form and every Pro form', () => {
     >();
 });
 
+test.each([
+    ['antd Form', () => <OrderForm />],
+    ['ProForm', () => <ProDeliveryForm />],
+])(
+    'the %s turns off the browser checks, so only the server validates',
+    (_, form) => {
+        const { container } = render(form());
+
+        expect(
+            container.querySelector('form')?.hasAttribute('novalidate'),
+        ).toBe(true);
+    },
+);
+
 test('a server error shows under its field, and goes when a submit-only field changes', async () => {
     render(<OrderForm precognitive={false} />);
 
