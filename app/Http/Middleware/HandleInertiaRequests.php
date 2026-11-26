@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\Locale;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -38,6 +40,13 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            // The language of this request (SetLocale) and, for Chinese, the sentences React translates
+            // with t(). English needs none: a sentence is its own English text. The sentences are sent
+            // once per language, and again when the language changes.
+            'locale' => Locale::current()->value,
+            'locales' => Locale::options(),
+            'translations' => Inertia::once(fn (): array => Locale::current()->sentences())
+                ->as('translations.'.Locale::current()->value),
             'auth' => [
                 'user' => $request->user(),
             ],
