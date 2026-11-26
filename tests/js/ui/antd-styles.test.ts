@@ -5,7 +5,8 @@ import { generateAntdCss } from '@/ui/antd-styles';
 const css = generateAntdCss({ token: { colorPrimary: '#155dfc' } });
 
 // antd writes the theme's variables under the class of its CSS variable key,
-// `.app`, and each component's own under `.app.ant-<component>`.
+// `.app`, and each component's own under `.app.ant-<component>`. The dark
+// copies are scoped with `:where(html.dark)`.
 test('the generated css sits in the antd layer', () => {
     expect(css.trimStart().startsWith('@layer antd')).toBe(true);
 });
@@ -15,14 +16,36 @@ test('the light variables carry the brand colour', () => {
 });
 
 test('the dark variables apply under html.dark', () => {
-    expect(css).toContain('html.dark .app{');
+    expect(css).toContain(':where(html.dark) .app{');
     expect(css).toMatch(
-        /html\.dark \.app\{[^}]*--ant-color-bg-container:#141414/,
+        /:where\(html\.dark\) \.app\{[^}]*--ant-color-bg-container:#141414/,
     );
+});
+
+// A dark copy must not outrank the rules its light rule loses to: with
+// `html.dark .ant-page-header`, Pro's page header turned white in dark mode
+// over the rule that makes it transparent.
+test('the dark scope adds no specificity', () => {
+    expect(css).not.toMatch(/(?:^|[{},\n])html\.dark /);
 });
 
 test('the Pro components styles are included', () => {
     expect(css).toContain('ant-pro-layout');
+});
+
+// Pro writes colours into its rules instead of using antd's variables, so the
+// dark theme needs its own copy of those rules.
+test('a Pro rule with a written-in colour has a dark copy under html.dark', () => {
+    const background = (prefix: string) =>
+        new RegExp(
+            `${prefix}\\.ant-pro-layout \\.ant-pro-layout-bg-list\\{[^}]*background:([^;]+);`,
+        ).exec(css)?.[1];
+    const light = background('(?:^|[{}\\n])');
+    const dark = background(':where\\(html\\.dark\\) ');
+
+    expect(light).toBe('linear-gradient(#ffffff, #f5f5f5 28%)');
+    expect(dark).toContain('#141414');
+    expect(dark).not.toBe(light);
 });
 
 // Pro writes two media queries and a selector no browser can parse, so

@@ -19,10 +19,13 @@ type Modules = {
 };
 
 /**
- * The styles of antd, of the Pro components the template uses and of the
- * theme's CSS variables (light, and dark under `html.dark`), all in
- * `@layer antd`. The browser runs antd with `zeroRuntime`, so these are the
- * only component styles it gets.
+ * The styles of antd and of the Pro components the template uses, with the
+ * theme's CSS variables, all in `@layer antd`: the light theme, then each
+ * rule the dark theme changes, scoped to `html.dark`. antd's rules change only
+ * their variables; Pro writes colours into its rules (the layout's sider,
+ * menu and header), so those rules get a dark copy too. The browser runs
+ * antd and Pro with `zeroRuntime`, so these are the only component styles it
+ * gets.
  */
 export function generateAntdCss(project: ProjectTheme): string {
     const modules = loadModules();
@@ -33,15 +36,29 @@ export function generateAntdCss(project: ProjectTheme): string {
         zeroRuntime: false,
         hashed: false,
     };
-    const light = extract(modules, config, ['style', 'token', 'cssVar']);
-    const dark = extract(
-        modules,
-        { ...config, algorithm: modules.antd.theme.darkAlgorithm },
-        ['token', 'cssVar'],
-    );
+    const light = extract(modules, config);
+    const dark = extract(modules, {
+        ...config,
+        algorithm: modules.antd.theme.darkAlgorithm,
+    });
+    const lightRules = new Set(topLevelRules(light));
+    const darkRules = topLevelRules(dark)
+        .filter((rule) => !lightRules.has(rule))
+        .map(underDarkClass);
 
-    return `@layer antd {\n${withoutUnparsableRules(light)}\n${underDarkClass(dark)}\n}\n`;
+    // The dark copies come last: they have the same specificity as the light
+    // rules, so being later is what makes them win.
+    return `@layer antd {\n${light}\n${darkRules.join('')}\n}\n`;
 }
+
+/**
+ * The scope of the dark copies. `:where()` adds no specificity, so a dark
+ * copy beats only its own light rule, and every other rule keeps its rank, as
+ * in a page rendered with the dark theme alone. Plain `html.dark` would raise
+ * each copy over more specific rules: Pro's page header turned white in dark
+ * mode over the rule that makes it transparent.
+ */
+const DARK_SCOPE = ':where(html.dark) ';
 
 /**
  * Everything is loaded through CommonJS. Pro's ES build does not run in Node
@@ -67,11 +84,7 @@ function loadModules(): Modules {
 
 const CACHE_PATH_MARKER = /\.data-ant-cssinjs-cache-path\{content:"[^"]*";\}/;
 
-function extract(
-    modules: Modules,
-    config: ThemeConfig,
-    types: ('style' | 'token' | 'cssVar')[],
-): string {
+function extract(modules: Modules, config: ThemeConfig): string {
     const { antd, cssinjs, h, renderToString } = modules;
     const cache = cssinjs.createCache();
     const tree = h(
@@ -84,9 +97,11 @@ function extract(
 
     // The marker lists the styles a server render put in the page, for the
     // browser to skip. These styles come from a file, so it has no use.
-    return cssinjs
-        .extractStyle(cache, { plain: true, types })
-        .replace(CACHE_PATH_MARKER, '');
+    return withoutUnparsableRules(
+        cssinjs
+            .extractStyle(cache, { plain: true })
+            .replace(CACHE_PATH_MARKER, ''),
+    );
 }
 
 /**
@@ -312,31 +327,91 @@ function withoutUnparsableRules(css: string): string {
 }
 
 /**
- * Puts `html.dark` before each selector of the dark pass's CSS variable
- * blocks, so they win over the light ones on the same element.
+ * Splits CSS into its top-level rules: a selector with its declarations, or
+ * an at-rule with everything nested in it. Braces inside quoted strings do
+ * not count.
  */
-function underDarkClass(css: string): string {
-    const source = css.trim();
-    const blocks = [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
-    const parsedLength = blocks.reduce(
-        (length, [block]) => length + block.length,
-        0,
-    );
+function topLevelRules(css: string): string[] {
+    const rules: string[] = [];
+    let start = 0;
+    let depth = 0;
+    let quote: string | null = null;
 
-    if (parsedLength !== source.length) {
+    for (let index = 0; index < css.length; index++) {
+        const character = css[index];
+
+        if (quote !== null) {
+            if (character === quote && css[index - 1] !== '\\') {
+                quote = null;
+            }
+        } else if (character === '"' || character === "'") {
+            quote = character;
+        } else if (character === '{') {
+            depth++;
+        } else if (character === '}' && --depth === 0) {
+            rules.push(css.slice(start, index + 1).trim());
+            start = index + 1;
+        }
+    }
+
+    if (css.slice(start).trim() !== '') {
+        throw new Error('antd-styles: the generated CSS has an unclosed rule.');
+    }
+
+    return rules;
+}
+
+/**
+ * Puts the dark scope before each selector of a rule the dark theme changes.
+ * The rules inside an `@media` or `@supports` block get it too. Any other
+ * at-rule (such as `@keyframes`) cannot be scoped to a class, so one the dark
+ * theme changes stops the build.
+ */
+function underDarkClass(rule: string): string {
+    const open = rule.indexOf('{');
+    const prelude = rule.slice(0, open).trim();
+    const body = rule.slice(open + 1, -1);
+
+    if (/^@(?:media|supports)\b/.test(prelude)) {
+        return `${prelude}{${topLevelRules(body).map(underDarkClass).join('')}}`;
+    }
+
+    if (prelude.startsWith('@')) {
         throw new Error(
-            'antd-styles: the dark CSS variables are no longer flat blocks.',
+            `antd-styles: the dark theme changes "${prelude}", which cannot be scoped to html.dark.`,
         );
     }
 
-    return blocks
-        .map(([, selectors, declarations]) => {
-            const darkSelectors = selectors
-                .split(',')
-                .map((selector) => `html.dark ${selector.trim()}`)
-                .join(',');
+    const selectors = selectorList(prelude)
+        .map((selector) => `${DARK_SCOPE}${selector}`)
+        .join(',');
 
-            return `${darkSelectors}{${declarations}}`;
-        })
-        .join('');
+    return `${selectors}{${body}}`;
+}
+
+/**
+ * The selectors of a selector list: split on its top-level commas, not on
+ * those inside `:not(…)`, `:is(…)` or an attribute selector.
+ */
+function selectorList(prelude: string): string[] {
+    const selectors: string[] = [];
+    let start = 0;
+    let depth = 0;
+
+    for (let index = 0; index < prelude.length; index++) {
+        const character = prelude[index];
+
+        if (character === '(' || character === '[') {
+            depth++;
+        } else if (character === ')' || character === ']') {
+            depth--;
+        } else if (character === ',' && depth === 0) {
+            selectors.push(prelude.slice(start, index).trim());
+            start = index + 1;
+        }
+    }
+
+    selectors.push(prelude.slice(start).trim());
+
+    return selectors;
 }
