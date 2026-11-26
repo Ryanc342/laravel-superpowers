@@ -13,6 +13,9 @@
         "test": "vp test"
     },
     "dependencies": {
+        "@ant-design/cssinjs": "~2.1.2",
+        "@ant-design/icons": "^6.3.4",
+        "@ant-design/pro-components": "3.1.15-9",
         "@inertiajs/react": "^3.0.0",
         "@inertiajs/vite": "^3.0.0",
         "@laravel/passkeys": "^0.2.0",
@@ -34,6 +37,7 @@
         "@types/react": "^19.2.0",
         "@types/react-dom": "^19.2.0",
         "@vitejs/plugin-react": "^6.2.0",
+        "antd": "^6.7.2",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "concurrently": "^10.0.3",

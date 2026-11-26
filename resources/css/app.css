@@ -1,3 +1,12 @@
+@layer theme, base, antd, components, utilities;
+
+/*
+ * antd's styles (virtual:antd.css, generated at build time) sit above
+ * Tailwind's reset and below its utilities, so a utility class still wins over
+ * an antd rule. This line comes first, so that no stylesheet can set another
+ * order.
+ */
+
 @import 'tailwindcss';
 
 @import 'tw-animate-css';

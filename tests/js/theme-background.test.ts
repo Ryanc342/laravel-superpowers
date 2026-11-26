@@ -1,16 +1,18 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { theme } from 'antd';
 import { expect, test } from 'vite-plus/test';
+import projectTheme from '@/theme';
+import { themeConfig } from '@/ui/theme';
 
 const root = join(import.meta.dirname, '../..');
-const css = readFileSync(join(root, 'resources/css/app.css'), 'utf8');
 const view = readFileSync(join(root, 'resources/views/app.blade.php'), 'utf8');
 
-function tokenIn(selector: ':root' | '.dark'): string {
-    const block = css.slice(css.indexOf(`${selector} {`));
-    const match = /--background:\s*([^;]+);/.exec(block);
-
-    return match?.[1].trim() ?? '';
+function layoutBackground(dark: boolean): string {
+    return theme.getDesignToken({
+        ...themeConfig(projectTheme),
+        algorithm: dark ? theme.darkAlgorithm : theme.defaultAlgorithm,
+    }).colorBgLayout;
 }
 
 function paintedBefore(selector: 'html' | 'html.dark'): string {
@@ -23,11 +25,9 @@ function paintedBefore(selector: 'html' | 'html.dark'): string {
 }
 
 // app.blade.php paints the page before the stylesheet has loaded, so it has to
-// repeat the page background. The two copies must not drift apart: a stale one
-// flashes another near-black in dark mode and on overscroll.
+// repeat antd's page background (colorBgLayout). The copies must not drift
+// apart: a stale one flashes another colour in dark mode and on overscroll.
 test('the colour painted before the stylesheet loads is the theme background', () => {
-    expect(tokenIn(':root')).not.toBe('');
-    expect(tokenIn('.dark')).not.toBe('');
-    expect(paintedBefore('html')).toBe(tokenIn(':root'));
-    expect(paintedBefore('html.dark')).toBe(tokenIn('.dark'));
+    expect(paintedBefore('html')).toBe(layoutBackground(false));
+    expect(paintedBefore('html.dark')).toBe(layoutBackground(true));
 });

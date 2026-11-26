@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
 import { defineConfig, lazyPlugins } from 'vite-plus';
+import { antdStyles } from './resources/js/ui/vite-antd-styles';
 
 export default defineConfig({
     plugins: lazyPlugins(() => [
@@ -19,6 +20,7 @@ export default defineConfig({
         }),
         inertia(),
         react({ compiler: true }),
+        antdStyles(),
         tailwindcss(),
         wayfinder({
             formVariants: true,
