@@ -1,6 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import { Form } from 'antd';
 import type { FormInstance } from 'antd';
+import dayjs from 'dayjs';
 import { useEffect, useRef, useState } from 'react';
 import type { RouteDefinition } from '@/wayfinder';
 
@@ -32,13 +33,16 @@ type InertiaData = Record<string, any>;
 /** How long after the last change the server check is sent. The first change is checked at once. */
 const VALIDATION_TIMEOUT_MS = 500;
 
+/** How a date reaches the server when its field does not format it: the local calendar date. */
+const DATE_FORMAT = 'YYYY-MM-DD';
+
 /** The props to spread onto antd's `Form` or one of Pro's forms. */
 export type InertiaAntdFormProps<T> = {
     form: FormInstance<T>;
     initialValues: T;
     layout: 'vertical';
     scrollToFirstError: true;
-    onValuesChange: (changedValues: object) => void;
+    onValuesChange: (changedValues: object, values: object) => void;
     /**
      * Submits through Inertia. It resolves `true` when the server accepted the
      * form, so a `ModalForm` or `DrawerForm` closes, and `false` when not.
@@ -163,26 +167,154 @@ function valueAt(
     return { found: true, value: current };
 }
 
+/** Whether a value is a plain object, as opposed to an array, a date or a file. */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    if (typeof value !== 'object' || value === null) {
+        return false;
+    }
+
+    const prototype = Object.getPrototypeOf(value);
+
+    return prototype === Object.prototype || prototype === null;
+}
+
+/** Whether two field values are the same: dates by their instant, lists and objects by what they hold. */
+function sameValue(a: unknown, b: unknown): boolean {
+    if (Object.is(a, b)) {
+        return true;
+    }
+
+    if (dayjs.isDayjs(a) && dayjs.isDayjs(b)) {
+        return a.valueOf() === b.valueOf();
+    }
+
+    if (Array.isArray(a) && Array.isArray(b)) {
+        return (
+            a.length === b.length &&
+            a.every((item, index) => sameValue(item, b[index]))
+        );
+    }
+
+    if (isPlainObject(a) && isPlainObject(b)) {
+        const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+
+        return [...keys].every((key) => sameValue(a[key], b[key]));
+    }
+
+    return false;
+}
+
+/** Whether a list gained or lost rows. */
+function isResized(before: unknown, after: unknown): boolean {
+    const rows = (value: unknown): number =>
+        Array.isArray(value) ? value.length : 0;
+
+    return (
+        (Array.isArray(before) || Array.isArray(after)) &&
+        rows(before) !== rows(after)
+    );
+}
+
 /**
- * The field an antd change is about. antd hands over the changed field's own
- * value, the very one in the form's store, inside new objects that lead to it.
- * So the outermost field whose value is the store's is the one that changed: a
- * whole list when a row was added or removed, one input when it was typed in.
+ * The fields a change is about, from the form's store before and after it.
+ * A list that gained or lost rows is the changed field, not the rows that
+ * moved. Otherwise it is the innermost field whose value changed: one input
+ * when it was typed in, not the list around it.
+ *
+ * It compares values and does not use antd's `changedValues`: Pro's forms
+ * rebuild that object and format its dates.
  */
 function changedFields(
-    changedValues: object,
-    store: object,
+    before: object,
+    after: object,
     known: NamePath[],
 ): NamePath[] {
-    const sameAsStore = known.filter((name) => {
-        const changed = valueAt(changedValues, name);
+    const valuesOf = (name: NamePath): [unknown, unknown] => [
+        valueAt(before, name).value,
+        valueAt(after, name).value,
+    ];
+    const changed = known.filter((name) => !sameValue(...valuesOf(name)));
+    const resized = changed.filter((name) => isResized(...valuesOf(name)));
 
-        return changed.found && changed.value === valueAt(store, name).value;
+    return changed.filter((name) => {
+        if (resized.some((list) => isInside(name, list))) {
+            return false;
+        }
+
+        return (
+            resized.some((list) => samePath(list, name)) ||
+            !changed.some((inner) => isInside(inner, name))
+        );
     });
+}
 
-    return sameAsStore.filter(
-        (name) => !sameAsStore.some((outer) => isInside(name, outer)),
+/** A copy of `values` with `value` at the name path. */
+function setAt(values: unknown, name: NamePath, value: unknown): unknown {
+    if (name.length === 0) {
+        return value;
+    }
+
+    const [segment, ...rest] = name;
+    const copy: unknown[] | Record<string, unknown> = Array.isArray(values)
+        ? [...values]
+        : isPlainObject(values)
+          ? { ...values }
+          : typeof segment === 'number'
+            ? []
+            : {};
+    const container = copy as Record<string | number, unknown>;
+
+    container[segment] = setAt(container[segment], rest, value);
+
+    return container;
+}
+
+/** A copy of `value` with every date in it as its local calendar date. */
+function datesAsText(value: unknown): unknown {
+    if (dayjs.isDayjs(value)) {
+        return value.format(DATE_FORMAT);
+    }
+
+    if (Array.isArray(value)) {
+        return value.map(datesAsText);
+    }
+
+    if (isPlainObject(value)) {
+        return Object.fromEntries(
+            Object.entries(value).map(([key, item]) => [
+                key,
+                datesAsText(item),
+            ]),
+        );
+    }
+
+    return value;
+}
+
+/**
+ * The form's values as Inertia sends them, for checks and submits alike.
+ * - It starts from the form's store, so values with no field (a token, a
+ *   row's id) are kept.
+ * - Each field takes its value as the form hands it over (`formatted`): a Pro
+ *   date field in its own format (`valueType`, `dateFormatter`).
+ * - A date still left is its local calendar date (`YYYY-MM-DD`): a plain antd
+ *   `DatePicker`'s. No date goes out as a dayjs object or a UTC instant.
+ */
+function toInertiaData(
+    store: object,
+    formatted: object,
+    known: NamePath[],
+): InertiaData {
+    const fields = known.filter(
+        (name) => !known.some((inner) => isInside(inner, name)),
     );
+    const values = fields.reduce<unknown>((data, name) => {
+        const field = valueAt(formatted, name);
+
+        return field.found ? setAt(data, name, field.value) : data;
+    }, store);
+
+    return datesAsText(values) as InertiaData;
 }
 
 /**
@@ -218,7 +350,9 @@ export function useInertiaForm<T extends Record<string, unknown>>(
     const [form] = Form.useForm<T>();
     // antd types a form's field names from T; the glue handles any name.
     const fieldStore: FormInstance = form;
-    const inertiaForm = useForm<InertiaData>(initialValues as InertiaData);
+    const inertiaForm = useForm<InertiaData>(
+        datesAsText(initialValues) as InertiaData,
+    );
     // `withPrecognition(route)` is what `useForm(route, data)` does on every
     // render, and it is not a hook, so it can depend on the option.
     const precognitiveForm = precognitive
@@ -232,6 +366,8 @@ export function useInertiaForm<T extends Record<string, unknown>>(
     const errorsShown = useRef(false);
     // The step check that the debounce holds back, until it is sent.
     const queuedCheck = useRef<((passed: boolean) => void) | null>(null);
+    // The form's store as it was last handed to Inertia, to tell what changed.
+    const lastStore = useRef<object>(initialValues);
 
     useEffect(() => {
         validator?.setTimeout(VALIDATION_TIMEOUT_MS);
@@ -258,55 +394,59 @@ export function useInertiaForm<T extends Record<string, unknown>>(
         setUnplacedErrors(unplaced);
     }, [errors, fieldStore]);
 
-    /** The form's values, as the data Inertia sends. The store also holds values with no field, such as a token. */
-    const syncData = (): object => {
-        const store = fieldStore.getFieldsValue(true) as InertiaData;
+    /**
+     * Hands the form's values to Inertia (`formatted`: as the form passes them
+     * to its callbacks). It returns the field names and the store before and
+     * after.
+     */
+    const syncData = (
+        formatted: object,
+    ): { known: NamePath[]; before: object; after: object } => {
+        const known = fieldNames(fieldStore);
+        const before = lastStore.current;
+        const after = fieldStore.getFieldsValue(true) as object;
 
-        inertiaForm.setData({ ...store });
+        lastStore.current = after;
+        inertiaForm.setData(toInertiaData(after, formatted, known));
 
-        return store;
+        return { known, before, after };
     };
 
-    const onValuesChange = (changedValues: object): void => {
-        const store = syncData();
-        const changed = changedFields(
-            changedValues,
-            store,
-            fieldNames(fieldStore),
-        );
+    const onValuesChange = (_changedValues: object, values: object): void => {
+        const { known, before, after } = syncData(values);
+        const changed = changedFields(before, after, known);
 
-        if (precognitiveForm) {
-            changed.forEach((name) =>
-                precognitiveForm.validate(errorKey(name), {
-                    // The debounce sends only its latest call, so once this
-                    // check is sent, a step check it held back never will be.
-                    onStart: () => queuedCheck.current?.(false),
-                }),
-            );
-
-            return;
-        }
-
-        // The server checks again on submit. Until then the changed field,
-        // and the rows of a changed list, have no error.
+        // The errors under a changed list's rows no longer match its rows,
+        // which have moved. A submit-only field's own error goes too: the
+        // server checks it again on submit.
         const stale = Object.keys(errors).filter((key) => {
             const path = toNamePath(key);
 
             return changed.some(
-                (name) => samePath(path, name) || isInside(path, name),
+                (name) =>
+                    isInside(path, name) ||
+                    (!precognitiveForm && samePath(path, name)),
             );
         });
 
         if (stale.length > 0) {
             inertiaForm.clearErrors(...stale);
         }
+
+        changed.forEach((name) =>
+            precognitiveForm?.validate(errorKey(name), {
+                // The debounce sends only its latest call, so once this
+                // check is sent, a step check it held back never will be.
+                onStart: () => queuedCheck.current?.(false),
+            }),
+        );
     };
 
-    const onFinish = (): Promise<boolean> =>
+    const onFinish = (values: T): Promise<boolean> =>
         new Promise((resolve) => {
             let accepted = false;
 
-            syncData();
+            syncData(values);
             inertiaForm.submit(route, {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -317,6 +457,7 @@ export function useInertiaForm<T extends Record<string, unknown>>(
 
                         inertiaForm.reset(...names);
                         fieldStore.resetFields(names);
+                        lastStore.current = fieldStore.getFieldsValue(true);
                     }
 
                     onSuccess?.();

@@ -1,3 +1,10 @@
+import {
+    ProForm,
+    ProFormDatePicker,
+    ProFormDateTimePicker,
+    ProFormList,
+    ProFormText,
+} from '@ant-design/pro-components';
 import type {
     DrawerFormProps,
     ModalFormProps,
@@ -6,9 +13,12 @@ import type {
 } from '@ant-design/pro-components';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Alert, Button, Form, Input } from 'antd';
+import { Alert, Button, DatePicker, Form, Input } from 'antd';
 import type { FormProps } from 'antd';
+import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import { useEffect, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import {
     afterEach,
     beforeEach,
@@ -44,7 +54,8 @@ type ValidationConfig = {
  * server through `inertia.setErrors` and the options `submit` was given.
  */
 const inertia = {
-    setErrors: (_errors: Errors) => {},
+    setErrors: (() => {}) as Dispatch<SetStateAction<Errors>>,
+    initialData: undefined as unknown,
     setData: vi.fn(),
     clearErrors: vi.fn(),
     reset: vi.fn(),
@@ -54,12 +65,13 @@ const inertia = {
     withPrecognition: vi.fn(),
 };
 
-function useFakeForm() {
+function useFakeForm(initialData: unknown) {
     const [errors, setErrors] = useState<Errors>({});
 
     useEffect(() => {
         inertia.setErrors = setErrors;
-    }, []);
+        inertia.initialData = initialData;
+    }, [initialData]);
 
     const form = {
         errors,
@@ -90,15 +102,25 @@ function useFakeForm() {
 }
 
 vi.mock('@inertiajs/react', () => ({
-    useForm: () => useFakeForm(),
+    useForm: (initialData: unknown) => useFakeForm(initialData),
 }));
 
-type Order = { token: string; email: string; items: { name: string }[] };
+type Order = {
+    token: string;
+    email: string;
+    ordered_at: Dayjs | null;
+    items: { name: string }[];
+};
 
 const route: RouteDefinition<'post'> = { url: '/orders', method: 'post' };
 
 /** `token` has no field, like a reset link's token: it is sent all the same. */
-const initialValues: Order = { token: 'abc', email: '', items: [{ name: '' }] };
+const initialValues: Order = {
+    token: 'abc',
+    email: '',
+    ordered_at: dayjs('2026-11-01'),
+    items: [{ name: '' }],
+};
 
 const rendered: { hook?: InertiaAntdForm<Order> } = {};
 
@@ -119,6 +141,7 @@ beforeEach(() => {
     inertia.validate = vi.fn();
     inertia.validator = { setTimeout: vi.fn() };
     inertia.withPrecognition = vi.fn();
+    inertia.initialData = undefined;
     rendered.hook = undefined;
 });
 
@@ -128,15 +151,17 @@ afterEach(() => {
 
 /** The order form a page would build: an email, a list of items, an Alert for errors with no field. */
 function OrderForm({
+    values = initialValues,
     precognitive,
     resetOnSuccess,
     onSuccess,
 }: {
+    values?: Order;
     precognitive?: boolean;
     resetOnSuccess?: (keyof Order)[];
     onSuccess?: () => void;
 }) {
-    const form = useInertiaForm(route, initialValues, {
+    const form = useInertiaForm(route, values, {
         precognitive,
         resetOnSuccess,
         onSuccess,
@@ -153,6 +178,9 @@ function OrderForm({
             )}
             <Form.Item name="email" label="Email" required>
                 <Input />
+            </Form.Item>
+            <Form.Item name="ordered_at" label="Ordered at">
+                <DatePicker />
             </Form.Item>
             <Form.List name="items">
                 {(fields, { add, remove }) => (
@@ -185,6 +213,68 @@ function OrderForm({
 /** The server's errors, as Inertia hands them to the form. */
 function serverErrors(errors: Errors): void {
     act(() => inertia.setErrors(errors));
+}
+
+/** A check's answer, which Precognition merges into the errors it has. */
+function serverAddsErrors(errors: Errors): void {
+    act(() => inertia.setErrors((current) => ({ ...current, ...errors })));
+}
+
+/** The order form on a Pro form: a date, a date-time and a ProFormList. */
+type Delivery = {
+    customer: string;
+    ordered_on: Dayjs | null;
+    delivered_at: Dayjs | null;
+    items: { name: string }[];
+};
+
+function ProDeliveryForm() {
+    const form = useInertiaForm<Delivery>(route, {
+        customer: '',
+        ordered_on: dayjs('2026-11-01'),
+        delivered_at: dayjs('2026-11-01 09:30:00'),
+        items: [{ name: '' }],
+    });
+
+    return (
+        <ProForm {...form.formProps}>
+            <ProFormText name="customer" label="Customer" />
+            <ProFormDatePicker name="ordered_on" label="Ordered on" />
+            <ProFormDateTimePicker name="delivered_at" label="Delivered at" />
+            <ProFormList
+                name="items"
+                creatorButtonProps={{ creatorButtonText: 'Add row' }}
+            >
+                <ProFormText name="name" label="Name" />
+            </ProFormList>
+        </ProForm>
+    );
+}
+
+/** Picks 15 November 2026 in the date picker with this label. Pro loads its pickers lazily. */
+async function pickNovember15(label: string): Promise<void> {
+    await userEvent.click(
+        await screen.findByLabelText(label, undefined, { timeout: 4000 }),
+    );
+
+    const cell = await waitFor(() => {
+        const found = document.querySelector(
+            '.ant-picker-cell-in-view[title="2026-11-15"] .ant-picker-cell-inner',
+        );
+
+        if (!(found instanceof HTMLElement)) {
+            throw new Error('The calendar is not open.');
+        }
+
+        return found;
+    });
+
+    await userEvent.click(cell);
+}
+
+/** The data the form last handed to Inertia. */
+function lastData(): Record<string, unknown> {
+    return inertia.setData.mock.lastCall?.[0] as Record<string, unknown>;
 }
 
 /**
@@ -310,6 +400,7 @@ test('a server error shows under its field, and goes when a submit-only field ch
     expect(inertia.setData).toHaveBeenLastCalledWith({
         token: 'abc',
         email: 'a',
+        ordered_at: '2026-11-01',
         items: [{ name: '' }],
     });
 });
@@ -387,6 +478,7 @@ test('submitting sends the form through Inertia and keeps the scroll', async () 
     expect(inertia.setData).toHaveBeenLastCalledWith({
         token: 'abc',
         email: 'a',
+        ordered_at: '2026-11-01',
         items: [{ name: '' }],
     });
 });
@@ -435,6 +527,12 @@ test('a successful submit empties the fields named in resetOnSuccess and calls o
     expect((screen.getByLabelText('Email') as HTMLInputElement).value).toBe('');
     expect(inertia.reset).toHaveBeenCalledWith('email');
     expect(onSuccess).toHaveBeenCalledTimes(1);
+
+    // The emptied field is not taken for a change the user made.
+    inertia.validate.mockClear();
+    await userEvent.type(screen.getByLabelText('Item 1'), 'b');
+
+    expect(checkedFields()).toEqual(['items.0.name']);
 });
 
 test('validateFields checks the named fields on the server and resolves whether they passed', async () => {
@@ -521,4 +619,94 @@ test('a step check held back behind a keystroke’s check keeps its verdict', as
     });
 
     await expect(passed).resolves.toBe(true);
+});
+
+test('on a Pro form, adding a row checks the list', async () => {
+    render(<ProDeliveryForm />);
+
+    await userEvent.click(screen.getByRole('button', { name: /Add row/ }));
+
+    expect(checkedFields()).toEqual(['items']);
+});
+
+test('on a Pro form, picking a date checks the date field', async () => {
+    render(<ProDeliveryForm />);
+
+    await pickNovember15('Ordered on');
+
+    expect(checkedFields()).toEqual(['ordered_on']);
+});
+
+test('a DatePicker value reaches Inertia as its calendar date, for the check and the submit', async () => {
+    render(<OrderForm />);
+
+    expect(inertia.initialData).toMatchObject({ ordered_at: '2026-11-01' });
+
+    await pickNovember15('Ordered at');
+
+    expect(checkedFields()).toEqual(['ordered_at']);
+    expect(lastData()).toMatchObject({ ordered_at: '2026-11-15' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(inertia.submit).toHaveBeenCalledTimes(1));
+
+    expect(lastData()).toEqual({
+        token: 'abc',
+        email: '',
+        ordered_at: '2026-11-15',
+        items: [{ name: '' }],
+    });
+});
+
+test('a Pro date field keeps the format Pro gives it, for the check and the submit', async () => {
+    render(<ProDeliveryForm />);
+
+    await pickNovember15('Delivered at');
+    await userEvent.click(screen.getByRole('button', { name: /OK|确\s?定/ }));
+
+    expect(lastData()).toMatchObject({
+        ordered_on: '2026-11-01',
+        delivered_at: '2026-11-15 09:30:00',
+    });
+
+    await userEvent.click(
+        screen.getByRole('button', { name: /Submit|提\s?交/ }),
+    );
+    await waitFor(() => expect(inertia.submit).toHaveBeenCalledTimes(1));
+
+    expect(lastData()).toMatchObject({
+        ordered_on: '2026-11-01',
+        delivered_at: '2026-11-15 09:30:00',
+    });
+});
+
+test('removing a row on a precognitive form clears the errors of the rows, which no longer match them', async () => {
+    render(
+        <OrderForm
+            values={{ ...initialValues, items: [{ name: '' }, { name: '' }] }}
+        />,
+    );
+
+    serverErrors({
+        'items.0.name': 'Row A required',
+        'items.1.name': 'Row B required',
+    });
+    await waitFor(() => expect(errorUnder('Item 2')).toBe('Row B required'));
+
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Remove first item' }),
+    );
+
+    expect(checkedFields()).toEqual(['items']);
+    expect(inertia.clearErrors).toHaveBeenCalledWith(
+        'items.0.name',
+        'items.1.name',
+    );
+
+    // A later answer is merged into the errors Precognition still has.
+    serverAddsErrors({ email: 'Bad' });
+
+    await waitFor(() => expect(errorUnder('Email')).toBe('Bad'));
+    await waitFor(() => expect(errorUnder('Item 1')).toBeNull());
+    expect(alertText()).toBeNull();
 });
