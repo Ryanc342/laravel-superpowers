@@ -63,3 +63,15 @@ test('a complete supplier goes to the success result', function () {
         ->assertSessionHasNoErrors()
         ->assertRedirect(route('examples.result.show', ['status' => 'success']));
 });
+
+test('a company that is a supplier already is refused when the supplier is sent', function () {
+    $this->post(route('examples.steps.store'), exampleSupplierInput(['company_name' => 'Taken Ltd']))
+        ->assertSessionHasErrors(['company_name' => 'This company is a supplier already.']);
+});
+
+test('the step check does not ask whether the company is a supplier already: only the send does', function () {
+    $this->withPrecognition()
+        ->withHeader('Precognition-Validate-Only', 'company_name,industry,website')
+        ->postJson(route('examples.steps.store'), exampleSupplierInput(['company_name' => 'Taken Ltd']))
+        ->assertNoContent();
+});

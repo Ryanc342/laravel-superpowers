@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Faker\Factory;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /*
@@ -119,6 +120,29 @@ describe('show', function () {
         $this->get(route('examples.orders.show', 5));
 
         expect(mt_rand())->not->toBe($first);
+    });
+
+    test('a Faker left over from before is freed before the orders are made, so it cannot reseed them halfway', function () {
+        // A Faker generator reseeds PHP's numbers at random when it is freed, and
+        // its providers point back at it, so PHP frees it only when its cycle
+        // collector runs: at any moment, also while the orders are made. With
+        // the collector off, only an explicit collection frees it.
+        $collecting = gc_enabled();
+        gc_disable();
+
+        try {
+            $leftover = Factory::create();
+            $freed = WeakReference::create($leftover);
+            unset($leftover);
+
+            $this->get(route('examples.orders.show', 5))->assertOk();
+
+            expect($freed->get())->toBeNull();
+        } finally {
+            if ($collecting) {
+                gc_enable();
+            }
+        }
     });
 });
 

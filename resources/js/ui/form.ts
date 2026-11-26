@@ -3,6 +3,7 @@ import { Form } from 'antd';
 import type { FormInstance } from 'antd';
 import dayjs from 'dayjs';
 import { useEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
 import type { RouteDefinition } from '@/wayfinder';
 
 /**
@@ -99,6 +100,8 @@ export type InertiaAntdFormOptions<T> = {
     dateFormats?: DateFormats;
     /** Runs after a successful submit. */
     onSuccess?: () => void;
+    /** Runs after a submit the server refused, with its errors (Laravel keys). */
+    onError?: (errors: Record<string, string>) => void;
     /** The form's name, for ids a test or a page names: `formNameFor(route)` by default. */
     name?: string;
 };
@@ -114,7 +117,8 @@ export type InertiaAntdForm<T> = {
     unplacedErrors: string[];
     /**
      * Checks these fields (Laravel keys) on the server, and resolves whether
-     * they passed: a `StepsForm` step's `onFinish`. It always settles: a check
+     * they passed: what a `StepsForm` step's Next runs (`useInertiaStepsForm`
+     * wires it). It always settles: a check
      * that is cancelled, fails on the network, or is replaced within the
      * debounce by a keystroke's check resolves `false`. A form that is not
      * precognitive is checked on submit only, so its fields pass here.
@@ -415,6 +419,7 @@ export function useInertiaForm<T extends Record<string, unknown>>(
         errorBag,
         dateFormats = {},
         onSuccess,
+        onError,
         name = formNameFor(route),
     } = options;
     const [form] = Form.useForm<T>();
@@ -533,8 +538,10 @@ export function useInertiaForm<T extends Record<string, unknown>>(
 
                     onSuccess?.();
                 },
-                onError: (failed) =>
-                    scrollToFirstError(fieldStore, failed as ServerErrors),
+                onError: (failed) => {
+                    scrollToFirstError(fieldStore, failed as ServerErrors);
+                    onError?.(failed as ServerErrors);
+                },
                 onFinish: () => resolve(accepted),
             });
         });
@@ -586,5 +593,150 @@ export function useInertiaForm<T extends Record<string, unknown>>(
         processing: inertiaForm.processing,
         unplacedErrors,
         validateFields,
+    };
+}
+
+/** The props to spread onto Pro's `StepsForm`. */
+export type InertiaStepsFormProps<T> = {
+    current: number;
+    onCurrentChange: (current: number) => void;
+    /** Pro fills it with a ref for each step: how many steps there really are. */
+    formMapRef: RefObject<RefObject<FormInstance | undefined>[]>;
+    formProps: Omit<InertiaAntdFormProps<T>, 'onFinish'>;
+};
+
+export type InertiaStepsForm<T> = {
+    /** Spread onto `StepsForm`. */
+    stepsFormProps: InertiaStepsFormProps<T>;
+    /** Spread onto every `StepsForm.StepForm`: one `onFinish` for all of them. */
+    stepFormProps: { onFinish: () => Promise<boolean> };
+    /** The one form every step shares, for `Form.useWatch`. */
+    form: FormInstance<T>;
+    processing: boolean;
+    /** As `useInertiaForm`'s: shown in an `Alert` above the steps. */
+    unplacedErrors: string[];
+};
+
+/**
+ * The first step with a field (a Laravel key) that one of these errors is
+ * for, itself or a field inside it, such as a list's row. -1 when none is.
+ */
+function firstStepWithError(steps: string[][], errors: ServerErrors): number {
+    const paths = Object.keys(errors).map(toNamePath);
+
+    return steps.findIndex((fields) =>
+        fields.some((field) => {
+            const name = toNamePath(field);
+
+            return paths.some(
+                (path) => samePath(path, name) || isInside(path, name),
+            );
+        }),
+    );
+}
+
+/**
+ * Connects Pro's `StepsForm` to Inertia: one `useInertiaForm` for every step,
+ * so the last step sends what all of them hold. Spread `stepsFormProps` onto
+ * the `StepsForm` and `stepFormProps` onto each of its `StepForm`s, and give
+ * the steps no `onFinish` of their own.
+ *
+ * `steps` lists each step's fields (Laravel keys), one entry for every step
+ * in order, `[]` for a step with nothing to check, such as a summary: Next
+ * checks the step's fields on the server and moves on when they pass. The
+ * last step is the `StepsForm`'s last, not the list's: it sends the form. A
+ * list that does not have an entry for every step is a mistake, which the
+ * console reports in a development build.
+ *
+ * When the server refuses the send, the form goes back to the first step
+ * with a field that has an error, where it shows under its field. An error
+ * for a field of no listed step stays on the last step, in the `Alert` when
+ * no field has it.
+ *
+ * Why every step shares one handler: Pro makes each step an antd `Form` of
+ * its own, and when forms share one instance, whichever rendered last decides
+ * what a submit runs, whatever step shows. So the handler asks which step
+ * shows. A date goes out as its local calendar date, or in the format
+ * `dateFormats` names for it: Pro formats a date field's value only in its
+ * own step.
+ */
+export function useInertiaStepsForm<T extends Record<string, unknown>>(
+    route: FormRoute,
+    initialValues: T,
+    steps: string[][],
+    options: InertiaAntdFormOptions<T> = {},
+): InertiaStepsForm<T> {
+    const [current, setCurrent] = useState(0);
+    const stepForms = useRef<RefObject<FormInstance | undefined>[]>([]);
+    // The errors to bring into view once the step that has them shows.
+    const errorsToShow = useRef<ServerErrors | null>(null);
+    const { formProps, processing, unplacedErrors, validateFields } =
+        useInertiaForm(route, initialValues, {
+            ...options,
+            onError: (errors) => {
+                options.onError?.(errors);
+
+                const step = firstStepWithError(steps, errors);
+
+                if (step !== -1 && step !== current) {
+                    errorsToShow.current = errors;
+                    setCurrent(step);
+                }
+            },
+        });
+    const { form, onValuesChange, onFinish, ...shared } = formProps;
+    const fieldStore: FormInstance = form;
+
+    useEffect(() => {
+        const errors = errorsToShow.current;
+
+        if (errors) {
+            errorsToShow.current = null;
+            scrollToFirstError(fieldStore, errors);
+        }
+    }, [current, fieldStore]);
+
+    useEffect(() => {
+        const stepCount = stepForms.current?.length ?? 0;
+
+        if (import.meta.env.DEV && stepCount !== steps.length) {
+            console.error(
+                `useInertiaStepsForm: the StepsForm has ${stepCount} steps, and the list of their fields has ${steps.length} entries. List one for every step, [] for a step with nothing to check.`,
+            );
+        }
+    }, [steps.length]);
+
+    // Every step's values, not those of the step whose `Form` ran.
+    const valuesOfEveryStep = (): T => form.getFieldsValue(true) as T;
+
+    const finishStep = (): Promise<boolean> => {
+        const isLastStep = current >= (stepForms.current?.length ?? 0) - 1;
+        const fields = steps[current] ?? [];
+
+        if (isLastStep) {
+            return onFinish(valuesOfEveryStep());
+        }
+
+        return fields.length > 0
+            ? validateFields(fields)
+            : Promise.resolve(true);
+    };
+
+    return {
+        stepsFormProps: {
+            current,
+            onCurrentChange: setCurrent,
+            formMapRef: stepForms,
+            formProps: {
+                ...shared,
+                form,
+                onValuesChange: (changedValues) =>
+                    onValuesChange(changedValues, valuesOfEveryStep()),
+            },
+        },
+        stepFormProps: { onFinish: finishStep },
+        form,
+        processing,
+        unplacedErrors,
     };
 }

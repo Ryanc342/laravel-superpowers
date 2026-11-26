@@ -7,7 +7,7 @@ import {
 } from '@ant-design/pro-components';
 import type {
     ProColumns,
-    ProDescriptionsItemProps,
+    ProDescriptionsColumn,
 } from '@ant-design/pro-components';
 import { Head, Link } from '@inertiajs/react';
 import { Button, Flex, Popconfirm, Tag, Timeline, Typography } from 'antd';
@@ -39,7 +39,7 @@ type Order = OrderRow & {
 };
 
 export default function OrderShow({ order }: { order: Order }) {
-    const fields: ProDescriptionsItemProps<Order>[] = [
+    const fields: ProDescriptionsColumn<Order>[] = [
         { title: t('Customer'), dataIndex: 'customer' },
         {
             title: t('Status'),
@@ -52,7 +52,8 @@ export default function OrderShow({ order }: { order: Order }) {
             dataIndex: 'total',
             render: () => formatMoney(order.total),
         },
-        { title: t('Notes'), dataIndex: 'notes', span: 2 },
+        // The rest of its line: both columns on a wide screen, the one on a phone.
+        { title: t('Notes'), dataIndex: 'notes', span: 'filled' },
     ];
     const itemColumns: ProColumns<OrderItem>[] = [
         { title: t('Product'), dataIndex: 'name' },

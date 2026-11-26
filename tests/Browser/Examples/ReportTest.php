@@ -45,8 +45,10 @@ test('a range in the URL fills the search form when the page loads', function ()
         ->assertSeeIn('.ant-table-summary', 'Total');
 });
 
-test('the export downloads a CSV with its header row', function () {
+test('the export downloads a CSV with its header row, after a UTF-8 byte order mark', function () {
     visit('/examples/report')
         ->assertScript('fetch('.REPORT_EXPORT_HREF.").then((response) => response.headers.get('content-type'))", 'text/csv; charset=UTF-8')
-        ->assertScript('fetch('.REPORT_EXPORT_HREF.").then((response) => response.text()).then((csv) => csv.split('\\n')[0])", 'Product,"Units sold","Average price",Revenue');
+        // The bytes, since decoding the text drops the mark.
+        ->assertScript('fetch('.REPORT_EXPORT_HREF.').then((response) => response.arrayBuffer()).then((bytes) => [...new Uint8Array(bytes, 0, 3)])', [0xEF, 0xBB, 0xBF])
+        ->assertScript('fetch('.REPORT_EXPORT_HREF.").then((response) => response.text()).then((csv) => csv.replace(/^\\uFEFF/, '').split('\\n')[0])", 'Product,"Units sold","Average price",Revenue');
 });

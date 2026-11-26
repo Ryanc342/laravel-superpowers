@@ -6,13 +6,12 @@ import {
     ProFormText,
     StepsForm,
 } from '@ant-design/pro-components';
-import type { ProDescriptionsItemProps } from '@ant-design/pro-components';
+import type { ProDescriptionsColumn } from '@ant-design/pro-components';
 import { Head } from '@inertiajs/react';
 import { Alert, Flex, Form } from 'antd';
-import { useState } from 'react';
 import { msg, t } from '@/lib/i18n';
 import { store } from '@/routes/examples/steps';
-import { useInertiaForm } from '@/ui/form';
+import { useInertiaStepsForm } from '@/ui/form';
 import PageTitle from '@/ui/page-title';
 
 /*
@@ -20,19 +19,11 @@ import PageTitle from '@/ui/page-title';
  * checks each step's fields before the next step shows (Precognition, only
  * those fields), then the whole supplier when the last step sends it.
  *
- * The steps are one form: one `useInertiaForm`, whose antd form every step
- * is given, so the last step sends what all of them hold, and the server's
- * errors find their fields in any step. But Pro's StepsForm makes each step
- * an antd `Form` of its own, and when forms share an instance, whichever of
- * them rendered last decides what a submit runs, whatever step it is in.
- * Two rules follow:
- *
- * - every step's `onFinish` is the same function, `finishShownStep`, which
- *   asks which step shows (`current`), not which step it belongs to;
- * - the glue gets the form's own values (`valuesOfEveryStep`), not the values
- *   of the step whose `Form` ran: Pro formats a date only in its own step. A
- *   date goes out as its local calendar date, or in the format `dateFormats`
- *   names for it.
+ * `useInertiaStepsForm` wires the steps: spread its props onto `StepsForm`
+ * and onto every step, and list each step's fields, `[]` for the summary. The
+ * server asks whether the company is a supplier already on the send only, so
+ * that error comes back after the last step, and the form goes back to the
+ * company step to show it.
  */
 
 type SupplierValues = {
@@ -53,10 +44,11 @@ const NO_SUPPLIER: SupplierValues = {
     phone: '',
 };
 
-/** The fields (Laravel keys) of each step but the last, which the server checks before the next one. */
+/** The fields (Laravel keys) of each step, which Next checks on the server. The summary has none. */
 const STEP_FIELDS = [
     ['company_name', 'industry', 'website'],
     ['contact_name', 'email', 'phone'],
+    [],
 ];
 
 const industries: Record<string, string> = {
@@ -68,7 +60,7 @@ const industries: Record<string, string> = {
 
 /** What the last step shows, to be checked before it is sent. */
 function Summary({ supplier }: { supplier: SupplierValues }) {
-    const fields: ProDescriptionsItemProps<SupplierValues>[] = [
+    const fields: ProDescriptionsColumn<SupplierValues>[] = [
         { title: t('Company name'), dataIndex: 'company_name' },
         {
             title: t('Industry'),
@@ -92,28 +84,13 @@ function Summary({ supplier }: { supplier: SupplierValues }) {
 }
 
 export default function StepsExample() {
-    const [current, setCurrent] = useState(0);
-    const { formProps, validateFields, unplacedErrors } =
-        useInertiaForm<SupplierValues>(store(), NO_SUPPLIER);
-    const { form, onValuesChange, onFinish, ...stepFormProps } = formProps;
+    const { stepsFormProps, stepFormProps, form, unplacedErrors } =
+        useInertiaStepsForm<SupplierValues>(store(), NO_SUPPLIER, STEP_FIELDS);
     const supplier = Form.useWatch((values: SupplierValues) => values, {
         form,
         preserve: true,
     });
     const title = t('New supplier');
-
-    const valuesOfEveryStep = (): SupplierValues =>
-        form.getFieldsValue(true) as SupplierValues;
-
-    /**
-     * What each step's Next runs: the check of the fields of the step that
-     * shows, which moves on when it resolves `true`. On the last step, it
-     * sends the supplier.
-     */
-    const finishShownStep = (): Promise<boolean> =>
-        current < STEP_FIELDS.length
-            ? validateFields(STEP_FIELDS[current])
-            : onFinish(valuesOfEveryStep());
 
     return (
         <>
@@ -133,23 +110,11 @@ export default function StepsExample() {
                             />
                         )}
 
-                        <StepsForm<SupplierValues>
-                            current={current}
-                            onCurrentChange={setCurrent}
-                            formProps={{
-                                ...stepFormProps,
-                                form,
-                                onValuesChange: (changedValues) =>
-                                    onValuesChange(
-                                        changedValues,
-                                        valuesOfEveryStep(),
-                                    ),
-                            }}
-                        >
+                        <StepsForm<SupplierValues> {...stepsFormProps}>
                             <StepsForm.StepForm
                                 name="company"
                                 title={t('Company')}
-                                onFinish={finishShownStep}
+                                {...stepFormProps}
                             >
                                 <ProFormText
                                     name="company_name"
@@ -176,7 +141,7 @@ export default function StepsExample() {
                             <StepsForm.StepForm
                                 name="contact"
                                 title={t('Contact person')}
-                                onFinish={finishShownStep}
+                                {...stepFormProps}
                             >
                                 <ProFormText
                                     name="contact_name"
@@ -198,7 +163,7 @@ export default function StepsExample() {
                             <StepsForm.StepForm
                                 name="confirm"
                                 title={t('Confirm')}
-                                onFinish={finishShownStep}
+                                {...stepFormProps}
                             >
                                 {supplier && <Summary supplier={supplier} />}
                             </StepsForm.StepForm>

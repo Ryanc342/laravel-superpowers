@@ -58,33 +58,24 @@ trait GeneratesExampleData
      * order by 30 customers. A total and a price are in cents. An order's
      * history is the statuses it went through, each with its date.
      *
-     * The seed is Faker's own instance's, not the shared `fake()`'s. But
-     * Faker seeds PHP's `mt_rand`, which everything random in the request
-     * shares, so it is seeded at random again once the orders are made.
-     *
      * @return Collection<int, ExampleOrder>
      */
     protected function exampleOrders(): Collection
     {
-        $faker = Factory::create();
-        $faker->seed(2026);
+        return $this->madeWithSeededFaker(function (Generator $faker): Collection {
+            $customers = array_map(fn () => $faker->company(), range(1, 30));
+            $dates = collect(range(1, 137))
+                ->map(fn () => $faker->dateTimeBetween('2026-01-01', '2026-11-20')->format('Y-m-d'))
+                ->sort()
+                ->values();
 
-        $customers = array_map(fn () => $faker->company(), range(1, 30));
-        $dates = collect(range(1, 137))
-            ->map(fn () => $faker->dateTimeBetween('2026-01-01', '2026-11-20')->format('Y-m-d'))
-            ->sort()
-            ->values();
-
-        $orders = $dates->map(fn (string $orderedAt, int $index) => $this->makeExampleOrder(
-            $faker,
-            $index + 1,
-            $orderedAt,
-            $customers[$faker->numberBetween(0, count($customers) - 1)],
-        ));
-
-        $faker->seed();
-
-        return $orders;
+            return $dates->map(fn (string $orderedAt, int $index) => $this->makeExampleOrder(
+                $faker,
+                $index + 1,
+                $orderedAt,
+                $customers[$faker->numberBetween(0, count($customers) - 1)],
+            ));
+        });
     }
 
     /**
@@ -104,14 +95,7 @@ trait GeneratesExampleData
      */
     protected function exampleAssignees(): array
     {
-        $faker = Factory::create();
-        $faker->seed(2026);
-
-        $assignees = array_map(fn () => $faker->name(), range(1, 5));
-
-        $faker->seed();
-
-        return $assignees;
+        return $this->madeWithSeededFaker(fn (Generator $faker): array => array_map(fn () => $faker->name(), range(1, 5)));
     }
 
     /**
@@ -125,33 +109,28 @@ trait GeneratesExampleData
         $orders = $this->exampleOrders();
         $assignees = $this->exampleAssignees();
 
-        $faker = Factory::create();
-        $faker->seed(2026);
+        return $this->madeWithSeededFaker(function (Generator $faker) use ($orders, $assignees): Collection {
+            $dates = collect(range(1, 60))
+                ->map(fn () => $faker->dateTimeBetween('2026-10-01', '2026-11-26')->format('Y-m-d'))
+                ->sort()
+                ->values();
 
-        $dates = collect(range(1, 60))
-            ->map(fn () => $faker->dateTimeBetween('2026-10-01', '2026-11-26')->format('Y-m-d'))
-            ->sort()
-            ->values();
+            $pick = fn (array $choices): string => $choices[$faker->numberBetween(0, count($choices) - 1)];
 
-        $pick = fn (array $choices): string => $choices[$faker->numberBetween(0, count($choices) - 1)];
+            return $dates->map(function (string $createdOn, int $index) use ($faker, $pick, $orders, $assignees): array {
+                $order = $orders[$faker->numberBetween(0, $orders->count() - 1)];
 
-        $tasks = $dates->map(function (string $createdOn, int $index) use ($faker, $pick, $orders, $assignees): array {
-            $order = $orders[$faker->numberBetween(0, $orders->count() - 1)];
-
-            return [
-                'id' => $index + 1,
-                'title' => strtr($pick(self::EXAMPLE_TASK_SUBJECTS), [':order' => $order['number']]),
-                'customer' => $order['customer'],
-                'assignee' => $pick($assignees),
-                'priority' => $pick(self::EXAMPLE_TASK_PRIORITIES),
-                'status' => $pick(self::EXAMPLE_TASK_STATUSES),
-                'created_on' => $createdOn,
-            ];
+                return [
+                    'id' => $index + 1,
+                    'title' => strtr($pick(self::EXAMPLE_TASK_SUBJECTS), [':order' => $order['number']]),
+                    'customer' => $order['customer'],
+                    'assignee' => $pick($assignees),
+                    'priority' => $pick(self::EXAMPLE_TASK_PRIORITIES),
+                    'status' => $pick(self::EXAMPLE_TASK_STATUSES),
+                    'created_on' => $createdOn,
+                ];
+            });
         });
-
-        $faker->seed();
-
-        return $tasks;
     }
 
     /**
@@ -219,6 +198,39 @@ trait GeneratesExampleData
                 'average_order' => $orders->isEmpty() ? 0 : intdiv($revenue, $orders->count()),
             ],
         ];
+    }
+
+    /**
+     * What `$make` makes with a Faker seeded with 2026: the same on every
+     * request. Make no other example data inside it.
+     *
+     * The seed is Faker's own instance's, not the shared `fake()`'s, but
+     * Faker seeds PHP's `mt_rand`, which everything random in the request
+     * shares. So it is seeded at random again once the data is made.
+     *
+     * A Faker also seeds `mt_rand` at random when PHP frees it
+     * (`Generator::__destruct`), and its providers point back at it, so PHP
+     * frees it only when its cycle collector runs, which can be in the middle
+     * of `$make`. The Fakers left over from before (this one's earlier
+     * calls, a test's factories) are freed first, before the seed.
+     *
+     * @template TData
+     *
+     * @param  callable(Generator): TData  $make
+     * @return TData
+     */
+    private function madeWithSeededFaker(callable $make): mixed
+    {
+        gc_collect_cycles();
+
+        $faker = Factory::create();
+        $faker->seed(2026);
+
+        try {
+            return $make($faker);
+        } finally {
+            $faker->seed();
+        }
     }
 
     /**

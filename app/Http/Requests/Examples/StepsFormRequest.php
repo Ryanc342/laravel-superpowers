@@ -14,19 +14,41 @@ use Illuminate\Validation\Rule;
 class StepsFormRequest extends FormRequest
 {
     /**
-     * The company step, then the contact step.
+     * The companies that are suppliers already. A real app would ask its
+     * database or an outside register.
+     */
+    private const array EXISTING_SUPPLIERS = ['Taken Ltd'];
+
+    /**
+     * The company step, then the contact step. Whether the company is a
+     * supplier already is asked on the send only, like a check that is slow
+     * or calls another service (the password breach check in
+     * `AppServiceProvider`): its error reaches the form after the last step.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            'company_name' => ['required', 'string', 'max:100'],
+            'company_name' => [
+                'required', 'string', 'max:100',
+                ...($this->isPrecognitive() ? [] : [Rule::notIn(self::EXISTING_SUPPLIERS)]),
+            ],
             'industry' => ['required', Rule::in(['manufacturing', 'retail', 'logistics', 'services'])],
             'website' => ['nullable', 'url', 'max:255'],
             'contact_name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'company_name.not_in' => __('This company is a supplier already.'),
         ];
     }
 

@@ -44,6 +44,24 @@ test('each filled-in step moves on, and the last one sends the supplier to its r
         ->assertNoJavaScriptErrors();
 });
 
+test('an error the send finds in an earlier step takes the user back to that step, with the error under its field', function () {
+    // The server asks whether the company is a supplier already on the send only, not on the step's check.
+    visit('/examples/steps')
+        ->type('input#company_company_name', 'Taken Ltd')
+        ->click(SHOWN_SUPPLIER_STEP.' .ant-select')
+        ->click('.ant-select-item-option[title="Retail"]')
+        ->press('Next')
+        ->type('input#contact_contact_name', 'Wang Fang')
+        ->type('input#contact_email', 'wang.fang@example.com')
+        ->press('Next')
+        ->assertSeeIn(SHOWN_SUPPLIER_STEP, 'Taken Ltd')
+        ->press('Finish')
+        ->assertSeeIn(SHOWN_SUPPLIER_STEP.' .ant-form-item-explain-error', 'This company is a supplier already.')
+        ->assertVisible('input#company_company_name')
+        ->assertPathIs('/examples/steps')
+        ->assertNoJavaScriptErrors();
+});
+
 test('the steps form leaves checking to the server', function () {
     visit('/examples/steps')
         ->assertPresent('input#company_company_name')

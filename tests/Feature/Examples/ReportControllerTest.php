@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /*
@@ -80,9 +81,12 @@ describe('export', function () {
             ->assertHeader('Content-Type', 'text/csv; charset=UTF-8')
             ->assertDownload('sales-by-product.csv');
 
-        $lines = array_map(str_getcsv(...), explode("\n", trim($response->streamedContent())));
+        $csv = $response->streamedContent();
+        // A byte order mark first, so Excel reads the headings in the user's language as UTF-8.
+        $lines = array_map(str_getcsv(...), explode("\n", trim(Str::after($csv, "\u{FEFF}"))));
 
-        expect($lines[0])->toBe(['Product', 'Units sold', 'Average price', 'Revenue'])
+        expect($csv)->toStartWith("\u{FEFF}")
+            ->and($lines[0])->toBe(['Product', 'Units sold', 'Average price', 'Revenue'])
             ->and($lines)->toHaveCount(13);
     });
 
