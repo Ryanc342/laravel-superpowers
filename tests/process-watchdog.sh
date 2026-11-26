@@ -10,11 +10,12 @@
 # <pid> is gone and the marker is still there, the run was killed, and with
 # `kill -9` nothing else cleans up behind it. The watchdog ends the descendants
 # it noted, and also what the run started too shortly before it was killed to
-# be noted: whatever came into the run's process group after the watchdog
-# started and has no parent left in it, whether init or a subreaper took it
-# over. It sends TERM first and, two seconds later, KILL, looking again for what
-# the ended processes had started. So no orphan is left holding the test
-# database lock or the stdout of whoever started the run.
+# be noted: whatever in the run's process group has no parent left in the
+# group, whether init or a subreaper took it over, except what was in the group
+# and not the run's when the watchdog started. It sends TERM first and, two
+# seconds later, KILL, looking again for what the ended processes had started.
+# So no orphan is left holding the test database lock or the stdout of whoever
+# started the run.
 #
 # When the marker is gone, the run ended normally and the watchdog just exits.
 # It only ever signals PIDs it found this way, never a process matched by name.
@@ -87,10 +88,10 @@ descendantsOf() {
     '
 }
 
-# Print the PIDs in <group> that were not in it when the watchdog started
-# ($present) and have no parent in it: what lost its parent since, which init
-# or a subreaper took over. Processes whose parent is still in the group are
-# left out, as are init and the watchdog.
+# Print the PIDs in <group> that are not in $present, so the run's own or new
+# since the watchdog started, and have no parent in it: what lost its parent,
+# which init or a subreaper took over. Processes whose parent is still in the
+# group are left out, as are init and the watchdog.
 takenOverIn() {
     ps -A -o pid= -o ppid= -o pgid= | awk -v group="$1" -v self="$$" -v present="$present" '
         BEGIN {
@@ -126,8 +127,10 @@ fi
 # Everything in the group now that is not the run or below it: the command
 # that started the run, the rest of a pipeline (`tee`), whatever that command
 # had left running before (such as a database server), and the watchdog. None
-# of it is ended for being in the group. On one line, as BSD awk refuses a
-# newline in a -v value.
+# of it is ended for being in the group. A run that is already gone by now, in
+# the watchdog's first fraction of a second, has left its processes without a
+# parent, so they land here and are spared as well. On one line, as BSD awk
+# refuses a newline in a -v value.
 present=""
 
 if [ -n "$group" ]; then
@@ -188,6 +191,10 @@ while [ -e "$marker" ]; do
     left=$noted
 
     if [ -n "$group" ]; then
+        # What is in the group now. The KILL pass looks no further, so what
+        # the command that started the run starts after it is not taken for
+        # the run's.
+        members=" $(ps -A -o pid= -o pgid= | awk -v group="$group" '$2 == group { printf "%s ", $1 }') "
         left="$left $(takenOverIn "$group")"
     fi
 
@@ -202,7 +209,11 @@ while [ -e "$marker" ]; do
     left=$noted
 
     if [ -n "$group" ]; then
-        left="$left $(takenOverIn "$group")"
+        for candidate in $(takenOverIn "$group"); do
+            case $members in
+                *" $candidate "*) left="$left $candidate" ;;
+            esac
+        done
     fi
 
     for descendant in $left; do

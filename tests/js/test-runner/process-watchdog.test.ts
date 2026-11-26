@@ -202,7 +202,7 @@ type LeftBehindRun = {
         | 'late'
         | 'lateChild',
         number
-    > & { resident?: number; worker?: number };
+    > & { resident?: number; worker?: number; afterward?: number };
 };
 
 /**
@@ -216,15 +216,19 @@ type LeftBehindRun = {
  *   command's group. Next to the run the caller started a shell that looks
  *   after a sleep (`bystander`) and starts another one (`worker`) while the
  *   run is going, as `php artisan serve &` looks after its server and starts
- *   new workers.
+ *   new workers. Once the run is gone and the watchdog has sent TERM, the
+ *   caller leaves one more sleep running with no parent but init
+ *   (`afterward`), as `composer check; (php artisan serve &)` would.
  * - 'pipeline': the caller is a shell with job control that runs
  *   `run | bystander`, as a terminal runs `composer check | tee`. The pipeline
  *   gets a group of its own, and the bystander's parent, the caller, is
  *   outside it.
  *
  * The run starts a sleep (`early`), then the watchdog the way
- * tests/bootstrap.php does, so the watchdog sits in the run's group with no
- * parent of its own either.
+ * tests/bootstrap.php does, so the watchdog sits in the run's group and ends
+ * up with no parent of its own either. The subshell that starts it stays a
+ * moment, as a slow `sh -c` would, so the watchdog is still below the run when
+ * it first looks at the group.
  *
  * A `ps` in front of the real one makes the watchdog miss a process: on the
  * watchdog's listing of the run's descendants number `endAt`, it has the run
@@ -251,10 +255,14 @@ const startRunBelowACaller = async (
         join(fixture, 'caller.sh'),
         shape === 'left-behind'
             ? `echo "caller $$" >> "$FIXTURE/pids"
+startAfterward() {
+    ( sleep 300 & echo "afterward $!" >> "$FIXTURE/pids" )
+}
+trap startAfterward USR1
 ( sleep 300 & echo "resident $!" >> "$FIXTURE/pids" )
 bash "$FIXTURE/bystander.sh" &
 bash "$FIXTURE/run.sh"
-wait
+while :; do wait; sleep 0.1; done
 `
             : `echo "caller $$" >> "$FIXTURE/pids"
 set -m
@@ -286,7 +294,7 @@ startLate() {
 trap startLate USR1
 sleep 300 &
 echo "early $!" >> "$FIXTURE/pids"
-( bash "$WATCHDOG" $$ "$FIXTURE/marker" < /dev/null > /dev/null 2>&1 & echo "watchdog $!" >> "$FIXTURE/pids" )
+( bash "$WATCHDOG" $$ "$FIXTURE/marker" < /dev/null > /dev/null 2>&1 & echo "watchdog $!" >> "$FIXTURE/pids"; sleep 2 ) &
 while :; do sleep 0.05; done
 `,
     );
@@ -336,6 +344,31 @@ if [ -n "$descendants" ]; then
     fi
 fi
 
+# The watchdog lists the group with parents once when it starts and once for
+# its TERM pass. Right after the second, have the caller leave \`afterward\`.
+groupListing=
+case " $* " in
+    *" -A "*"ppid="*"pgid="*) groupListing=1 ;;
+esac
+
+if [ -n "$groupListing" ] && [ -n "$AFTERWARD" ]; then
+    groupCount=$(( $(cat "$FIXTURE/group-count" 2>/dev/null || echo 0) + 1 ))
+    echo "$groupCount" > "$FIXTURE/group-count"
+
+    if [ "$groupCount" -eq 2 ]; then
+        output=$("$REAL_PS" "$@")
+        caller=$(awk '$1 == "caller" { print $2 }' "$FIXTURE/pids")
+        kill -USR1 "$caller"
+
+        until grep -q '^afterward ' "$FIXTURE/pids"; do
+            sleep 0.05
+        done
+
+        printf '%s\\n' "$output"
+        exit 0
+    fi
+fi
+
 exec "$REAL_PS" "$@"
 `,
     );
@@ -355,6 +388,7 @@ exec "$REAL_PS" "$@"
         env: {
             ...process.env,
             PATH: `${fixture}:${process.env.PATH}`,
+            AFTERWARD: shape === 'left-behind' ? '1' : '',
             END_AT: String(endAt),
             FIXTURE: fixture,
             REAL_PS: execFileSync('sh', ['-c', 'command -v ps'])
@@ -378,7 +412,7 @@ exec "$REAL_PS" "$@"
                 .filter(([, pid]) => isProcessId(pid as number)),
         );
 
-    const expected = shape === 'left-behind' ? 10 : 7;
+    const expected = shape === 'left-behind' ? 11 : 7;
 
     await waitUntil(() => Object.keys(pidsOf()).length === expected, 5000);
 
@@ -532,7 +566,7 @@ describe('process-watchdog.sh', () => {
         expect(existsSync(marker)).toBe(false);
     }, 20000);
 
-    it('ends what the run had started before the watchdog first looked, when the run is gone by then', async () => {
+    it('ends what the run started before the watchdog, when the run is killed before the watchdog noted anything', async () => {
         const { pids } = await startRunBelowACaller('left-behind', 1);
 
         await waitUntil(() => !isAlive(pids.watchdog), 6000);
@@ -563,7 +597,16 @@ describe('process-watchdog.sh', () => {
         ).toEqual([true, true, true, true, true]);
     }, 20000);
 
-    it('spares the rest of a pipeline, which the shell outside its group still looks after', async () => {
+    it('spares what the command starts once the run is gone', async () => {
+        const { pids } = await startRunBelowACaller('left-behind');
+
+        await waitUntil(() => !isAlive(pids.watchdog), 6000);
+
+        expect(isAlive(pids.watchdog)).toBe(false);
+        expect(isAlive(pids.afterward!)).toBe(true);
+    }, 20000);
+
+    it('spares the rest of the pipeline the run is in', async () => {
         const { pids } = await startRunBelowACaller('pipeline');
 
         await waitUntil(() => !isAlive(pids.watchdog), 6000);
