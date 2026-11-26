@@ -38,6 +38,8 @@ Pick the page type and copy its example. Signed in on a local app, the examples 
 - App pages (everything in the app or auth layout) are laid out with `Flex`, `Space`, `Row`/`Col` and `ProCard`, with no Tailwind classes and no `style` props for colours or spacing.
 - A page's title is its one h1: `title={<PageTitle>{title}</PageTitle>}` on `PageContainer` (`@/ui/page-title`), with `<Head title={title} />`.
 - SSR is on: nothing reads `window` or `document` while rendering. Do it in an effect.
+- The server cannot see the screen, so it renders the computer's layout. Something that changes with the screen in JavaScript (`Grid.useBreakpoint()`, a Pro component that measures its width) jumps once the page hydrates, and fails the hydration when its first render in the browser differs from the server's. Render the same on every screen, and lay out a phone in CSS where the server's page needs it, as `resources/js/ui/responsive.css` does for the side menu and the settings menu.
+- A page of the project's own that guests open (a pricing page, say) sets `Page.layout = RootLayout` (`@/layouts/root-layout`). By its name, every page but `auth/*`, `settings/*`, `welcome` and `error` sits in the signed-in layout (`resources/js/ui/page-shell.tsx`), which reads the user and crashes for a guest (`TypeError … 'avatar'`).
 - Ant Design's way, as the examples show it: labels above fields; form buttons under the fields, on the left; a short form in a dialog and a long one on its own page; a `Popconfirm` before an action that can't be undone, and a modal that asks for the password before a high-risk one (`resources/js/components/settings/delete-account.tsx`); a first empty list shows one line and the action, a search with no results one sentence; status `Tag`s in antd's preset status colours; the server's status message is an `Alert` above the form, and it stays.
 - No chart library ships. `Statistic`, `StatisticCard`, `Progress` and tables cover dashboards and reports; a project that needs charts adds `@ant-design/plots` itself.
 
@@ -51,6 +53,7 @@ Read each piece's docblock before you use it.
 
 - Server: a subclass of `ListRequest` names its `sortable()` columns, its `filters()` rules, and a `$prefix` when a page has two lists. The controller sends the list as one prop: `$request->toProps($request->paginate($rows), $map)`.
 - Page: `const table = useInertiaTable(list, 'propName')`, then `<ProTable rowKey="id" columns={columns} {...table} />`. A sortable column has `sorter: true` and `sortOrder: sortOrderOf(list, 'column')`. A search field's `dataIndex` is a filter's name.
+- `table` holds the search form's settings too (`search`): the server renders the form in the same columns as the browser's first render, so the page hydrates. A prop the page sets in place of one of `table`'s goes after the spread, and a `search` of its own keeps `table.search`'s: `search={{ ...table.search, defaultCollapsed: false }}`, or `search={false}` for no search form.
 - `ListRequest` never fails a query. A hand-edited or old URL falls back to the defaults, and a page past the end shows the last page. Read the values only through `perPage()`, `sort()`, `filterValues()` and `paginate()`.
 - Rows per page live only in the URL, never in the user's settings, a cookie or storage. The choices and the default are in `config/lists.php`.
 - Filter on presence, not truthiness, because `'0'` is a filter: `OrderController@index` reads each filter with a `''` default and compares it with `''`, where `when($value)` would skip a search for "0".
@@ -95,6 +98,8 @@ Use them (`resources/js/ui/dialog.tsx`) instead of `Modal` and `ModalForm`: on a
 - `useAppearance()` (`resources/js/ui/appearance.ts`) gives the user's choice (`appearance`), what the page shows (`resolved`) and `setAppearance`. The choice is kept in the `appearance` cookie.
 - The look (brand colour, font, any antd token, where the menu sits) is set only in `resources/js/theme.ts`.
 - The signed-in menu's entries are `appMenu` in `resources/js/navigation.ts`.
+- The logo is `resources/js/components/app-logo.tsx`, which the project owns: its own mark goes there, as an `<svg>`.
+- `resources/views/app.blade.php` paints the page background (`colorBgLayout`, light and dark) before the stylesheet loads. When `theme.ts` changes it, change the two colours in the view too: `tests/js/theme-background.test.ts` fails until they match.
 
 ## Text
 
@@ -135,22 +140,22 @@ Five things keep the template's own approach:
 
 ## Before you finish
 
-- Add every new signed-in page to the page sweep (`tests/Browser/PageSweepTest.php`), which opens each one on a desktop and on a phone, and fails on any console message, a page without exactly one h1, or a page that scrolls sideways. A project lists its pages in its own `projectSweptPages()` in a `tests/Support/*.php` file (see `tests/Support/Template/browser.php`); the template's pages are in `sweptPages()`.
-- `composer check:browser` builds in development mode (`npm run build:dev`), so antd's and React's warnings reach the console. A production build leaves them out.
+- Add every new page to the page sweep (`tests/Browser/PageSweepTest.php`). It renders each page on the server, as production does, through the SSR bundle the build wrote and on an SSR server of the test run's own, then opens it on a desktop and on a phone. It fails when the server could not render the page or rendered a Pro field as "…", when React's hydration found the server's page different, on any console message, on a page without exactly one h1, and on a page that scrolls sideways. A project lists its signed-in pages in its own `projectSweptPages()` and the pages guests open in its own `projectSweptGuestPages()`, in a `tests/Support/*.php` file (see `tests/Support/Template/browser.php`); the template's pages are in `sweptPages()` and `sweptPagesOutsideTheApp()`.
+- `composer check:browser` builds in development mode (`npm run build:dev`), so antd's and React's warnings reach the console, and builds the SSR bundle (`vp build --ssr`). A production build leaves the warnings out.
 
 ## Who owns which file
 
 | Template-owned (projects don't edit)                                                                                                             | Project-owned (the template ships it once and leaves it alone)                                                                                                                                                           |
 | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | the glue (`resources/js/ui/`, `resources/js/lib/i18n.ts`), `resources/js/app.tsx`, `resources/js/ssr.tsx`, the layouts (`resources/js/layouts/`) | `resources/js/theme.ts`                                                                                                                                                                                                  |
-| auth, settings, error and example pages, with their routes and controllers                                                                       | the app menu (`resources/js/navigation.ts`), `resources/js/pages/dashboard.tsx`, `resources/js/pages/welcome.tsx`                                                                                                        |
+| auth, settings, error and example pages, with their routes and controllers                                                                       | the app menu (`resources/js/navigation.ts`), the logo (`resources/js/components/app-logo.tsx`), `resources/js/pages/dashboard.tsx`, `resources/js/pages/welcome.tsx`                                                     |
 | `lang/template/*.json`, `lang/en/*.php`, `lang/zh_CN/*.php`                                                                                      | `lang/zh_CN.json`                                                                                                                                                                                                        |
 | this skill                                                                                                                                       | the project's UI notes                                                                                                                                                                                                   |
 | the other tests, which hold for any theme, menu or page the project has (`tests/`)                                                               | the tests of the project's look: `tests/js/project-theme.test.ts`, `tests/js/pages/dashboard.test.tsx`, `tests/js/pages/welcome.test.tsx`, `tests/js/ssr/project-pages.test.tsx` and `tests/Browser/ProjectLookTest.php` |
 
 To change a template page, copy it into a page of the project's own and point its route there.
 
-A template-owned test never names a project-owned value (its colour, its menu entries, its dashboard or its welcome page). When the project changes `theme.ts`, `navigation.ts`, `dashboard.tsx` or `welcome.tsx`, it edits the project-owned tests above that pin them. A template-owned test that fails after such a change is a template bug: tell the user, and do not edit it.
+A template-owned test never names a project-owned value (its colour, its menu entries, its dashboard or its welcome page). When the project changes `theme.ts`, `navigation.ts`, `dashboard.tsx` or `welcome.tsx`, it edits the project-owned tests above that pin them. A template-owned test that fails after such a change is a template bug: tell the user, and do not edit it. One exception: `tests/js/theme-background.test.ts` fails when `theme.ts`'s page background (`colorBgLayout`) and the colours `resources/views/app.blade.php` paints differ. The fix is to change the colours in the view, not the test.
 
 ## The project's own components and notes
 
