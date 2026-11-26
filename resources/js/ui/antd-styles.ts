@@ -6,7 +6,7 @@ import type { ThemeConfig } from 'antd';
 import type * as ReactModule from 'react';
 import type { ReactElement } from 'react';
 import type * as ReactDomServer from 'react-dom/server';
-import { CSS_VAR_KEY, themeConfig } from './theme';
+import { CSS_VAR_KEY, DARK_SCOPE, LAYOUT_TOKEN, themeConfig } from './theme';
 import type { ProjectTheme } from './theme';
 
 type Modules = {
@@ -54,15 +54,6 @@ export function generateAntdCss(project: ProjectTheme): string {
     // rules, so being later is what makes them win.
     return `@layer antd {\n${light.join('')}\n${darkRules.join('')}\n}\n`;
 }
-
-/**
- * The scope of the dark copies. `:where()` adds no specificity, so a dark
- * copy beats only its own light rule, and every other rule keeps its rank, as
- * in a page rendered with the dark theme alone. Plain `html.dark` would raise
- * each copy over more specific rules: Pro's page header turned white in dark
- * mode over the rule that makes it transparent.
- */
-const DARK_SCOPE = ':where(html.dark) ';
 
 /**
  * Everything is loaded through CommonJS. Pro's ES build does not run in Node
@@ -288,19 +279,37 @@ function proTree(modules: Modules): ReactElement {
     const { pro, h, Fragment } = modules;
     const route = {
         path: '/',
-        routes: [{ path: '/dashboard', name: 'Dashboard' }],
-    };
-    const layouts = (['side', 'top', 'mix'] as const).map((layout) =>
-        h(
-            pro.ProLayout,
+        routes: [
             {
-                key: layout,
-                layout,
-                title: 'App',
-                route,
-                location: { pathname: '/dashboard' },
+                path: '/dashboard',
+                name: 'Dashboard',
+                icon: h('span', null, 'D'),
             },
-            h(pro.PageContainer, { title: 'Page', content: 'Content' }),
+        ],
+    };
+    // Pro styles its menu per mode: open, the side menu is `inline`, and
+    // collapsed it is `vertical`. The header styles its actions only when it
+    // has some.
+    const layouts = (['side', 'top', 'mix'] as const).flatMap((layout) =>
+        [false, true].map((collapsed) =>
+            h(
+                pro.ProLayout,
+                {
+                    key: `${layout}-${collapsed}`,
+                    layout,
+                    collapsed,
+                    title: 'App',
+                    route,
+                    location: { pathname: '/dashboard' },
+                    token: LAYOUT_TOKEN,
+                    actionsRender: () => [h('span', { key: 'action' }, 'A')],
+                    avatarProps: {
+                        title: 'User',
+                        render: (_props, dom) => dom,
+                    },
+                },
+                h(pro.PageContainer, { title: 'Page', content: 'Content' }),
+            ),
         ),
     );
     const columns = [

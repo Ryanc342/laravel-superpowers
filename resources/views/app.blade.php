@@ -19,7 +19,7 @@
             })();
         </script>
 
-        {{-- Inline style to set the HTML background color to antd's page background (colorBgLayout) --}}
+        {{-- Inline style to set the HTML background color to antd's page background (colorBgLayout), and dark scrollbars and form controls before the app's JavaScript runs --}}
         <style>
             html {
                 background-color: #f5f5f5;
@@ -27,6 +27,7 @@
 
             html.dark {
                 background-color: #000000;
+                color-scheme: dark;
             }
         </style>
 

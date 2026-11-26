@@ -19,5 +19,12 @@
     "Language: :language": "语言：:language",
     "Network error": "网络错误",
     "Check your connection and try again": "请检查网络连接后重试",
-    "Total :count item|Total :count items": "共 :count 条"
+    "Total :count item|Total :count items": "共 :count 条",
+    "Dashboard": "仪表盘",
+    "Settings": "设置",
+    "Log out": "退出登录",
+    "Manage your profile and account settings": "管理你的个人资料和账户设置",
+    "Profile": "个人资料",
+    "Security": "安全",
+    "Appearance": "外观"
 }

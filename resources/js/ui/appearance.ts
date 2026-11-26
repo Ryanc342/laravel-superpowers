@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { createContext, use, useEffect, useSyncExternalStore } from 'react';
 
 export type ResolvedAppearance = 'light' | 'dark';
 export type Appearance = ResolvedAppearance | 'system';
@@ -19,8 +19,13 @@ const STORAGE_KEY = 'appearance';
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 
-/** What the server render, and the render that hydrates it, show. */
-const SERVER_APPEARANCE: Appearance = 'system';
+/**
+ * What a server render shows, and so the render that hydrates it: `system`,
+ * on a browser that prefers light. The server never sees the visitor's
+ * choice. Only the server render that collects the dark theme's CSS variables
+ * (`ui/server-render.tsx`) sets it, to `dark`; the browser never does.
+ */
+export const ServerAppearance = createContext<Appearance>('system');
 
 const listeners = new Set<() => void>();
 
@@ -108,10 +113,11 @@ function setAppearance(appearance: Appearance): void {
  * script from the browser.
  */
 export function useAppearance(): UseAppearance {
+    const serverAppearance = use(ServerAppearance);
     const appearance = useSyncExternalStore(
         subscribeToChoice,
         savedAppearance,
-        () => SERVER_APPEARANCE,
+        () => serverAppearance,
     );
     const prefersDark = useSyncExternalStore(
         subscribeToBrowser,

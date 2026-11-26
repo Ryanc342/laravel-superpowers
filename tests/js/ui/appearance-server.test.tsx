@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { renderToString } from 'react-dom/server';
 import { expect, test, vi } from 'vite-plus/test';
-import { useAppearance } from '@/ui/appearance';
+import { ServerAppearance, useAppearance } from '@/ui/appearance';
 
 vi.mock('@inertiajs/react', () => ({
     usePage: () => ({ props: { locale: 'en', translations: [] } }),
@@ -35,4 +35,14 @@ test('the root layout renders on the server, with its feedback and appearance', 
     );
 
     expect(html).toContain('<span>system light</span>');
+});
+
+test('a server render can be asked for the dark appearance, to collect the dark theme', () => {
+    expect(
+        renderToString(
+            <ServerAppearance value="dark">
+                <Setting />
+            </ServerAppearance>,
+        ),
+    ).toBe('<span>dark dark</span>');
 });

@@ -23,6 +23,8 @@ declare module '@inertiajs/core' {
                 twoFactorAuthentication: boolean;
                 passkeys: boolean;
             };
+            // Whether the page-type examples exist (local and testing only), for the menu.
+            examples: boolean;
             sidebarOpen: boolean;
             perPageOptions: number[];
             [key: string]: unknown;

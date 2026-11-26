@@ -37,6 +37,12 @@ test('the Pro components styles are included', () => {
 // render antd's own components, so their classes are antd's.
 test.each([
     ['ProLayout', 'ant-pro-layout'],
+    ["ProLayout's open side menu", 'ant-pro-base-menu-inline-item-title'],
+    [
+        "ProLayout's collapsed side menu",
+        'ant-pro-base-menu-vertical-item-title',
+    ],
+    ["ProLayout's header actions", 'ant-pro-global-header-header-actions'],
     ['PageContainer', 'ant-pro-page-container'],
     ['ProTable', 'ant-pro-table'],
     ["ProTable's search form", 'ant-pro-query-filter'],

@@ -60,6 +60,9 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            // The page-type examples exist only in local development and in the tests, so the menu
+            // shows their group only there.
+            'examples' => app()->environment(['local', 'testing']),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             // The rows-per-page choices under every paginated list (components/shared/pagination.tsx).
             'perPageOptions' => [10, 20, 50, 100],

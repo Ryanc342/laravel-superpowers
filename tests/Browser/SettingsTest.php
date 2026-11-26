@@ -51,11 +51,12 @@ test('a user deletes their account', function () {
     expect(User::find($user->id))->toBeNull();
 });
 
-test('pages reached from the sidebar name themselves once, as their title, with no breadcrumbs', function (string $path, string $title) {
+test('pages reached from the menu name themselves once, as their title, with no breadcrumbs', function (string $path, string $title) {
     $this->actingAs(User::factory()->create());
 
     visit($path)
-        ->assertScript("document.querySelector('h1')?.textContent", $title)
+        ->assertScript("[...document.querySelectorAll('.ant-pro-layout-content h1')].map((heading) => heading.textContent)", [$title])
+        ->assertMissing('.ant-breadcrumb')
         ->assertMissing('nav[aria-label="breadcrumb"]');
 })->with([
     'dashboard' => ['/dashboard', 'Dashboard'],

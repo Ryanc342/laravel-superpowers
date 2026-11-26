@@ -18,6 +18,33 @@ export type ProjectTheme = {
 export const CSS_VAR_KEY = 'app';
 
 /**
+ * The scope of the dark copies of antd's styles, the build-time ones and the
+ * ones the server render adds. `:where()` adds no specificity, so a dark copy
+ * beats only its own light rule, and every other rule keeps its rank, as in a
+ * page rendered with the dark theme alone. Plain `html.dark` would raise each
+ * copy over more specific rules: Pro's page header turned white in dark mode
+ * over the rule that makes it transparent.
+ */
+export const DARK_SCOPE = ':where(html.dark) ';
+
+/**
+ * The tokens the template gives Pro's layout: the menu entry of the current
+ * page in the light primary colour, as in antd's own Menu (Pro's default is
+ * grey). They are antd's CSS variables, so they follow the theme, also in the
+ * styles made ahead of time, which render the layout with them too.
+ */
+export const LAYOUT_TOKEN = {
+    sider: {
+        colorBgMenuItemSelected: 'var(--ant-control-item-bg-active)',
+        colorTextMenuSelected: 'var(--ant-color-primary)',
+    },
+    header: {
+        colorBgMenuItemSelected: 'var(--ant-control-item-bg-active)',
+        colorTextMenuSelected: 'var(--ant-color-primary)',
+    },
+};
+
+/**
  * The template's look, kept for any token the project's theme leaves out.
  */
 const templateTheme: ProjectTheme = {

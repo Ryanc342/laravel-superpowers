@@ -26,6 +26,11 @@ export default defineConfig({
             formVariants: true,
         }),
     ]),
+    ssr: {
+        // Pro's ES build imports antd's locale files without their extension,
+        // which Node cannot load, so the SSR bundle carries Pro itself.
+        noExternal: ['@ant-design/pro-components'],
+    },
     server: {
         watch: {
             ignored: [
@@ -43,6 +48,14 @@ export default defineConfig({
         include: ['tests/js/**/*.test.{ts,tsx}'],
         environment: 'jsdom',
         setupFiles: ['tests/js/setup.ts'],
+        server: {
+            deps: {
+                // Vitest would inline Pro on its own, since its ES build is
+                // not valid Node ESM. Loading it the way Node does, as the SSR
+                // bundle does, lets tests/js/ssr fail when Pro is not bundled.
+                external: ['@ant-design/pro-components'],
+            },
+        },
     },
     lint: {
         // Setting plugins replaces Oxlint's default list, so the defaults
