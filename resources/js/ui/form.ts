@@ -11,7 +11,9 @@ import type { RouteDefinition } from '@/wayfinder';
  * validator: a form passes antd no `rules` that check values, marks a required
  * field with `Form.Item`'s `required` and repeats no limit as `maxLength`.
  * Fields are checked on the server while the user types (Precognition), and
- * the server's errors show under their fields.
+ * the server's errors show under their fields. Prefer Pro's date fields, which
+ * format their own value; a plain antd picker with a time names its format in
+ * `dateFormats`.
  */
 
 /** A field's name as antd writes it: `['items', 0, 'name']`. */
@@ -33,8 +35,11 @@ type InertiaData = Record<string, any>;
 /** How long after the last change the server check is sent. The first change is checked at once. */
 const VALIDATION_TIMEOUT_MS = 500;
 
-/** How a date reaches the server when its field does not format it: the local calendar date. */
+/** How a date reaches the server when nothing formats it: the local calendar date. */
 const DATE_FORMAT = 'YYYY-MM-DD';
+
+/** dayjs formats by field dot path, where `*` is any row index. */
+type DateFormats = Record<string, string>;
 
 /** The props to spread onto antd's `Form` or one of Pro's forms. */
 export type InertiaAntdFormProps<T> = {
@@ -59,6 +64,14 @@ export type InertiaAntdFormOptions<T> = {
     precognitive?: boolean;
     /** Fields emptied after a successful submit, such as a password. */
     resetOnSuccess?: (keyof T)[];
+    /**
+     * How a plain antd picker's date reaches the server, by field dot path,
+     * where `*` is any row index: `{ starts_at: 'YYYY-MM-DD HH:mm:ss',
+     * 'items.*.at': 'HH:mm:ss' }`. A range's path formats both its ends. A
+     * Pro date field formats its own value, and that format wins. Any other
+     * date goes out as its local calendar date, `YYYY-MM-DD`.
+     */
+    dateFormats?: DateFormats;
     /** Runs after a successful submit. */
     onSuccess?: () => void;
 };
@@ -248,73 +261,81 @@ function changedFields(
     });
 }
 
-/** A copy of `values` with `value` at the name path. */
-function setAt(values: unknown, name: NamePath, value: unknown): unknown {
-    if (name.length === 0) {
-        return value;
-    }
+/** Whether a `dateFormats` key names this path: `items.*.at` names `['items', 0, 'at']`. */
+function namesPath(key: string, path: NamePath): boolean {
+    const segments = key.split('.');
 
-    const [segment, ...rest] = name;
-    const copy: unknown[] | Record<string, unknown> = Array.isArray(values)
-        ? [...values]
-        : isPlainObject(values)
-          ? { ...values }
-          : typeof segment === 'number'
-            ? []
-            : {};
-    const container = copy as Record<string | number, unknown>;
-
-    container[segment] = setAt(container[segment], rest, value);
-
-    return container;
+    return (
+        segments.length === path.length &&
+        segments.every(
+            (segment, index) =>
+                segment === '*' || segment === String(path[index]),
+        )
+    );
 }
 
-/** A copy of `value` with every date in it as its local calendar date. */
-function datesAsText(value: unknown): unknown {
-    if (dayjs.isDayjs(value)) {
-        return value.format(DATE_FORMAT);
-    }
-
-    if (Array.isArray(value)) {
-        return value.map(datesAsText);
-    }
-
-    if (isPlainObject(value)) {
-        return Object.fromEntries(
-            Object.entries(value).map(([key, item]) => [
-                key,
-                datesAsText(item),
-            ]),
+/**
+ * The format `dateFormats` gives the date at this path: the format of its own
+ * path, or of the field it is in, such as the range one of its ends belongs
+ * to. Without one, the local calendar date.
+ */
+function dateFormatFor(path: NamePath, dateFormats: DateFormats): string {
+    for (let length = path.length; length > 0; length--) {
+        const key = Object.keys(dateFormats).find((candidate) =>
+            namesPath(candidate, path.slice(0, length)),
         );
+
+        if (key !== undefined) {
+            return dateFormats[key];
+        }
     }
 
-    return value;
+    return DATE_FORMAT;
 }
 
 /**
  * The form's values as Inertia sends them, for checks and submits alike.
- * - It starts from the form's store, so values with no field (a token, a
- *   row's id) are kept.
- * - Each field takes its value as the form hands it over (`formatted`): a Pro
- *   date field in its own format (`valueType`, `dateFormatter`).
- * - A date still left is its local calendar date (`YYYY-MM-DD`): a plain antd
- *   `DatePicker`'s. No date goes out as a dayjs object or a UTC instant.
+ * - Every value is the store's, as its field holds it, so values with no
+ *   field (a token, a row's id) and empty ones are kept.
+ * - A date that the form formatted (`formatted`: a Pro date field's own
+ *   `valueType` or `dateFormatter` format) takes that text or number. Nothing
+ *   else is taken from `formatted`, and no method is called on its values:
+ *   Pro's `transform` handling copies the dates it leaves into objects that
+ *   look like dayjs but have no methods. Only the store's dates are formatted.
+ * - Any other date takes its `dateFormats` format, or else its local calendar
+ *   date, `YYYY-MM-DD`. No date goes out as a dayjs object or a UTC instant.
  */
 function toInertiaData(
     store: object,
     formatted: object,
-    known: NamePath[],
+    dateFormats: DateFormats,
 ): InertiaData {
-    const fields = known.filter(
-        (name) => !known.some((inner) => isInside(inner, name)),
-    );
-    const values = fields.reduce<unknown>((data, name) => {
-        const field = valueAt(formatted, name);
+    const convert = (value: unknown, path: NamePath): unknown => {
+        if (dayjs.isDayjs(value)) {
+            const fromForm = valueAt(formatted, path).value;
 
-        return field.found ? setAt(data, name, field.value) : data;
-    }, store);
+            return typeof fromForm === 'string' || typeof fromForm === 'number'
+                ? fromForm
+                : value.format(dateFormatFor(path, dateFormats));
+        }
 
-    return datesAsText(values) as InertiaData;
+        if (Array.isArray(value)) {
+            return value.map((item, index) => convert(item, [...path, index]));
+        }
+
+        if (isPlainObject(value)) {
+            return Object.fromEntries(
+                Object.entries(value).map(([key, item]) => [
+                    key,
+                    convert(item, [...path, key]),
+                ]),
+            );
+        }
+
+        return value;
+    };
+
+    return convert(store, []) as InertiaData;
 }
 
 /**
@@ -346,12 +367,17 @@ export function useInertiaForm<T extends Record<string, unknown>>(
     initialValues: T,
     options: InertiaAntdFormOptions<T> = {},
 ): InertiaAntdForm<T> {
-    const { precognitive = true, resetOnSuccess = [], onSuccess } = options;
+    const {
+        precognitive = true,
+        resetOnSuccess = [],
+        dateFormats = {},
+        onSuccess,
+    } = options;
     const [form] = Form.useForm<T>();
     // antd types a form's field names from T; the glue handles any name.
     const fieldStore: FormInstance = form;
     const inertiaForm = useForm<InertiaData>(
-        datesAsText(initialValues) as InertiaData,
+        toInertiaData(initialValues, {}, dateFormats),
     );
     // `withPrecognition(route)` is what `useForm(route, data)` does on every
     // render, and it is not a hook, so it can depend on the option.
@@ -407,7 +433,7 @@ export function useInertiaForm<T extends Record<string, unknown>>(
         const after = fieldStore.getFieldsValue(true) as object;
 
         lastStore.current = after;
-        inertiaForm.setData(toInertiaData(after, formatted, known));
+        inertiaForm.setData(toInertiaData(after, formatted, dateFormats));
 
         return { known, before, after };
     };

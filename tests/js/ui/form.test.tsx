@@ -13,7 +13,7 @@ import type {
 } from '@ant-design/pro-components';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Alert, Button, DatePicker, Form, Input } from 'antd';
+import { Alert, Button, DatePicker, Form, Input, TimePicker } from 'antd';
 import type { FormProps } from 'antd';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -247,6 +247,96 @@ function ProDeliveryForm() {
             >
                 <ProFormText name="name" label="Name" />
             </ProFormList>
+        </ProForm>
+    );
+}
+
+/** Plain antd pickers with a time, which name their formats in `dateFormats`. */
+type Schedule = {
+    note: string;
+    starts_at: Dayjs | null;
+    window: [Dayjs, Dayjs] | null;
+    items: { at: Dayjs | null }[];
+};
+
+function ScheduleForm() {
+    const form = useInertiaForm<Schedule>(
+        route,
+        {
+            note: '',
+            starts_at: dayjs('2026-11-01 09:30:00'),
+            window: [dayjs('2026-11-01 08:00'), dayjs('2026-11-02 17:00')],
+            items: [{ at: dayjs('2026-11-01 14:45:00') }],
+        },
+        {
+            dateFormats: {
+                starts_at: 'YYYY-MM-DD HH:mm:ss',
+                window: 'YYYY-MM-DD HH:mm',
+                'items.*.at': 'HH:mm:ss',
+            },
+        },
+    );
+
+    return (
+        <Form {...form.formProps}>
+            <Form.Item name="note" label="Note">
+                <Input />
+            </Form.Item>
+            <Form.Item name="starts_at" label="Starts at">
+                <DatePicker showTime />
+            </Form.Item>
+            <Form.Item name="window" label="Window">
+                <DatePicker.RangePicker showTime />
+            </Form.Item>
+            <Form.List name="items">
+                {(fields) =>
+                    fields.map((field) => (
+                        <Form.Item
+                            key={field.key}
+                            name={[field.name, 'at']}
+                            label={`At ${field.name + 1}`}
+                        >
+                            <TimePicker />
+                        </Form.Item>
+                    ))
+                }
+            </Form.List>
+            <Button htmlType="submit">Save</Button>
+        </Form>
+    );
+}
+
+/** A Pro form with a `transform` field, a plain antd picker and an object value. */
+type Ticket = {
+    code: string;
+    plain_on: Dayjs | null;
+    address: { street: string; city: string; zip: string | null };
+};
+
+function AddressInput({ value }: { value?: Ticket['address'] }) {
+    return <span>{value?.city}</span>;
+}
+
+function ProTicketForm() {
+    const form = useInertiaForm<Ticket>(route, {
+        code: 'a',
+        plain_on: dayjs('2026-11-01'),
+        address: { street: '', city: 'Hangzhou', zip: null },
+    });
+
+    return (
+        <ProForm {...form.formProps}>
+            <ProFormText
+                name="code"
+                label="Code"
+                transform={(value: string) => value.trim()}
+            />
+            <ProForm.Item name="plain_on" label="Plain on">
+                <DatePicker />
+            </ProForm.Item>
+            <ProForm.Item name="address" label="Address">
+                <AddressInput />
+            </ProForm.Item>
         </ProForm>
     );
 }
@@ -709,4 +799,47 @@ test('removing a row on a precognitive form clears the errors of the rows, which
     await waitFor(() => expect(errorUnder('Email')).toBe('Bad'));
     await waitFor(() => expect(errorUnder('Item 1')).toBeNull());
     expect(alertText()).toBeNull();
+});
+
+test('a plain antd picker with a time sends the format dateFormats names, a row path and both ends of a range too', async () => {
+    render(<ScheduleForm />);
+
+    const expected = {
+        note: 'x',
+        starts_at: '2026-11-01 09:30:00',
+        window: ['2026-11-01 08:00', '2026-11-02 17:00'],
+        items: [{ at: '14:45:00' }],
+    };
+
+    expect(inertia.initialData).toEqual({ ...expected, note: '' });
+
+    await userEvent.type(screen.getByLabelText('Note'), 'x');
+
+    expect(lastData()).toEqual(expected);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(inertia.submit).toHaveBeenCalledTimes(1));
+
+    expect(lastData()).toEqual(expected);
+});
+
+test('a Pro form with a transform field and a plain picker keeps working, and sends what its fields hold', async () => {
+    render(<ProTicketForm />);
+
+    await userEvent.type(screen.getByLabelText('Code'), 'b');
+
+    const expected = {
+        code: 'ab',
+        plain_on: '2026-11-01',
+        address: { street: '', city: 'Hangzhou', zip: null },
+    };
+
+    expect(lastData()).toEqual(expected);
+
+    await userEvent.click(
+        screen.getByRole('button', { name: /Submit|提\s?交/ }),
+    );
+    await waitFor(() => expect(inertia.submit).toHaveBeenCalledTimes(1));
+
+    expect(lastData()).toEqual(expected);
 });
