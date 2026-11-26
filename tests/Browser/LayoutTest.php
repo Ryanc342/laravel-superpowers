@@ -31,6 +31,22 @@ test('the dashboard shows the app menu and the user menu', function () {
         ->assertNoJavaScriptErrors();
 });
 
+test('a collapsed side menu stays collapsed after a reload', function () {
+    $this->actingAs(User::factory()->create());
+
+    $siderIsCollapsed = "document.querySelector('.ant-pro-sider').classList.contains('ant-pro-sider-collapsed')";
+
+    $page = visit('/dashboard')
+        ->click('.ant-pro-sider-collapsed-button')
+        ->assertScript($siderIsCollapsed, true);
+
+    // Long enough for the page to load its scripts and settle after the reload.
+    $page->refresh()
+        ->wait(1)
+        ->assertScript($siderIsCollapsed, true)
+        ->assertScript("document.cookie.includes('sidebar_state=false')", true);
+});
+
 test('the menu entry of the current page is in the primary colour', function () {
     $this->actingAs(User::factory()->create());
 

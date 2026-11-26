@@ -101,9 +101,12 @@ function currentMenuKeys(
  * and the user menu. The theme file chooses where the menu goes.
  *
  * Menu entries are Inertia links, and the current one follows the page's URL.
- * The side menu's collapsed state is kept in the `sidebar_state` cookie. On a
- * phone the menu is a drawer instead, closed on each page load, and opening or
- * closing it is not kept.
+ * The side menu's collapsed state is kept in the `sidebar_state` cookie, open
+ * by default, and from md up the cookie alone decides it: antd's Sider would
+ * otherwise collapse or open it to suit the window on every page load, and
+ * save that over the user's choice (`breakpoint={false}`). On a phone the menu
+ * is a drawer instead, closed on each page load, and opening or closing it is
+ * not kept.
  *
  * The page title is the page's own (Inertia's `<Head>`): Pro would otherwise
  * write the menu entry's name into it.
@@ -191,6 +194,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     {dom}
                 </Link>
             )}
+            breakpoint={false}
             collapsed={isPhone ? !phoneMenuOpen : collapsed}
             onCollapse={onCollapse}
             actionsRender={() => [<LanguageSwitch key="language" />]}

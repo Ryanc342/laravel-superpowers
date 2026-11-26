@@ -35,22 +35,31 @@ import AppLayout from '@/layouts/app-layout';
 
 /**
  * A browser window of the given width: `(min-width: …)` and `(max-width: …)`
- * queries, joined by `and`, as antd's and Pro's breakpoints ask them.
+ * queries, joined by `and`, as antd's and Pro's breakpoints ask them (antd's
+ * Sider asks `max-width: 991.98px`). A query with no width in it does not
+ * match.
  */
 function windowWidth(width: number): void {
-    vi.stubGlobal('matchMedia', (query: string) => ({
-        matches: [...query.matchAll(/\((min|max)-width:\s*(\d+)px\)/g)].every(
-            ([, bound, pixels]) =>
-                bound === 'min'
-                    ? width >= Number(pixels)
-                    : width <= Number(pixels),
-        ),
-        media: query,
-        addEventListener() {},
-        removeEventListener() {},
-        addListener() {},
-        removeListener() {},
-    }));
+    vi.stubGlobal('matchMedia', (query: string) => {
+        const bounds = [
+            ...query.matchAll(/\((min|max)-width:\s*([\d.]+)px\)/g),
+        ];
+
+        return {
+            matches:
+                bounds.length > 0 &&
+                bounds.every(([, bound, pixels]) =>
+                    bound === 'min'
+                        ? width >= Number(pixels)
+                        : width <= Number(pixels),
+                ),
+            media: query,
+            addEventListener() {},
+            removeEventListener() {},
+            addListener() {},
+            removeListener() {},
+        };
+    });
 }
 
 function signedInPage(sidebarOpen: boolean, url = '/dashboard'): void {
@@ -75,14 +84,29 @@ afterEach(() => {
     theme.layout = 'side';
 });
 
-test('the side menu opens as the sidebar_state cookie left it', () => {
-    windowWidth(1280);
-    signedInPage(false);
+// From md up the cookie alone decides, whatever the width: antd's Sider would
+// otherwise collapse or open it to suit the window once the page has loaded.
+test.each([
+    [1280, false],
+    [900, true],
+])(
+    'at %ipx the side menu stays as the sidebar_state cookie left it (open: %s)',
+    async (width, open) => {
+        windowWidth(width);
+        document.cookie = `sidebar_state=${open};path=/`;
+        signedInPage(open);
 
-    render(<AppLayout>Page</AppLayout>);
+        await act(async () => {
+            render(<AppLayout>Page</AppLayout>);
+        });
+        await act(async () => {});
 
-    expect(sider()?.classList.contains('ant-pro-sider-collapsed')).toBe(true);
-});
+        expect(sider()?.classList.contains('ant-pro-sider-collapsed')).toBe(
+            !open,
+        );
+        expect(document.cookie).toBe(`sidebar_state=${open}`);
+    },
+);
 
 test('collapsing the side menu is kept in the sidebar_state cookie', async () => {
     windowWidth(1280);
@@ -96,9 +120,10 @@ test('collapsing the side menu is kept in the sidebar_state cookie', async () =>
             .querySelector<HTMLElement>('.ant-pro-sider-collapsed-button')
             ?.click();
     });
+    await act(async () => {});
 
     expect(sider()?.classList.contains('ant-pro-sider-collapsed')).toBe(true);
-    expect(document.cookie).toContain('sidebar_state=false');
+    expect(document.cookie).toBe('sidebar_state=false');
 });
 
 test('on a phone the menu starts closed, and closing it leaves the cookie alone', async () => {
@@ -108,6 +133,7 @@ test('on a phone the menu starts closed, and closing it leaves the cookie alone'
     await act(async () => {
         render(<AppLayout>Page</AppLayout>);
     });
+    await act(async () => {});
 
     expect(document.querySelector('.ant-drawer-open')).toBeNull();
     expect(document.cookie).not.toContain('sidebar_state');
