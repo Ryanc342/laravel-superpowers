@@ -16,6 +16,9 @@ const theme = vi.hoisted(() => ({
 }));
 
 vi.mock('@/theme', () => ({ default: theme }));
+// The project's own menu entries (`navigation.ts`) are not this layout's to
+// test: the layout adds the examples to whatever the project lists.
+vi.mock('@/navigation', () => ({ appMenu: [] }));
 
 import AppLayout from '@/layouts/app-layout';
 import { setLanguage } from '@/lib/i18n';

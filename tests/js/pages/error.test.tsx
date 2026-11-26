@@ -3,10 +3,13 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test';
 import { router } from '@inertiajs/react';
 import { setLanguage } from '@/lib/i18n';
-import Dashboard from '@/pages/dashboard';
 import ErrorPage from '@/pages/error';
 import type { ErrorStatus } from '@/pages/error';
-import Welcome from '@/pages/welcome';
+
+/*
+ * The error page, which the template owns. The project's own pages are tested
+ * in `dashboard.test.tsx` and `welcome.test.tsx`, which the project owns.
+ */
 
 const inertia = vi.hoisted(() => ({
     page: { props: {} as Record<string, unknown> },
@@ -56,58 +59,6 @@ function headings(): string[] {
         .getAllByRole('heading', { level: 1 })
         .map((heading) => heading.textContent ?? '');
 }
-
-test('the dashboard names itself once, as its page title, with no breadcrumbs', () => {
-    render(<Dashboard />);
-
-    expect(headings()).toEqual(['Dashboard']);
-    expect(document.querySelector('.ant-breadcrumb')).toBeNull();
-});
-
-test('the dashboard shows its placeholder figures and says to replace them', () => {
-    render(<Dashboard />);
-
-    for (const title of ['Visits', 'New sign-ups', 'Orders', 'Revenue']) {
-        expect(screen.getByText(title)).toBeTruthy();
-    }
-
-    expect(screen.getByText('12,846')).toBeTruthy();
-    expect(screen.getByText('Replace with your own figures')).toBeTruthy();
-});
-
-test('the welcome page offers a guest sign-in and sign-up, and no dashboard', () => {
-    render(<Welcome />);
-
-    expect(
-        screen.getByRole('link', { name: 'Log in' }).getAttribute('href'),
-    ).toBe('/login');
-    expect(
-        screen.getByRole('link', { name: 'Register' }).getAttribute('href'),
-    ).toBe('/register');
-    expect(screen.queryByRole('link', { name: 'Dashboard' })).toBeNull();
-    expect(headings()).toEqual(['Build on an app that checks itself']);
-});
-
-test('the welcome page leaves out sign-up while registration is off', () => {
-    visitor({ features: { ...everyFeatureOn, registration: false } });
-
-    render(<Welcome />);
-
-    expect(screen.getByRole('link', { name: 'Log in' })).toBeTruthy();
-    expect(screen.queryByRole('link', { name: 'Register' })).toBeNull();
-});
-
-test('the welcome page leads a signed-in user to the dashboard, not to sign-in', () => {
-    visitor({ auth: { user } });
-
-    render(<Welcome />);
-
-    expect(
-        screen.getByRole('link', { name: 'Dashboard' }).getAttribute('href'),
-    ).toBe('/dashboard');
-    expect(screen.queryByRole('link', { name: 'Log in' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Register' })).toBeNull();
-});
 
 const words: Record<ErrorStatus, { title: string; description: string }> = {
     403: {

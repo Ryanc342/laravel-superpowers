@@ -24,6 +24,10 @@ vi.mock('@inertiajs/react', () => ({
     },
 }));
 
+// The project's own theme (`theme.ts`) is not this layout's to test: the
+// layout gives antd whatever it lists, and these tests read antd's defaults.
+vi.mock('@/theme', () => ({ default: {} }));
+
 import RootLayout from '@/layouts/root-layout';
 
 // What antd's Empty says when it has no data: its own text, in the antd locale.

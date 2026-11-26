@@ -140,14 +140,17 @@ Five things keep the template's own approach:
 
 ## Who owns which file
 
-| Template-owned (projects don't edit)                                                                                                             | Project-owned (the template ships it once and leaves it alone)                                                    |
-| ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| the glue (`resources/js/ui/`, `resources/js/lib/i18n.ts`), `resources/js/app.tsx`, `resources/js/ssr.tsx`, the layouts (`resources/js/layouts/`) | `resources/js/theme.ts`                                                                                           |
-| auth, settings, error and example pages, with their routes and controllers                                                                       | the app menu (`resources/js/navigation.ts`), `resources/js/pages/dashboard.tsx`, `resources/js/pages/welcome.tsx` |
-| `lang/template/*.json`, `lang/en/*.php`, `lang/zh_CN/*.php`                                                                                      | `lang/zh_CN.json`                                                                                                 |
-| this skill                                                                                                                                       | the project's UI notes                                                                                            |
+| Template-owned (projects don't edit)                                                                                                             | Project-owned (the template ships it once and leaves it alone)                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| the glue (`resources/js/ui/`, `resources/js/lib/i18n.ts`), `resources/js/app.tsx`, `resources/js/ssr.tsx`, the layouts (`resources/js/layouts/`) | `resources/js/theme.ts`                                                                                                                                                                                                  |
+| auth, settings, error and example pages, with their routes and controllers                                                                       | the app menu (`resources/js/navigation.ts`), `resources/js/pages/dashboard.tsx`, `resources/js/pages/welcome.tsx`                                                                                                        |
+| `lang/template/*.json`, `lang/en/*.php`, `lang/zh_CN/*.php`                                                                                      | `lang/zh_CN.json`                                                                                                                                                                                                        |
+| this skill                                                                                                                                       | the project's UI notes                                                                                                                                                                                                   |
+| the other tests, which hold for any theme, menu or page the project has (`tests/`)                                                               | the tests of the project's look: `tests/js/project-theme.test.ts`, `tests/js/pages/dashboard.test.tsx`, `tests/js/pages/welcome.test.tsx`, `tests/js/ssr/project-pages.test.tsx` and `tests/Browser/ProjectLookTest.php` |
 
 To change a template page, copy it into a page of the project's own and point its route there.
+
+A template-owned test never names a project-owned value (its colour, its menu entries, its dashboard or its welcome page). When the project changes `theme.ts`, `navigation.ts`, `dashboard.tsx` or `welcome.tsx`, it edits the project-owned tests above that pin them. A template-owned test that fails after such a change is a template bug: tell the user, and do not edit it.
 
 ## The project's own components and notes
 

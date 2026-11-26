@@ -113,7 +113,7 @@ test('a page loads cleanly, with one h1, and is no wider than the screen', funct
 })->with(pagesToSweep())->with(['desktop', 'phone']);
 
 test('the sweep records what a page writes with console.warn and console.error', function () {
-    $page = visit('/dashboard');
+    $page = visit('/settings/profile');
     $page->script("console.warn('a warning'); console.error('an error')");
 
     $page->assertScript('window.__pestBrowser.consoleLogs.map(({ message }) => message)', ['warn: a warning', 'error: an error']);

@@ -1,29 +1,40 @@
 // @vitest-environment node
-import type { Page } from '@inertiajs/core';
 import type { ResolvedComponent } from '@inertiajs/react';
-import { expect, test } from 'vite-plus/test';
+import { expect, test, vi } from 'vite-plus/test';
 import Login from '@/pages/auth/login';
-import Dashboard from '@/pages/dashboard';
 import ErrorPage from '@/pages/error';
+import DashboardExample from '@/pages/examples/dashboard';
 import OrdersIndex from '@/pages/examples/orders/index';
 import Appearance from '@/pages/settings/appearance';
 import Profile from '@/pages/settings/profile';
 import Security from '@/pages/settings/security';
-import Welcome from '@/pages/welcome';
 import { serverRenderer } from '@/ui/server-render';
+import { page } from './page';
 
 /*
  * The server render, as the SSR server runs it: the page in its layouts, and
  * in the head the CSS variables of the theme providers Pro nests in its
  * layout. Vitest loads Pro the way Node does in the SSR bundle (see
  * `test.server.deps` in vite.config.ts), so Pro has to be bundled there too.
+ *
+ * It tests the template's pages with the template's own theme and menu, which
+ * stand in for the project's `theme.ts` and `navigation.ts` (and so for its
+ * colours, its layout and its entries): a project changes those, and this
+ * file does not follow. The project's own pages and menu entries are in
+ * `project-pages.test.tsx`.
  */
 
+vi.mock('@/theme', () => ({ default: {} }));
+vi.mock('@/navigation', () => ({
+    appMenu: [
+        { key: 'settings', label: 'Settings', href: '/settings/appearance' },
+    ],
+}));
+
 const pages: Record<string, unknown> = {
-    dashboard: Dashboard,
     error: ErrorPage,
+    'examples/dashboard': DashboardExample,
     'examples/orders/index': OrdersIndex,
-    welcome: Welcome,
     'auth/login': Login,
     'settings/profile': Profile,
     'settings/security': Security,
@@ -32,63 +43,17 @@ const pages: Record<string, unknown> = {
 
 const renderPage = serverRenderer((name) => pages[name] as ResolvedComponent);
 
-function page(
-    component: string,
-    url: string,
-    props: Record<string, unknown> = {},
-): Page {
-    return {
-        component,
-        url,
-        version: null,
-        rescuedProps: [],
-        flash: {},
-        rememberedState: {},
-        props: {
-            errors: {},
-            name: 'Laravel',
-            auth: {
-                user: {
-                    id: 1,
-                    name: 'Test User',
-                    email: 'test@example.com',
-                    email_verified_at: null,
-                    created_at: '2026-11-26',
-                    updated_at: '2026-11-26',
-                },
-            },
-            locale: 'en',
-            locales: [
-                { value: 'zh_CN', label: '中文' },
-                { value: 'en', label: 'English' },
-            ],
-            translations: [],
-            features: {
-                registration: true,
-                resetPasswords: true,
-                emailVerification: true,
-                twoFactorAuthentication: true,
-                passkeys: true,
-            },
-            examples: [
-                {
-                    key: 'examples',
-                    label: 'Examples',
-                    href: '/examples',
-                    children: [
-                        {
-                            key: 'examples.orders',
-                            label: 'Orders',
-                            href: '/examples/orders',
-                        },
-                    ],
-                },
-            ],
-            sidebarOpen: true,
-            ...props,
-        },
-    } as unknown as Page;
-}
+/** What the dashboard example's controller sends. */
+const salesFigures = {
+    figures: {
+        orders: 1204,
+        revenue: 8642000,
+        averageOrder: 7178,
+        awaitingPayment: 37,
+        statuses: [],
+    },
+    activity: { data: [] },
+};
 
 /** The CSS of the style the server render adds to the head, if it adds one. */
 function serverStyles(head: string[]): string | undefined {
@@ -112,28 +77,32 @@ function block(css: string, selector: string): string | undefined {
         : css.slice(start + selector.length + 1, css.indexOf('}', start));
 }
 
-test('the dashboard renders on the server inside the app shell', async () => {
-    const { body } = await renderPage(page('dashboard', '/dashboard'));
+test('the dashboard example renders on the server inside the app shell', async () => {
+    const { body } = await renderPage(
+        page('examples/dashboard', '/examples/dashboard', salesFigures),
+    );
 
     // Pro's statistic cards are part of the server's page, in columns that
     // follow the screen in CSS: the server cannot know the screen's width.
     expect(body).toContain('ant-pro-statistic-card');
-    expect(body).toContain('12,846');
+    expect(body).toContain('1,204');
     expect(body).toContain('ant-col-xl-6');
 
     expect(body).toContain('ant-pro-layout');
     expect(body).toContain('data-test="user-menu-button"');
-    expect(body).toContain('href="/dashboard"');
+    expect(body).toContain('href="/settings/appearance"');
     // antd's elements carry the class of the theme's CSS variable key, `app`.
     expect(body).toMatch(/class="[^"]*\bant-layout\b[^"]*\bapp\b/);
 });
 
 // Pro marks the current entry only once its JavaScript runs.
 test('the server marks the menu entry of the current page', async () => {
-    const { body } = await renderPage(page('dashboard', '/dashboard'));
+    const { body } = await renderPage(
+        page('settings/appearance', '/settings/appearance'),
+    );
 
     expect(body).toMatch(
-        /<li[^>]*class="[^"]*\bant-menu-item-selected\b[^"]*"(?:(?!<\/li>).)*href="\/dashboard"/,
+        /<li[^>]*class="[^"]*\bant-menu-item-selected\b[^"]*"(?:(?!<\/li>).)*href="\/settings\/appearance"/,
     );
 });
 
@@ -164,8 +133,10 @@ test('the server renders the group of the current page open, with its entry mark
     );
 });
 
-test('every nested theme the dashboard uses has its variables in the head, light and dark', async () => {
-    const { head, body } = await renderPage(page('dashboard', '/dashboard'));
+test('every nested theme the dashboard example uses has its variables in the head, light and dark', async () => {
+    const { head, body } = await renderPage(
+        page('examples/dashboard', '/examples/dashboard', salesFigures),
+    );
     const css = serverStyles(head) ?? '';
     const keys = nestedKeys(body);
 
@@ -182,7 +153,9 @@ test('every nested theme the dashboard uses has its variables in the head, light
 });
 
 test('the dark copies come after the light ones, so they win under html.dark', async () => {
-    const { head, body } = await renderPage(page('dashboard', '/dashboard'));
+    const { head, body } = await renderPage(
+        page('examples/dashboard', '/examples/dashboard', salesFigures),
+    );
     const css = serverStyles(head) ?? '';
     const [key] = nestedKeys(body);
 
@@ -192,7 +165,9 @@ test('the dark copies come after the light ones, so they win under html.dark', a
 });
 
 test('the styles stay out of the head elements Inertia replaces on a visit', async () => {
-    const { head } = await renderPage(page('dashboard', '/dashboard'));
+    const { head } = await renderPage(
+        page('examples/dashboard', '/examples/dashboard', salesFigures),
+    );
     const style = head.find((element) => element.startsWith('<style'));
 
     expect(style).toBeDefined();
@@ -264,14 +239,4 @@ test('the error page renders on the server for a guest, with its way home', asyn
     expect(body).toContain('Page not found');
     expect(body).toContain('Back to home');
     expect(body).not.toContain('ant-pro-layout');
-});
-
-test('the welcome page renders on the server, with the links a guest has', async () => {
-    const { body } = await renderPage(
-        page('welcome', '/', { auth: { user: null } }),
-    );
-
-    expect(body).toContain('Build on an app that checks itself');
-    expect(body).toContain('href="/login"');
-    expect(body).toContain('href="/register"');
 });

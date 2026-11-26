@@ -178,7 +178,6 @@ test('pages reached from the menu have one h1, their title, and no breadcrumbs',
         ->assertMissing('.ant-breadcrumb')
         ->assertMissing('nav[aria-label="breadcrumb"]');
 })->with([
-    'dashboard' => ['/dashboard', 'Dashboard'],
     'profile' => ['/settings/profile', 'Settings'],
     'appearance' => ['/settings/appearance', 'Settings'],
 ]);

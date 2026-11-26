@@ -1,11 +1,11 @@
 import { expect, test } from 'vite-plus/test';
-import Dashboard from '@/pages/dashboard';
 import OrdersIndex from '@/pages/examples/orders/index';
+import Profile from '@/pages/settings/profile';
 import { resolvePage } from '@/ui/pages';
 
 // The tests are built as local or testing builds are, with the examples.
 test('a page resolves by its name, the examples too in a build that has them', async () => {
-    expect(await resolvePage('dashboard')).toBe(Dashboard);
+    expect(await resolvePage('settings/profile')).toBe(Profile);
     expect(await resolvePage('examples/orders/index')).toBe(OrdersIndex);
 });
 

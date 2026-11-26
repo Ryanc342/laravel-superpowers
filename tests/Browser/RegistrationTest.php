@@ -33,14 +33,4 @@ test('registration turned off hides every sign-up link', function () {
         ->assertSee('Log in to your account')
         ->assertDontSee("Don't have an account?")
         ->assertDontSee('Sign up');
-
-    visit('/')
-        ->assertSee('Log in')
-        ->assertDontSee('Register');
-});
-
-test('the home page links to registration', function () {
-    visit('/')
-        ->assertSee('Log in')
-        ->assertSee('Register');
 });
