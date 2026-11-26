@@ -4,9 +4,11 @@ import type { ResolvedComponent } from '@inertiajs/react';
 import { expect, test } from 'vite-plus/test';
 import Login from '@/pages/auth/login';
 import Dashboard from '@/pages/dashboard';
+import ErrorPage from '@/pages/error';
 import Appearance from '@/pages/settings/appearance';
 import Profile from '@/pages/settings/profile';
 import Security from '@/pages/settings/security';
+import Welcome from '@/pages/welcome';
 import { serverRenderer } from '@/ui/server-render';
 
 /*
@@ -18,6 +20,8 @@ import { serverRenderer } from '@/ui/server-render';
 
 const pages: Record<string, unknown> = {
     dashboard: Dashboard,
+    error: ErrorPage,
+    welcome: Welcome,
     'auth/login': Login,
     'settings/profile': Profile,
     'settings/security': Security,
@@ -96,6 +100,12 @@ function block(css: string, selector: string): string | undefined {
 
 test('the dashboard renders on the server inside the app shell', async () => {
     const { body } = await renderPage(page('dashboard', '/dashboard'));
+
+    // Pro's statistic cards are part of the server's page, in columns that
+    // follow the screen in CSS: the server cannot know the screen's width.
+    expect(body).toContain('ant-pro-statistic-card');
+    expect(body).toContain('12,846');
+    expect(body).toContain('ant-col-xl-6');
 
     expect(body).toContain('ant-pro-layout');
     expect(body).toContain('data-test="user-menu-button"');
@@ -201,4 +211,26 @@ test('the security page leaves out the sections of the features that are off', a
     expect(markup).toContain('Update password');
     expect(markup).not.toContain('Two-factor authentication');
     expect(markup).not.toContain('Passkeys');
+});
+
+// The pages outside the app shell: a visitor's first paint, before any script runs.
+test('the error page renders on the server for a guest, with its way home', async () => {
+    const { body } = await renderPage(
+        page('error', '/no/such/page', { status: 404, auth: { user: null } }),
+    );
+
+    expect(body).toContain('ant-result-404');
+    expect(body).toContain('Page not found');
+    expect(body).toContain('Back to home');
+    expect(body).not.toContain('ant-pro-layout');
+});
+
+test('the welcome page renders on the server, with the links a guest has', async () => {
+    const { body } = await renderPage(
+        page('welcome', '/', { auth: { user: null } }),
+    );
+
+    expect(body).toContain('Build on an app that checks itself');
+    expect(body).toContain('href="/login"');
+    expect(body).toContain('href="/register"');
 });
