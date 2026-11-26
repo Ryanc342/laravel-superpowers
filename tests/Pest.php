@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Pest\Browser\Api\PendingAwaitablePage;
 use Tests\TestCase;
 
 /*
@@ -21,26 +20,36 @@ pest()->extend(TestCase::class)
 
 /*
 |--------------------------------------------------------------------------
-| Browser Helpers
+| Vite
 |--------------------------------------------------------------------------
+|
+| Feature tests never load Vite's assets, so they need neither the dev
+| server nor a built manifest. Browser tests load the built assets for real.
+| TestCase keeps both suites away from the dev server's public/hot file.
+|
 */
 
-/**
- * Open the security settings page as the signed-in user, confirming the
- * password first when the app asks for it (the password confirmation
- * feature). Kept here, in a file every app keeps, so the chisel markers
- * never sit in a test file that chisel may already have deleted.
- */
-function visitSecurityPage(string $password = 'password'): PendingAwaitablePage
-{
-    $page = visit('/settings/security');
+pest()->beforeEach(fn () => $this->withoutVite())->in('Feature');
 
-    /* @chisel-password-confirmation */
-    $page->assertPathIs('/user/confirm-password')
-        ->type('password', $password)
-        ->press('@confirm-password-button')
-        ->assertPathIs('/settings/security');
-    /* @end-chisel-password-confirmation */
+/*
+|--------------------------------------------------------------------------
+| Helpers
+|--------------------------------------------------------------------------
+|
+| Put your project's own helper functions, custom expectations and classes
+| in tests/Support/*.php: every file there is loaded here. Configuration with
+| pest() or uses() stays in this file, with the rest of the suite's setup.
+|
+| The template's own helpers are in tests/Support/Template and load after
+| yours. Each is declared only when no function of its name exists yet, so a
+| function of yours with the same name, here or in tests/Support, replaces it.
+|
+*/
 
-    return $page;
+foreach (glob(__DIR__.'/Support/*.php') as $helperFile) {
+    require_once $helperFile;
+}
+
+foreach (glob(__DIR__.'/Support/Template/*.php') as $helperFile) {
+    require_once $helperFile;
 }

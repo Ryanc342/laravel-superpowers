@@ -6,14 +6,10 @@ import StatusMessage from '@/components/shared/status-message';
 import SubmitButton from '@/components/shared/submit-button';
 import TextField from '@/components/shared/text-field';
 import TextLink from '@/components/text-link';
-/* @chisel-registration */
 import { register } from '@/routes';
-/* @end-chisel-registration */
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
-/* @chisel-passkeys */
 import PasskeyVerify from '@/components/passkey-verify';
-/* @end-chisel-passkeys */
 
 type Props = {
     status?: string;
@@ -25,9 +21,7 @@ export default function Login({ status, canResetPassword }: Props) {
         <>
             <Head title="Log in" />
 
-            {/* @chisel-passkeys */}
             <PasskeyVerify />
-            {/* @end-chisel-passkeys */}
 
             <StackedForm
                 {...store.form()}
@@ -80,14 +74,12 @@ export default function Login({ status, canResetPassword }: Props) {
                             Log in
                         </SubmitButton>
 
-                        {/* @chisel-registration */}
                         <p className="text-center text-sm text-muted-foreground">
                             Don't have an account?{' '}
                             <TextLink href={register()} tabIndex={5}>
                                 Sign up
                             </TextLink>
                         </p>
-                        {/* @end-chisel-registration */}
                     </>
                 )}
             </StackedForm>

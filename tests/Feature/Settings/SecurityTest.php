@@ -13,31 +13,24 @@ test('security page is displayed', function () {
         'confirmPassword' => true,
     ]);
 
-    /* @chisel-passkeys */
     Features::passkeys([
         'confirmPassword' => true,
     ]);
-    /* @end-chisel-passkeys */
 
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        /* @chisel-password-confirmation */
         ->withSession(['auth.password_confirmed_at' => time()])
-        /* @end-chisel-password-confirmation */
         ->get(route('security.edit'))
         ->assertInertia(fn (Assert $page) => $page
             ->component('settings/security')
-            /* @chisel-passkeys */
             ->where('canManagePasskeys', true)
             ->where('passkeys', [])
-            /* @end-chisel-passkeys */
             ->where('canManageTwoFactor', true)
             ->where('twoFactorEnabled', false),
         );
 });
 
-/* @chisel-password-confirmation */
 test('security page requires password confirmation when enabled', function () {
     $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
 
@@ -53,7 +46,6 @@ test('security page requires password confirmation when enabled', function () {
 
     $response->assertRedirect(route('password.confirm'));
 });
-/* @end-chisel-password-confirmation */
 
 test('security page renders without two factor when feature is disabled', function () {
     $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
@@ -63,17 +55,13 @@ test('security page renders without two factor when feature is disabled', functi
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        /* @chisel-password-confirmation */
         ->withSession(['auth.password_confirmed_at' => time()])
-        /* @end-chisel-password-confirmation */
         ->get(route('security.edit'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('settings/security')
-            /* @chisel-passkeys */
             ->where('canManagePasskeys', false)
             ->where('passkeys', [])
-            /* @end-chisel-passkeys */
             ->where('canManageTwoFactor', false)
             ->missing('twoFactorEnabled')
             ->missing('requiresConfirmation'),

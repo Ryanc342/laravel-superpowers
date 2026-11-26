@@ -1,0 +1,379 @@
+// @vitest-environment node
+import {
+    existsSync,
+    mkdirSync,
+    rmSync,
+    utimesSync,
+    writeFileSync,
+} from 'node:fs';
+import { dirname, join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vite-plus/test';
+import { cleanUp, git, makeRepo, runHook, temporaryDirectory } from './harness';
+
+const sessionId = 'session-1';
+
+const sessionStart = (
+    dir: string,
+    source = 'startup',
+    env?: Record<string, string>,
+) =>
+    runHook(
+        {
+            hook_event_name: 'SessionStart',
+            session_id: sessionId,
+            cwd: dir,
+            source,
+        },
+        { projectDir: dir, env },
+    );
+
+const stop = (
+    dir: string,
+    options: {
+        cwd?: string;
+        stopHookActive?: boolean;
+        env?: Record<string, string>;
+    } = {},
+) =>
+    runHook(
+        {
+            hook_event_name: 'Stop',
+            session_id: sessionId,
+            cwd: options.cwd ?? dir,
+            stop_hook_active: options.stopHookActive ?? false,
+        },
+        { projectDir: dir, env: options.env },
+    );
+
+const write = (path: string, contents = 'changed\n') => {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, contents);
+};
+
+const composerChecks = (calls: string[]) =>
+    calls.filter((call) => call.endsWith(' composer check'));
+
+const isAlive = (pid: number): boolean => {
+    try {
+        process.kill(pid, 0);
+
+        return true;
+    } catch {
+        return false;
+    }
+};
+
+afterEach(cleanUp);
+
+describe('.ai/hooks/check.sh', { timeout: 30_000 }, () => {
+    it('does not check changes that were there before the session started', async () => {
+        const { dir } = await makeRepo();
+        write(join(dir, 'app.php'));
+        const start = await sessionStart(dir);
+
+        const { code, calls } = await stop(dir);
+
+        expect([...start.calls, ...calls]).toEqual([]);
+        expect(code).toBe(0);
+    });
+
+    it('checks a file the session changed', async () => {
+        const { dir } = await makeRepo();
+        await sessionStart(dir);
+        write(join(dir, 'app.php'));
+
+        const { calls } = await stop(dir);
+
+        expect(calls).toContain(`${dir} composer check`);
+    });
+
+    it('counts a file the session put back as changed', async () => {
+        const { dir } = await makeRepo();
+        write(join(dir, 'app.php'), 'committed\n');
+        await git(dir, 'add', 'app.php');
+        await git(dir, 'commit', '-q', '-m', 'Add app.php');
+        write(join(dir, 'app.php'));
+        await sessionStart(dir);
+        await git(dir, 'checkout', '--', 'app.php');
+
+        const { calls } = await stop(dir);
+
+        expect(calls).toContain(`${dir} composer check`);
+    });
+
+    it('checks a worktree the session created and moved into', async () => {
+        const { dir, addWorktree } = await makeRepo();
+        await sessionStart(dir);
+        const worktree = await addWorktree('x');
+        write(join(worktree, 'app.php'));
+
+        const { calls } = await stop(dir, { cwd: worktree });
+
+        expect(calls).toContain(`${dir}/.worktrees/x composer check`);
+    });
+
+    it("skips another session's new worktree", async () => {
+        const { dir, addWorktree } = await makeRepo();
+        await sessionStart(dir);
+        const worktree = await addWorktree('x');
+        write(join(worktree, 'app.php'));
+
+        const { calls } = await stop(dir);
+
+        expect(composerChecks(calls)).toEqual([]);
+    });
+
+    it("skips another session's changes in an existing worktree", async () => {
+        const { dir, addWorktree } = await makeRepo();
+        const worktree = await addWorktree('y');
+        write(join(worktree, 'other.php'));
+        await sessionStart(dir);
+        write(join(worktree, 'other.php'), 'changed again\n');
+        write(join(worktree, 'notes.md'), '# Notes\n');
+
+        const { calls } = await stop(dir);
+
+        expect(calls).toEqual([]);
+    });
+
+    it('checks what the session left in the worktree it started in', async () => {
+        const { dir, addWorktree } = await makeRepo();
+        await sessionStart(dir);
+        write(join(dir, 'app.php'));
+        const worktree = await addWorktree('x');
+
+        const { calls } = await stop(dir, { cwd: worktree });
+
+        expect(calls).toContain(`${dir} composer check`);
+    });
+
+    it('keeps checking a worktree the session worked in at an earlier stop', async () => {
+        const { dir, addWorktree } = await makeRepo();
+        await sessionStart(dir);
+        const worktree = await addWorktree('x');
+        write(join(worktree, 'app.php'));
+        const failing = { STUB_COMPOSER_EXIT: '1' };
+        await stop(dir, { cwd: worktree, env: failing });
+
+        const { calls } = await stop(dir, {
+            stopHookActive: true,
+            env: failing,
+        });
+
+        expect(calls).toContain(`${worktree} composer check`);
+    });
+
+    it('keeps the first baseline when a session resumes', async () => {
+        const { dir } = await makeRepo();
+        await sessionStart(dir);
+        write(join(dir, 'app.php'));
+        await sessionStart(dir, 'resume');
+
+        const { calls } = await stop(dir);
+
+        expect(calls).toContain(`${dir} composer check`);
+    });
+
+    it('only formats and checks Markdown when only Markdown changed', async () => {
+        const { dir } = await makeRepo();
+        await sessionStart(dir);
+        write(join(dir, 'docs', '调研 笔记.md'), '# 调研\n');
+
+        const { calls, commands } = await stop(dir);
+
+        expect(commands).toContainEqual({
+            cwd: dir,
+            command: 'vp',
+            args: ['fmt', 'docs/调研 笔记.md'],
+        });
+        expect(
+            calls.filter((call) => call.startsWith(`${dir} vp check`)),
+        ).toHaveLength(1);
+        expect(composerChecks(calls)).toEqual([]);
+    });
+
+    it('never formats Markdown when vite-plus is not installed', async () => {
+        const { dir } = await makeRepo();
+        rmSync(join(dir, 'node_modules'), { force: true, recursive: true });
+        await sessionStart(dir);
+        write(join(dir, 'notes.md'), '# Notes\n');
+
+        const { code, calls } = await stop(dir);
+
+        expect(calls).toEqual([]);
+        expect(code).toBe(0);
+    });
+
+    it("formats only the session's Markdown", async () => {
+        const { dir } = await makeRepo();
+        write(join(dir, 'other.md'), '# Other\n');
+        await sessionStart(dir);
+        write(join(dir, 'app.php'));
+        write(join(dir, 'mine.md'), '# Mine\n');
+
+        const { calls, commands } = await stop(dir);
+
+        expect(
+            commands.filter(
+                ({ command, args }) => command === 'vp' && args[0] === 'fmt',
+            ),
+        ).toEqual([{ cwd: dir, command: 'vp', args: ['fmt', 'mine.md'] }]);
+        expect(calls).toContain(`${dir} composer check`);
+    });
+
+    it('falls back to checking the current worktree when the input is not JSON', async () => {
+        const { dir } = await makeRepo();
+        write(join(dir, 'app.php'));
+
+        const { code, calls } = await runHook('', { projectDir: dir });
+
+        expect(calls).toContain(`${dir} composer check`);
+        expect(code).toBe(0);
+    });
+
+    it('keeps the baseline when PHP prints a startup warning', async () => {
+        const { dir } = await makeRepo();
+        // An extension in php.ini that no longer loads: PHP warns about it on
+        // stdout before the script prints anything.
+        const iniDirectory = temporaryDirectory('check-hook-php-ini-');
+        writeFileSync(
+            join(iniDirectory, 'broken.ini'),
+            'display_errors=1\ndisplay_startup_errors=1\nextension=check_hook_missing_extension\n',
+        );
+        const env = { PHP_INI_SCAN_DIR: iniDirectory };
+        write(join(dir, 'app.php'));
+        const start = await sessionStart(dir, 'startup', env);
+
+        const { code, calls } = await stop(dir, { env });
+
+        expect([...start.calls, ...calls]).toEqual([]);
+        expect(code).toBe(0);
+    });
+
+    it('tells the user when it cannot create a temporary directory', async () => {
+        const { dir } = await makeRepo();
+        await sessionStart(dir);
+        write(join(dir, 'app.php'));
+
+        const { code, stdout, calls } = await stop(dir, {
+            env: { TMPDIR: join(dir, 'missing') },
+        });
+
+        expect(code).toBe(0);
+        expect(JSON.parse(stdout)).toEqual({
+            systemMessage:
+                'composer check did not run because the hook could not create a temporary directory. Run composer check yourself.',
+        });
+        expect(calls).toEqual([]);
+    });
+
+    it('hands a failure back to the agent once', async () => {
+        const { dir } = await makeRepo();
+        await sessionStart(dir);
+        write(join(dir, 'app.php'));
+
+        const { code, stderr } = await stop(dir, {
+            env: { STUB_COMPOSER_EXIT: '1', STUB_COMPOSER_OUTPUT: 'boom' },
+        });
+
+        expect(code).toBe(2);
+        expect(stderr).toContain('composer check failed');
+        expect(stderr).toContain('boom');
+    });
+
+    it('lets the turn end after a second failure in a row', async () => {
+        const { dir } = await makeRepo();
+        await sessionStart(dir);
+        write(join(dir, 'app.php'));
+
+        const { code, stdout } = await stop(dir, {
+            stopHookActive: true,
+            env: { STUB_COMPOSER_EXIT: '1', STUB_COMPOSER_OUTPUT: 'boom' },
+        });
+
+        expect(code).toBe(0);
+        expect(JSON.parse(stdout)).toHaveProperty('systemMessage');
+    });
+
+    it('does not block the agent when another test run holds the database', async () => {
+        const { dir } = await makeRepo();
+        await sessionStart(dir);
+        write(join(dir, 'app.php'));
+
+        const { code, stdout, commands } = await stop(dir, {
+            env: {
+                STUB_COMPOSER_EXIT: '1',
+                STUB_COMPOSER_OUTPUT:
+                    'Another test run is using the x_test database.',
+            },
+        });
+        const next = await stop(dir);
+
+        expect(code).toBe(0);
+        expect(JSON.parse(stdout)).toEqual({
+            systemMessage:
+                'Another test run is using the test database, so composer check did not run. Run composer check once it finishes.',
+        });
+        expect(commands).toContainEqual({
+            cwd: dir,
+            command: 'composer',
+            args: ['check'],
+            env: { TEST_DATABASE_LOCK_WAIT: '0' },
+        });
+        // A check that did not run is not a pass: the next stop checks.
+        expect(composerChecks(next.calls)).toHaveLength(1);
+    });
+
+    it(
+        'stops composer check at the deadline and leaves nothing running',
+        { timeout: 15_000 },
+        async () => {
+            const { dir } = await makeRepo();
+            await sessionStart(dir);
+            write(join(dir, 'app.php'));
+            const startedAt = Date.now();
+
+            const { code, stdout, childPids } = await stop(dir, {
+                env: {
+                    CHECK_HOOK_DEADLINE: '2',
+                    STUB_COMPOSER_SLEEP: '60',
+                    STUB_COMPOSER_CHILD_SLEEP: '60',
+                },
+            });
+
+            expect(Date.now() - startedAt).toBeLessThan(6_000);
+            expect(code).toBe(0);
+            expect(JSON.parse(stdout)).toEqual({
+                systemMessage:
+                    'composer check did not finish within 2 seconds and was stopped. Run composer check yourself.',
+            });
+            expect(childPids).toHaveLength(1);
+            expect(childPids.filter(isAlive)).toEqual([]);
+        },
+    );
+
+    it('does not run composer check twice for changes that already passed', async () => {
+        const { dir } = await makeRepo();
+        await sessionStart(dir);
+        write(join(dir, 'app.php'));
+
+        const first = await stop(dir);
+        const second = await stop(dir);
+
+        expect(composerChecks([...first.calls, ...second.calls])).toHaveLength(
+            1,
+        );
+    });
+
+    it('deletes baselines older than seven days', async () => {
+        const { dir } = await makeRepo();
+        const oldBaselines = join(dir, '.git', 'claude-check', 'old-session');
+        write(join(oldBaselines, 'baseline'), '');
+        const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+        utimesSync(oldBaselines, eightDaysAgo, eightDaysAgo);
+
+        await sessionStart(dir);
+
+        expect(existsSync(oldBaselines)).toBe(false);
+    });
+});

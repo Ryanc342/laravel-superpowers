@@ -1,7 +1,5 @@
 import { Head, usePage } from '@inertiajs/react';
-/* @chisel-email-verification */
 import { Link } from '@inertiajs/react';
-/* @end-chisel-email-verification */
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/delete-user';
 import Actions from '@/components/shared/actions';
@@ -12,25 +10,19 @@ import SubmitButton from '@/components/shared/submit-button';
 import TextField from '@/components/shared/text-field';
 import { textLinkClassName } from '@/components/text-link';
 import type { Auth } from '@/types';
-/* @chisel-email-verification */
 import { send } from '@/routes/verification';
-/* @end-chisel-email-verification */
 
 type PageProps = {
     auth: Auth;
 };
 
-export default function Profile(
-    /* @chisel-email-verification */
-    {
-        mustVerifyEmail,
-        status,
-    }: {
-        mustVerifyEmail: boolean;
-        status?: string;
-    },
-    /* @end-chisel-email-verification */
-) {
+export default function Profile({
+    mustVerifyEmail,
+    status,
+}: {
+    mustVerifyEmail: boolean;
+    status?: string;
+}) {
     const { auth } = usePage<PageProps>().props;
 
     return (
@@ -71,7 +63,6 @@ export default function Profile(
                                 error={errors.email}
                             />
 
-                            {/* @chisel-email-verification */}
                             {mustVerifyEmail &&
                                 auth.user.email_verified_at === null && (
                                     <div className="space-y-2">
@@ -97,7 +88,6 @@ export default function Profile(
                                         />
                                     </div>
                                 )}
-                            {/* @end-chisel-email-verification */}
 
                             <Actions>
                                 <SubmitButton data-test="update-profile-button">
