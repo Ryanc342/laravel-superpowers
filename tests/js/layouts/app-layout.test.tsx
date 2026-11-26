@@ -11,6 +11,12 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
     usePage: () => page,
 }));
 
+const theme = vi.hoisted(() => ({
+    layout: 'side' as 'side' | 'top' | 'mix',
+}));
+
+vi.mock('@/theme', () => ({ default: theme }));
+
 vi.mock('@/ui/example-menu', () => ({
     exampleMenu: () => [
         {
@@ -66,6 +72,7 @@ function sider(): Element | null {
 
 afterEach(() => {
     document.cookie = 'sidebar_state=;path=/;max-age=0';
+    theme.layout = 'side';
 });
 
 test('the side menu opens as the sidebar_state cookie left it', () => {
@@ -125,3 +132,33 @@ test('a page under the URL of a menu entry keeps the entry current', () => {
             ?.classList.contains('ant-menu-submenu-selected'),
     ).toBe(true);
 });
+
+// A signed-in page's one h1 is its own title; Pro writes the app's name as one.
+test.each(['side', 'top', 'mix'] as const)(
+    'the logo and app name link to the dashboard, the name not as a heading, in the %s layout',
+    (layout) => {
+        theme.layout = layout;
+        windowWidth(1280);
+        signedInPage(true);
+
+        render(
+            <AppLayout>
+                <h1>Dashboard</h1>
+            </AppLayout>,
+        );
+
+        const logo = document.querySelector(
+            '.ant-pro-sider-logo, .ant-pro-global-header-logo, .ant-pro-top-nav-header-logo',
+        );
+
+        expect(
+            [...document.querySelectorAll('h1')].map(
+                (heading) => heading.textContent,
+            ),
+        ).toEqual(['Dashboard']);
+        expect(logo?.textContent).toBe('Laravel');
+        expect(logo?.querySelector('a')?.getAttribute('href')).toBe(
+            '/dashboard',
+        );
+    },
+);

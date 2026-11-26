@@ -3,12 +3,13 @@ import type { MenuDataItem } from '@ant-design/pro-components';
 import { Link, usePage } from '@inertiajs/react';
 import { Grid } from 'antd';
 import { useState } from 'react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import AppLogo from '@/components/app-logo';
 import LanguageSwitch from '@/components/language-switch';
 import UserMenu from '@/components/user-menu';
 import { t } from '@/lib/i18n';
 import { appMenu } from '@/navigation';
+import { dashboard } from '@/routes';
 import projectTheme from '@/theme';
 import type { MenuItem } from '@/types';
 import { exampleMenu } from '@/ui/example-menu';
@@ -34,6 +35,41 @@ function toProMenu(item: MenuItem): MenuDataItem {
         children: item.children?.map(toProMenu),
     };
 }
+
+/**
+ * The app's name beside the logo, where Pro writes an h1: a signed-in page's
+ * one h1 is its own title. Each style is the one Pro gives its h1 there: in
+ * the side menu, in the top layout's header and in the mix layout's header.
+ */
+const APP_NAME_STYLE: Record<'side' | 'top' | 'mix', CSSProperties> = {
+    side: {
+        display: 'inline-block',
+        height: 22,
+        marginInlineStart: 6,
+        color: 'var(--ant-color-text)',
+        fontWeight: 600,
+        fontSize: 16,
+        lineHeight: '22px',
+        verticalAlign: 'middle',
+    },
+    top: {
+        display: 'inline-block',
+        marginInlineStart: 6,
+        color: 'var(--ant-color-text)',
+        fontWeight: 600,
+        fontSize: 16,
+        lineHeight: '24px',
+        verticalAlign: 'top',
+    },
+    mix: {
+        height: 32,
+        marginInlineStart: 8,
+        color: 'var(--ant-color-text)',
+        fontWeight: 600,
+        fontSize: 18,
+        lineHeight: '32px',
+    },
+};
 
 /**
  * The keys of the entries for the page at `pathname`, and of the groups they
@@ -78,6 +114,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     const [collapsed, setCollapsed] = useState(!props.sidebarOpen);
     const [phoneMenuOpen, setPhoneMenuOpen] = useState(false);
     const pathname = url.split(/[?#]/)[0];
+    const layout = projectTheme.layout ?? 'side';
     const menu = [...appMenu, ...(props.examples ? exampleMenu() : [])];
 
     const onCollapse = (next: boolean): void => {
@@ -93,10 +130,54 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
     return (
         <ProLayout
-            layout={projectTheme.layout}
+            layout={layout}
             token={LAYOUT_TOKEN}
             title={props.name}
             logo={<AppLogo />}
+            // Pro's own layout of the logo and name, with the name as text,
+            // as a link to the dashboard. In the side layout the side menu
+            // holds them, and the phone's header only the logo; the drawer
+            // has neither. Pro asks this function in the other layouts'
+            // headers too, so it is left to Pro there, where the side menu
+            // shows none.
+            menuHeaderRender={
+                layout === 'side'
+                    ? (logo, title, siderProps) => {
+                          if (!siderProps) {
+                              return logo;
+                          }
+
+                          if (siderProps.isMobile) {
+                              return null;
+                          }
+
+                          return (
+                              <Link href={dashboard()}>
+                                  {logo}
+                                  {title && (
+                                      <span style={APP_NAME_STYLE.side}>
+                                          {props.name}
+                                      </span>
+                                  )}
+                              </Link>
+                          );
+                      }
+                    : undefined
+            }
+            headerTitleRender={(logo, _title, headerProps) =>
+                headerProps?.isMobile ? null : (
+                    <Link href={dashboard()}>
+                        {logo}
+                        <span
+                            style={
+                                APP_NAME_STYLE[layout === 'mix' ? 'mix' : 'top']
+                            }
+                        >
+                            {props.name}
+                        </span>
+                    </Link>
+                )
+            }
             location={{ pathname }}
             route={{ path: '/', children: menu.map(toProMenu) }}
             menuProps={{
