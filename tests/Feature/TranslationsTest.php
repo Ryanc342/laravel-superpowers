@@ -136,7 +136,7 @@ test('every literal sentence the code shows is translated into Chinese', functio
     $this->assertSame(
         [],
         $missing,
-        "These sentences have no Chinese. Add each to lang/template/zh_CN.json:\n".implode("\n", $missing),
+        "These sentences have no Chinese. Add each to lang/template/zh_CN.json when it is one of the template's own sentences, or to lang/zh_CN.json when it is a project's:\n".implode("\n", $missing),
     );
 });
 

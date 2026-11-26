@@ -9,21 +9,39 @@ import type * as ReactDomServer from 'react-dom/server';
 import { CSS_VAR_KEY, DARK_SCOPE, LAYOUT_TOKEN, themeConfig } from './theme';
 import type { ProjectTheme } from './theme';
 
+/**
+ * The parts of Pro with styles of their own that the sample renders from
+ * their own files (see `loadModules`).
+ */
+type AnyComponent = ReactModule.FunctionComponent<Record<string, unknown>>;
+
+type ProPart =
+    | 'Highlight'
+    | 'FieldCheckbox'
+    | 'FieldRadio'
+    | 'FieldTextAreaReadonly'
+    | 'LightSelect';
+
 type Modules = {
     cssinjs: typeof CssInJs;
     antd: typeof Antd;
     pro: typeof ProComponents;
+    proParts: Record<ProPart, AnyComponent>;
     h: typeof ReactModule.createElement;
     Fragment: typeof ReactModule.Fragment;
     renderToString: typeof ReactDomServer.renderToString;
 };
 
 /**
- * The styles of antd and of the Pro components the template uses, with the
- * theme's CSS variables, all in `@layer antd`: the light theme, then each
- * rule the dark theme changes, scoped to `html.dark`. antd's rules change only
- * their variables; Pro writes colours into its rules (the layout's sider,
- * menu and header), so those rules get a dark copy too.
+ * The styles of antd and of every Pro component, with the theme's CSS
+ * variables, all in `@layer antd`: the light theme, then each rule the dark
+ * theme changes, scoped to `html.dark`. antd's rules change only their
+ * variables; Pro writes colours into its rules (the layout's sider, menu and
+ * header), so those rules get a dark copy too.
+ *
+ * A `@keyframes` cannot be scoped to a class, so the dark copy of one the
+ * dark theme changes gets a name of its own (`proListActive-dark`), and each
+ * rule that runs it gets a dark copy that runs that one.
  *
  * The browser runs antd and Pro with `zeroRuntime`, so it makes none of these
  * rules itself: these are all the component styles it gets. What antd still
@@ -33,26 +51,86 @@ type Modules = {
  */
 export function generateAntdCss(project: ProjectTheme): string {
     const modules = loadModules();
-    // Styles are only registered with zeroRuntime off. Without the hash
-    // class, the selectors match whether or not the browser adds one.
-    const config: ThemeConfig = {
-        ...themeConfig(project),
-        zeroRuntime: false,
-        hashed: false,
-    };
+    const config = sampleConfig(project);
     const light = extract(modules, config);
     const dark = extract(modules, {
         ...config,
         algorithm: modules.antd.theme.darkAlgorithm,
     });
     const lightRules = new Set(light);
-    const darkRules = dark
-        .filter((rule) => !lightRules.has(rule))
+    const changed = dark.filter((rule) => !lightRules.has(rule));
+    const darkKeyframes = changed.filter((rule) => KEYFRAMES.test(rule));
+    const toDarkKeyframes = renamer(
+        darkKeyframes.map((rule) => KEYFRAMES.exec(rule)?.[1] ?? ''),
+    );
+    const runsDarkKeyframes = light.filter(
+        (rule) => !KEYFRAMES.test(rule) && toDarkKeyframes(rule) !== rule,
+    );
+    // A rule the dark theme changes comes after the light rule's copy, so
+    // its own dark copy wins when it also runs a renamed keyframes.
+    const darkRules = [
+        ...runsDarkKeyframes,
+        ...changed.filter((rule) => !KEYFRAMES.test(rule)),
+    ]
+        .map(toDarkKeyframes)
         .map(underDarkClass);
 
     // The dark copies come last: they have the same specificity as the light
     // rules, so being later is what makes them win.
-    return `@layer antd {\n${light.join('')}\n${darkRules.join('')}\n}\n`;
+    return `@layer antd {\n${light.join('')}\n${[...darkKeyframes.map(toDarkKeyframes), ...darkRules].join('')}\n}\n`;
+}
+
+/** A `@keyframes` rule, and its name. */
+const KEYFRAMES = /^@keyframes\s+([\w-]+)\s*\{/;
+
+/**
+ * Gives each of these keyframes names its dark name, `<name>-dark`, wherever a
+ * rule says it: a `@keyframes` rule's prelude, or a rule's `animation`.
+ */
+function renamer(names: string[]): (rule: string) => string {
+    if (names.length === 0) {
+        return (rule) => rule;
+    }
+
+    const name = new RegExp(
+        `(?<![\\w-])(${names.map((one) => one.replaceAll('-', '\\-')).join('|')})(?![\\w-])`,
+        'g',
+    );
+
+    return (rule) => {
+        const open = rule.indexOf('{');
+        const prelude = rule.slice(0, open);
+
+        // Selectors keep their names: only a keyframes' own name is in its prelude.
+        return KEYFRAMES.test(rule)
+            ? rule.replace(name, '$1-dark')
+            : prelude + rule.slice(open).replace(name, '$1-dark');
+    };
+}
+
+/**
+ * The names the sample tree's components register their styles under, which
+ * are the styles the generated CSS has. Pro names each of its styles as it
+ * registers it, `useStyle('ProList', …)`, and antd names each component's.
+ * The tests compare them with every style the installed Pro has.
+ */
+export function sampledStyleNames(project: ProjectTheme): string[] {
+    const cache = renderSample(loadModules(), sampleConfig(project));
+    const names = [...cache.cache.keys()]
+        .filter((key) => key.startsWith('style%'))
+        // `style%<hash>%<name>%…`: the hash is empty, as styles are not hashed.
+        .map((key) => key.split('%')[2] ?? '');
+
+    return [...new Set(names)].filter((name) => name !== '');
+}
+
+/**
+ * The theme the sample tree renders with. Styles are only registered with
+ * zeroRuntime off. Without the hash class, the selectors match whether or
+ * not the browser adds one.
+ */
+function sampleConfig(project: ProjectTheme): ThemeConfig {
+    return { ...themeConfig(project), zeroRuntime: false, hashed: false };
 }
 
 /**
@@ -61,15 +139,40 @@ export function generateAntdCss(project: ProjectTheme): string {
  * and cssinjs must be the same instances Pro's CommonJS build requires, or
  * Pro's styles would go to a cache nothing reads. They load on the first call,
  * so importing this file (as vite.config.ts does) stays cheap.
+ *
+ * A few of Pro's parts come from their own files (Pro exports `./lib/*`).
+ * Pro loads each field's component when it is first shown (an `import()`
+ * behind Suspense), and in its CommonJS build that import gives the field's
+ * module, not its component, so a field renders only its "…" fallback here.
+ * So the fields with styles of their own are loaded directly. ProHelp's
+ * search highlight is not exported from Pro's root at all.
  */
 function loadModules(): Modules {
     const require = createRequire(import.meta.url);
     const react = require('react') as typeof ReactModule;
+    const proPart = (path: string, name = 'default') =>
+        (
+            require(`@ant-design/pro-components/lib/${path}`) as Record<
+                string,
+                AnyComponent
+            >
+        )[name];
 
     return {
         cssinjs: require('@ant-design/cssinjs') as typeof CssInJs,
         antd: require('antd') as typeof Antd,
         pro: require('@ant-design/pro-components') as typeof ProComponents,
+        proParts: {
+            Highlight: proPart('layout/components/Help/Search.js', 'Highlight'),
+            FieldCheckbox: proPart('field/components/Checkbox/index.js'),
+            FieldRadio: proPart('field/components/Radio/index.js'),
+            FieldTextAreaReadonly: proPart(
+                'field/components/TextArea/readonly.js',
+            ),
+            LightSelect: proPart(
+                'field/components/Select/LightSelect/index.js',
+            ),
+        },
         h: react.createElement,
         Fragment: react.Fragment,
         renderToString: (require('react-dom/server') as typeof ReactDomServer)
@@ -85,6 +188,31 @@ const CACHE_PATH_MARKER = /\.data-ant-cssinjs-cache-path\{content:"[^"]*";\}/;
  * CSS variables keyed by a React id dropped, and each repeated rule kept once.
  */
 function extract(modules: Modules, config: ThemeConfig): string[] {
+    const cache = renderSample(modules, config);
+
+    // The marker lists the styles a server render put in the page, for the
+    // browser to skip. These styles come from a file, so it has no use.
+    const css = withoutUnparsableRules(
+        modules.cssinjs
+            .extractStyle(cache, { plain: true })
+            .replace(CACHE_PATH_MARKER, ''),
+    );
+    const rules = topLevelRules(css)
+        .map((rule) => rewriteSelectors(rule, withoutReactIdKeys))
+        .filter((rule) => rule !== null)
+        .map((rule) => rewriteSelectors(rule, scopedToAntd) ?? '');
+
+    return lastOfEach(rules);
+}
+
+/**
+ * Renders the sample tree with `config`, into a style cache of its own: each
+ * component registers its styles there as it renders.
+ */
+function renderSample(
+    modules: Modules,
+    config: ThemeConfig,
+): ReturnType<typeof CssInJs.createCache> {
     const { antd, cssinjs, h, renderToString } = modules;
     const cache = cssinjs.createCache();
     const tree = h(
@@ -95,19 +223,7 @@ function extract(modules: Modules, config: ThemeConfig): string[] {
 
     withoutWarnings(() => renderToString(tree));
 
-    // The marker lists the styles a server render put in the page, for the
-    // browser to skip. These styles come from a file, so it has no use.
-    const css = withoutUnparsableRules(
-        cssinjs
-            .extractStyle(cache, { plain: true })
-            .replace(CACHE_PATH_MARKER, ''),
-    );
-    const rules = topLevelRules(css)
-        .map((rule) => rewriteSelectors(rule, withoutReactIdKeys))
-        .filter((rule) => rule !== null)
-        .map((rule) => rewriteSelectors(rule, scopedToAntd) ?? '');
-
-    return lastOfEach(rules);
+    return cache;
 }
 
 /**
@@ -176,8 +292,8 @@ function withoutWarnings(render: () => void): void {
 }
 
 /**
- * Every antd component, and the Pro components the template uses: each one
- * registers its styles when it renders. The special cases follow
+ * Every antd component, and every Pro component: each one registers its
+ * styles when it renders. The special cases follow
  * @ant-design/static-style-extract: parts with styles of their own (Input.OTP,
  * Badge.Ribbon, Modal's confirm), and popups, which render their panel only.
  */
@@ -329,7 +445,12 @@ function proTree(modules: Modules): ReactElement {
         ...layouts,
         h(pro.ProTable, {
             rowKey: 'id',
-            columns,
+            // The row numbers, plain and in a badge.
+            columns: [
+                { title: '#', valueType: 'index' as const },
+                { title: '#', valueType: 'indexBorder' as const },
+                ...columns,
+            ],
             dataSource: rows,
             headerTitle: 'Table',
             rowSelection: { selectedRowKeys: [1] },
@@ -363,12 +484,160 @@ function proTree(modules: Modules): ReactElement {
         h(pro.ProCard, { title: 'Card' }),
         h(pro.StatisticCard, { statistic: { title: 'Total', value: 1 } }),
         h(pro.ProDescriptions, {
-            columns,
+            // A long text shown read-only, as a textarea's value.
+            columns: [
+                ...columns,
+                { title: 'Notes', dataIndex: 'name', valueType: 'textarea' },
+            ],
             dataSource: rows[0],
         }),
         h(pro.LoginForm, { title: 'App' }),
         h(pro.LoginFormPage, { title: 'App' }),
+        ...otherProParts(modules, columns, rows),
     );
+}
+
+/**
+ * The Pro components and parts the template itself does not use, so that a
+ * page can use any of Pro: with them, the sample registers every style the
+ * installed Pro has (a test checks it). Each is rendered in the state that
+ * shows the part with styles of its own.
+ */
+function otherProParts(
+    modules: Modules,
+    columns: object[],
+    rows: object[],
+): ReactElement[] {
+    const { antd, pro, proParts, h } = modules;
+    const options = [{ label: 'Option', value: 'option' }];
+    const help = [
+        {
+            key: 'help',
+            title: 'Help',
+            children: [
+                {
+                    key: 'topic',
+                    title: 'Topic',
+                    children: [
+                        { valueType: 'text' as const, children: 'Text' },
+                    ],
+                },
+            ],
+        },
+    ];
+
+    return [
+        // A card's loading state and its actions belong to its other skin.
+        h(pro.ProCard, { key: 'card-loading', boxShadow: true, loading: true }),
+        h(
+            pro.ProCard,
+            {
+                key: 'card-actions',
+                boxShadow: true,
+                actions: [h('span', { key: 'action' }, 'A')],
+            },
+            'Body',
+        ),
+        h(pro.ProCard.Divider, { key: 'card-divider' }),
+        h(pro.StatisticCard.Operation, { key: 'statistic-operation' }, '='),
+        h(pro.CheckCard, { key: 'check-card', title: 'Option' }),
+        h(pro.ProList, {
+            key: 'list',
+            rowKey: 'id',
+            dataSource: rows,
+            metas: { title: { dataIndex: 'name' } },
+        }),
+        h(pro.DragSortTable, {
+            key: 'drag-sort-table',
+            rowKey: 'id',
+            columns,
+            dataSource: rows,
+            dragSortKey: 'name',
+        }),
+        h(pro.EditableProTable, {
+            key: 'editable-table',
+            rowKey: 'id',
+            columns,
+            value: rows,
+            editable: { editableKeys: [1] },
+            recordCreatorProps: false,
+        }),
+        h(
+            pro.ProForm,
+            { key: 'form-group' },
+            h(
+                pro.ProFormGroup,
+                { title: 'Group' },
+                h(pro.ProFormText, { name: 'grouped' }),
+            ),
+        ),
+        // The fields' own parts: Pro's fields render here only lazily.
+        h(proParts.FieldCheckbox, {
+            key: 'field-checkbox',
+            mode: 'edit',
+            fieldProps: { options },
+        }),
+        h(proParts.FieldRadio, {
+            key: 'field-radio',
+            mode: 'edit',
+            fieldProps: { options },
+        }),
+        h(proParts.FieldTextAreaReadonly, {
+            key: 'field-textarea',
+            mode: 'read',
+            text: 'Text',
+        }),
+        h(proParts.LightSelect, {
+            key: 'light-select',
+            label: 'Status',
+            options,
+        }),
+        // Pro types it as the render function it wraps in forwardRef.
+        h(
+            pro.LightWrapper as unknown as AnyComponent,
+            { key: 'light-wrapper', label: 'Name' },
+            h(antd.Input),
+        ),
+        h(pro.FieldLabel, {
+            key: 'field-label',
+            label: 'Name',
+            value: 'Value',
+        }),
+        h(pro.DropdownFooter, { key: 'dropdown-footer' }),
+        // A light filter's fields collapsed behind its dropdown.
+        h(
+            pro.LightFilter,
+            { key: 'light-filter', collapse: true },
+            h(pro.ProFormText, { name: 'name', label: 'Name' }),
+        ),
+        // An editable table's error, shown in a popover by its field.
+        h(
+            antd.Form,
+            { key: 'inline-error' },
+            h(pro.InlineErrorFormItem, {
+                name: 'name',
+                errorType: 'popover',
+                rules: [{ required: true }],
+                children: h(antd.Input),
+            }),
+        ),
+        h(pro.DefaultFooter, {
+            key: 'footer',
+            copyright: 'App',
+            links: [{ key: 'link', title: 'Link', href: '#' }],
+        }),
+        h(pro.GridContent, { key: 'grid-content', children: 'Content' }),
+        h(pro.FooterToolbar, { key: 'footer-toolbar' }, 'Save'),
+        h(pro.SettingDrawer, { key: 'setting-drawer' }),
+        h(pro.ProHelp, { key: 'help', dataSource: help }, h(pro.ProHelpPanel)),
+        // A search result's highlighted words, which ProHelpSelect shows
+        // only once the user opens its search.
+        h(proParts.Highlight, {
+            key: 'help-highlight',
+            label: 'Help',
+            words: ['He'],
+        }),
+    ];
 }
 
 /**

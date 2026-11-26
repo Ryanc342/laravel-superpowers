@@ -15,8 +15,8 @@ use Symfony\Component\HttpFoundation\Response;
  */
 
 /**
- * The pages, by what they are. An example page that is not here fails the
- * check below.
+ * The template's pages, by what they are. An example page that is not here
+ * fails the check below. A project lists its own in `projectSweptPages()`.
  *
  * @return array<string, string>
  */
@@ -44,6 +44,16 @@ function sweptPages(): array
         'the 500 page' => '/examples/errors/500',
         'the 503 page' => '/examples/errors/503',
     ];
+}
+
+/**
+ * The template's pages and the project's own (`projectSweptPages()`).
+ *
+ * @return array<string, string>
+ */
+function pagesToSweep(): array
+{
+    return [...sweptPages(), ...projectSweptPages()];
 }
 
 /**
@@ -100,13 +110,22 @@ test('a page loads cleanly, with one h1, and is no wider than the screen', funct
         ->assertScript('document.documentElement.scrollWidth <= window.visualViewport.width', true)
         ->assertNoJavaScriptErrors()
         ->assertNoConsoleLogs();
-})->with(sweptPages())->with(['desktop', 'phone']);
+})->with(pagesToSweep())->with(['desktop', 'phone']);
 
 test('the sweep records what a page writes with console.warn and console.error', function () {
     $page = visit('/dashboard');
     $page->script("console.warn('a warning'); console.error('an error')");
 
     $page->assertScript('window.__pestBrowser.consoleLogs.map(({ message }) => message)', ['warn: a warning', 'error: an error']);
+});
+
+test('the sweep opens the project\'s own pages as well as the template\'s', function () {
+    // A project page under a template page's name would replace it in the sweep.
+    expect(array_intersect_key(projectSweptPages(), sweptPages()))->toBe([])
+        ->and(pagesToSweep())
+        ->toMatchArray(sweptPages())
+        ->toMatchArray(projectSweptPages())
+        ->toHaveCount(count(sweptPages()) + count(projectSweptPages()));
 });
 
 test('every example page is in the sweep', function () {

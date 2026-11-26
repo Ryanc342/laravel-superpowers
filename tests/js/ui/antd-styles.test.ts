@@ -1,8 +1,59 @@
 // @vitest-environment node
+import { readdirSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import { expect, test } from 'vite-plus/test';
-import { generateAntdCss } from '@/ui/antd-styles';
+import { generateAntdCss, sampledStyleNames } from '@/ui/antd-styles';
 
 const css = generateAntdCss({ token: { colorPrimary: '#155dfc' } });
+
+/**
+ * Every style the installed Pro has: the name each of its components
+ * registers its styles under, `useStyle('ProList', …)`, read from its source.
+ * A name Pro builds as it renders (`'ProLayoutBaseMenu' + mode`) is its
+ * fixed start, `isStart`.
+ */
+function proStyleNames(): { name: string; isStart: boolean }[] {
+    const main = createRequire(import.meta.url).resolve(
+        '@ant-design/pro-components',
+    );
+    const source = join(dirname(main), '..', 'es');
+    const names = new Map<string, boolean>();
+
+    for (const file of readdirSync(source, { recursive: true })) {
+        if (!String(file).endsWith('.js')) {
+            continue;
+        }
+
+        const code = readFileSync(join(source, String(file)), 'utf8');
+
+        for (const [, name, plus] of code.matchAll(
+            /\buseStyle\(\s*['"]([\w-]+)['"]\s*(\+)?/g,
+        )) {
+            names.set(name, names.get(name) === true || plus !== undefined);
+        }
+    }
+
+    return [...names].map(([name, isStart]) => ({ name, isStart }));
+}
+
+// The browser runs Pro with zeroRuntime, so a Pro component whose styles the
+// sample tree does not render has none at all on a page. A project cannot add
+// it, as the sample is the template's. A Pro upgrade that adds a component
+// with styles of its own fails here until the sample renders it.
+test('every style the installed Pro has is in the generated css', () => {
+    const sampled = sampledStyleNames({});
+    const missing = proStyleNames()
+        .filter(({ name, isStart }) =>
+            isStart
+                ? !sampled.some((one) => one.startsWith(name))
+                : !sampled.includes(name),
+        )
+        .map(({ name }) => name);
+
+    expect(proStyleNames().length).toBeGreaterThan(40);
+    expect(missing).toEqual([]);
+});
 
 // antd writes the theme's variables under the class of its CSS variable key,
 // `.app`, and each component's own under `.app.ant-<component>`. The dark
@@ -111,6 +162,22 @@ test('a Pro rule with a written-in colour has a dark copy under html.dark', () =
     expect(light).toBe('linear-gradient(#ffffff, #f5f5f5 28%)');
     expect(dark).toContain('#141414');
     expect(dark).not.toBe(light);
+});
+
+// A `@keyframes` cannot be scoped to html.dark, and the last one of a name
+// wins on the whole page. ProList's new-row flash writes in the light
+// theme's warning background, so the dark theme runs a copy of its own.
+test('a keyframes the dark theme changes runs as a dark copy under html.dark', () => {
+    expect(css).toMatch(
+        /@keyframes proListActive\{[^}]*\}30%\{background:#fffbe6;/,
+    );
+    expect(css).toMatch(
+        /@keyframes proListActive-dark\{[^}]*\}30%\{background:#2b2111;/,
+    );
+    expect(css).toMatch(
+        /:where\(html\.dark\) \.ant-pro-list-row\.ant-pro-list-row-type-new\{[^}]*animation-name:proListActive-dark;/,
+    );
+    expect(css).not.toMatch(/:where\(html\.dark\) @keyframes/);
 });
 
 // Pro writes two media queries and a selector no browser can parse, so

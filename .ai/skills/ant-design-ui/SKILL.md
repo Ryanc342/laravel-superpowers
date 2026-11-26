@@ -34,7 +34,7 @@ Pick the page type and copy its example. Signed in on a local app, the examples 
 - Never hand-roll what antd or Pro already has: a table, a form field, a card, a tag, an empty state, a skeleton. Pro gives the page skeletons (`PageContainer`, `ProTable`, `ProForm` and its fields, `StepsForm`, `ProDescriptions`, `ProCard`, `StatisticCard`); antd gives the rest.
 - Docs: [antd's components](https://ant.design/components/overview) (an index for agents: <https://ant.design/llms.txt>), [Pro's components](https://pro-components.antdigital.dev), and the guidelines the installed Pro ships for its own version, in `node_modules/@ant-design/pro-components/guidelines/`. Pro is a pinned beta: check a prop against the installed package's types.
 - Where those docs load data or check values in the browser (`ProTable`'s `request`, a field's `rules`, a step's own `onFinish`, `transform`), use the glue below instead.
-- Pro's styles are generated at build time from the components in `proTree` in `resources/js/ui/antd-styles.ts`, and the browser makes none (zeroRuntime). A Pro component that is not there, or a part of one the sample does not render, may show unstyled: check it in the browser. Adding it to the sample is a change to the template. antd's own components are all sampled.
+- antd's and Pro's styles are generated at build time (`resources/js/ui/antd-styles.ts`), and the browser makes none (zeroRuntime). Every antd and Pro component is styled; if one shows unstyled, that is a template bug: tell the user.
 - App pages (everything in the app or auth layout) are laid out with `Flex`, `Space`, `Row`/`Col` and `ProCard`, with no Tailwind classes and no `style` props for colours or spacing.
 - A page's title is its one h1: `title={<PageTitle>{title}</PageTitle>}` on `PageContainer` (`@/ui/page-title`), with `<Head title={title} />`.
 - SSR is on: nothing reads `window` or `document` while rendering. Do it in an effect.
@@ -135,7 +135,7 @@ Five things keep the template's own approach:
 
 ## Before you finish
 
-- Add every new page to `sweptPages()` in `tests/Browser/PageSweepTest.php`. It opens each page on a desktop and on a phone, and fails on any console message, a page without exactly one h1, or a page that scrolls sideways.
+- Add every new signed-in page to the page sweep (`tests/Browser/PageSweepTest.php`), which opens each one on a desktop and on a phone, and fails on any console message, a page without exactly one h1, or a page that scrolls sideways. A project lists its pages in its own `projectSweptPages()` in a `tests/Support/*.php` file (see `tests/Support/Template/browser.php`); the template's pages are in `sweptPages()`.
 - `composer check:browser` builds in development mode (`npm run build:dev`), so antd's and React's warnings reach the console. A production build leaves them out.
 
 ## Who owns which file
