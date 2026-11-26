@@ -24,6 +24,7 @@
 - Projects started from laravel-superpowers have a `template` remote. Template updates come only from `template/main`: cut `chore/sync-template-<YYYY-MM-DD>` from `develop`, `git merge template/main`, resolve conflicts in favour of the project's own code except in the template's tooling files (below), run both checks, merge into `develop`. Never merge the template straight into `main`.
     - Before you resolve the lock files, read `UPGRADING.md` and do what it lists for each template version (`sp-vX.Y.Z` tag) newer than the last one merged. Some of its steps change how the lock files are resolved.
     - The template owns its tooling files: `tests/Pest.php`, `tests/bootstrap.php`, `tests/TestCase.php`, `tests/process-watchdog.sh`, `.ai/hooks/check.sh`, and the hooks block of `.claude/settings.json` and `.codex/hooks.json`. In a conflict in one of them, take the template's version (`git checkout --theirs <file>`), then add the project's own additions back.
+    - The template also owns its UI files, and leaves alone the few a project owns: see "Who owns which file" below.
     - Merge both sides of a `composer.json` conflict by hand.
     - For `composer.lock`, start from the project's version (`git checkout --ours composer.lock`), then run `composer update <the packages whose constraints the template changed> --no-scripts`, then `php artisan package:discover` and `php artisan boost:update`. Never add `-W`. When other packages must move too, use `--with-dependencies` and name the package.
     - Treat `package-lock.json` the same way: start from the project's version, merge `package.json` by hand, then run `npm update <the packages the template changed>`. Never add `--force` or `--legacy-peer-deps`.
@@ -31,8 +32,22 @@
     - Pages, components and styles: ours.
     - Versions of tools and dependencies: the newer official one.
     - chisel stays removed: keep its files deleted and `laravel/chisel` out of `composer.json`. Strip any chisel marker the merge brings back by deleting only the comment (`/* @chisel-x */`, `/* @end-chisel-x */`, `{/* ... */}` in JSX, `<!-- ... -->`, `{{-- ... --}}`) and keeping all the code around and between the markers. Delete a whole line only when the marker is all that is on it; `UPGRADING.md` has an example of a line shared with code.
+    - The starter kit's front end stays out: its pages, components, layouts, hooks and styles stay deleted, new UI files it adds are not taken, and its shadcn, Radix and other UI packages stay out of `package.json` even when it bumps them. Its backend, configuration and tooling changes merge as before.
     - Everything else: keep the changes of both sides.
 - Never run `composer` or `php artisan boost:update` with `-q`, and after any `composer update`, `require` or `remove` check that `git status` shows no template file rewritten.
+
+### Who owns which file
+
+This split is what keeps template syncs from conflicting. The UI is built as the `ant-design-ui` skill says.
+
+| Template-owned (projects don't edit)                                                                                                             | Project-owned (the template ships it once and leaves it alone)                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| the glue (`resources/js/ui/`, `resources/js/lib/i18n.ts`), `resources/js/app.tsx`, `resources/js/ssr.tsx`, the layouts (`resources/js/layouts/`) | `resources/js/theme.ts`                                                                                           |
+| auth, settings, error and example pages, with their routes and controllers                                                                       | the app menu (`resources/js/navigation.ts`), `resources/js/pages/dashboard.tsx`, `resources/js/pages/welcome.tsx` |
+| `lang/template/*.json`, `lang/en/*.php`, `lang/zh_CN/*.php`                                                                                      | `lang/zh_CN.json`                                                                                                 |
+| the `ant-design-ui` skill (`.ai/skills/ant-design-ui`)                                                                                           | the project's UI notes (`.ai/skills/project-ui/SKILL.md`)                                                         |
+
+A project that needs to change a template-owned page copies it into a page of its own and points its route there, instead of editing the template's page.
 
 ## Git Worktrees
 
