@@ -33,6 +33,65 @@ test('the Pro components styles are included', () => {
     expect(css).toContain('ant-pro-layout');
 });
 
+// Under zeroRuntime nothing else styles them. The form fields and ModalForm
+// render antd's own components, so their classes are antd's.
+test.each([
+    ['ProLayout', 'ant-pro-layout'],
+    ['PageContainer', 'ant-pro-page-container'],
+    ['ProTable', 'ant-pro-table'],
+    ["ProTable's search form", 'ant-pro-query-filter'],
+    ['ProForm', 'ant-pro-form'],
+    ['ProFormText', 'ant-input'],
+    ['ProFormSelect', 'ant-select'],
+    ['ProFormList', 'ant-pro-form-list'],
+    ['ProFormDateRangePicker', 'ant-picker-range'],
+    ['ModalForm', 'ant-modal'],
+    ['DrawerForm', 'ant-pro-form-drawer'],
+    ['StepsForm', 'ant-pro-steps-form'],
+    ['ProDescriptions', 'ant-pro-field-readonly'],
+    ['ProCard', 'ant-pro-card'],
+    ['StatisticCard', 'ant-pro-statistic-card'],
+    ['LoginForm', 'ant-pro-form-login'],
+    ['LoginFormPage', 'ant-pro-form-login-page'],
+])('the styles of %s are included', (_component, prefix) => {
+    expect(css).toMatch(new RegExp(`\\.${prefix}(?![\\w-])`));
+});
+
+/**
+ * Every selector of every rule, outside `@keyframes` (whose steps are not
+ * selectors). A selector list is what sits right before a `{`.
+ */
+function selectorsIn(source: string): string[] {
+    const withoutKeyframes = source.replace(
+        /@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g,
+        '',
+    );
+
+    return [...withoutKeyframes.matchAll(/[^{};]+(?=\{)/g)]
+        .map(([list]) => list.trim())
+        .filter((list) => !list.startsWith('@'))
+        .flatMap((list) => list.split(/,(?![^(]*\))/));
+}
+
+// antd scopes its element rules, its link styles, to its own components.
+// Unscoped, `a{outline:none}` took the focus ring off every link on the page.
+test('no rule reaches elements outside antd components', () => {
+    const classless = selectorsIn(css).filter(
+        (selector) => !/\.-?[_a-z]/i.test(selector),
+    );
+
+    expect(classless).toEqual([]);
+    expect(css).toContain(
+        ':where(.app) a:focus-visible,a:where(.app):focus-visible{',
+    );
+});
+
+// Pro's nested theme providers key their CSS variables with React's useId:
+// the sample tree's keys never match the ones a real page renders.
+test('no CSS variables are keyed by a React id', () => {
+    expect(css).not.toContain('.css-var-');
+});
+
 // Pro writes colours into its rules instead of using antd's variables, so the
 // dark theme needs its own copy of those rules.
 test('a Pro rule with a written-in colour has a dark copy under html.dark', () => {

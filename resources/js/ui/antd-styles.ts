@@ -6,7 +6,7 @@ import type { ThemeConfig } from 'antd';
 import type * as ReactModule from 'react';
 import type { ReactElement } from 'react';
 import type * as ReactDomServer from 'react-dom/server';
-import { themeConfig } from './theme';
+import { CSS_VAR_KEY, themeConfig } from './theme';
 import type { ProjectTheme } from './theme';
 
 type Modules = {
@@ -23,9 +23,13 @@ type Modules = {
  * theme's CSS variables, all in `@layer antd`: the light theme, then each
  * rule the dark theme changes, scoped to `html.dark`. antd's rules change only
  * their variables; Pro writes colours into its rules (the layout's sider,
- * menu and header), so those rules get a dark copy too. The browser runs
- * antd and Pro with `zeroRuntime`, so these are the only component styles it
- * gets.
+ * menu and header), so those rules get a dark copy too.
+ *
+ * The browser runs antd and Pro with `zeroRuntime`, so it makes none of these
+ * rules itself: these are all the component styles it gets. What antd still
+ * makes in the browser are CSS variables: the theme's, and those of Pro's
+ * nested theme providers, which this file cannot write ahead (see
+ * `withoutReactIdKeys`).
  */
 export function generateAntdCss(project: ProjectTheme): string {
     const modules = loadModules();
@@ -41,14 +45,14 @@ export function generateAntdCss(project: ProjectTheme): string {
         ...config,
         algorithm: modules.antd.theme.darkAlgorithm,
     });
-    const lightRules = new Set(topLevelRules(light));
-    const darkRules = topLevelRules(dark)
+    const lightRules = new Set(light);
+    const darkRules = dark
         .filter((rule) => !lightRules.has(rule))
         .map(underDarkClass);
 
     // The dark copies come last: they have the same specificity as the light
     // rules, so being later is what makes them win.
-    return `@layer antd {\n${light}\n${darkRules.join('')}\n}\n`;
+    return `@layer antd {\n${light.join('')}\n${darkRules.join('')}\n}\n`;
 }
 
 /**
@@ -84,7 +88,12 @@ function loadModules(): Modules {
 
 const CACHE_PATH_MARKER = /\.data-ant-cssinjs-cache-path\{content:"[^"]*";\}/;
 
-function extract(modules: Modules, config: ThemeConfig): string {
+/**
+ * The rules the sample tree registers with `config`, ready to ship: what no
+ * browser can parse left out, element rules scoped to antd's components, the
+ * CSS variables keyed by a React id dropped, and each repeated rule kept once.
+ */
+function extract(modules: Modules, config: ThemeConfig): string[] {
     const { antd, cssinjs, h, renderToString } = modules;
     const cache = cssinjs.createCache();
     const tree = h(
@@ -97,11 +106,64 @@ function extract(modules: Modules, config: ThemeConfig): string {
 
     // The marker lists the styles a server render put in the page, for the
     // browser to skip. These styles come from a file, so it has no use.
-    return withoutUnparsableRules(
+    const css = withoutUnparsableRules(
         cssinjs
             .extractStyle(cache, { plain: true })
             .replace(CACHE_PATH_MARKER, ''),
     );
+    const rules = topLevelRules(css)
+        .map((rule) => rewriteSelectors(rule, withoutReactIdKeys))
+        .filter((rule) => rule !== null)
+        .map((rule) => rewriteSelectors(rule, scopedToAntd) ?? '');
+
+    return lastOfEach(rules);
+}
+
+/**
+ * antd scopes its element rules (its link styles: `a`, `a:hover`,
+ * `a[disabled]`…) with its hash class, to a link that is an antd component
+ * and to a link inside one. Without the hash they would reach every link on
+ * the page, over Tailwind's base layer (`a{outline:none}` took the focus ring
+ * off the template's own links). The class of the CSS variable key sits next
+ * to the hash on every antd component, so it takes the hash's place, in a
+ * `:where()` that adds no specificity, as the hash's does. A stable hash would
+ * not do: antd makes it differ between development and production builds. A
+ * selector with a class already reaches only the elements with that class.
+ */
+const ANTD_SCOPE = `:where(.${CSS_VAR_KEY})`;
+
+function scopedToAntd(selector: string): string[] {
+    if (/\.-?[_a-zA-Z]/.test(selector)) {
+        return [selector];
+    }
+
+    const element = /^[a-zA-Z][\w-]*/.exec(selector)?.[0] ?? '';
+
+    return [
+        `${ANTD_SCOPE} ${selector}`,
+        `${element}${ANTD_SCOPE}${selector.slice(element.length)}`,
+    ];
+}
+
+/**
+ * Pro's nested theme providers set no CSS variable key, so antd keys their
+ * variables with React's useId (`.css-var-_R_3bvv_`). That class depends on
+ * where a provider sits in a page's tree: the sample tree's ones never match
+ * a real page, so they are dropped. antd still writes these variables in the
+ * browser when the page runs.
+ */
+function withoutReactIdKeys(selector: string): string[] {
+    return selector.includes('.css-var-') ? [] : [selector];
+}
+
+/**
+ * Keeps the last copy of each rule that appears more than once. The last
+ * copy is the one that wins the cascade, so the earlier ones change nothing.
+ */
+function lastOfEach(rules: string[]): string[] {
+    const lastIndex = new Map(rules.map((rule, index) => [rule, index]));
+
+    return rules.filter((rule, index) => lastIndex.get(rule) === index);
 }
 
 /**
@@ -268,6 +330,17 @@ function proTree(modules: Modules): ReactElement {
             pro.ProForm,
             null,
             h(pro.ProFormText, { name: 'name', label: 'Name' }),
+            h(pro.ProFormSelect, {
+                name: 'status',
+                options: [{ label: 'Paid', value: 'paid' }],
+            }),
+            h(pro.ProFormDateRangePicker, { name: 'period' }),
+            // A list styles its rows only when it has one.
+            h(
+                pro.ProFormList,
+                { name: 'items', initialValue: [{ name: 'Name' }] },
+                h(pro.ProFormText, { name: 'name' }),
+            ),
         ),
         h(pro.QueryFilter, null, h(pro.ProFormText, { name: 'name' })),
         h(pro.LightFilter, null, h(pro.ProFormText, { name: 'name' })),
@@ -361,32 +434,57 @@ function topLevelRules(css: string): string[] {
     return rules;
 }
 
+const GROUP_RULE = /^@(?:media|supports|container)\b/;
+
 /**
  * Puts the dark scope before each selector of a rule the dark theme changes.
- * The rules inside an `@media` or `@supports` block get it too. Any other
- * at-rule (such as `@keyframes`) cannot be scoped to a class, so one the dark
- * theme changes stops the build.
+ * Any at-rule other than `@media`, `@supports` and `@container` (such as
+ * `@keyframes`) cannot be scoped to a class, so one the dark theme changes
+ * stops the build.
  */
 function underDarkClass(rule: string): string {
-    const open = rule.indexOf('{');
-    const prelude = rule.slice(0, open).trim();
-    const body = rule.slice(open + 1, -1);
+    const prelude = rule.slice(0, rule.indexOf('{')).trim();
 
-    if (/^@(?:media|supports)\b/.test(prelude)) {
-        return `${prelude}{${topLevelRules(body).map(underDarkClass).join('')}}`;
-    }
-
-    if (prelude.startsWith('@')) {
+    if (prelude.startsWith('@') && !GROUP_RULE.test(prelude)) {
         throw new Error(
             `antd-styles: the dark theme changes "${prelude}", which cannot be scoped to html.dark.`,
         );
     }
 
-    const selectors = selectorList(prelude)
-        .map((selector) => `${DARK_SCOPE}${selector}`)
-        .join(',');
+    return (
+        rewriteSelectors(rule, (selector) => [`${DARK_SCOPE}${selector}`]) ?? ''
+    );
+}
 
-    return `${selectors}{${body}}`;
+/**
+ * Replaces each selector of a rule, and of the rules inside an `@media`,
+ * `@supports` or `@container` block, with the selectors `rewrite` returns for
+ * it. A rule left with no selector is dropped (null), and so is a block left
+ * with no rule. Other at-rules, such as `@keyframes`, stay as they are.
+ */
+function rewriteSelectors(
+    rule: string,
+    rewrite: (selector: string) => string[],
+): string | null {
+    const open = rule.indexOf('{');
+    const prelude = rule.slice(0, open).trim();
+    const body = rule.slice(open + 1, -1);
+
+    if (GROUP_RULE.test(prelude)) {
+        const rules = topLevelRules(body)
+            .map((inner) => rewriteSelectors(inner, rewrite))
+            .filter((inner) => inner !== null);
+
+        return rules.length > 0 ? `${prelude}{${rules.join('')}}` : null;
+    }
+
+    if (prelude.startsWith('@')) {
+        return rule;
+    }
+
+    const selectors = selectorList(prelude).flatMap(rewrite);
+
+    return selectors.length > 0 ? `${selectors.join(',')}{${body}}` : null;
 }
 
 /**

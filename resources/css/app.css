@@ -14,6 +14,9 @@
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
+/* The antd style generator runs in Node: its strings are CSS, not classes. */
+@source not '../js/ui/antd-styles.ts';
+
 @custom-variant dark (&:is(.dark *));
 
 /*
