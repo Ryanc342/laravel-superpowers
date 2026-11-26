@@ -75,7 +75,8 @@ const APP_NAME_STYLE: Record<'side' | 'top' | 'mix', CSSProperties> = {
  * The keys of the entries for the page at `pathname`, and of the groups they
  * are in: an entry is current on its own URL and on the URLs under it, as Pro
  * counts it. Pro works them out only once its JavaScript runs, so the layout
- * passes them, and the server's page has the current entry marked.
+ * passes them, and the server's page has the current entry marked and its
+ * groups open.
  */
 function currentMenuKeys(
     items: MenuItem[],
@@ -93,6 +94,13 @@ function currentMenuKeys(
 
         return current ? [...groups, item.key, ...inside] : inside;
     });
+}
+
+/** The keys of the groups among `items`, at any depth: the entries that open. */
+function groupKeys(items: MenuItem[]): string[] {
+    return items.flatMap((item) =>
+        item.children ? [item.key, ...groupKeys(item.children)] : [],
+    );
 }
 
 /**
@@ -119,6 +127,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     const pathname = url.split(/[?#]/)[0];
     const layout = projectTheme.layout ?? 'side';
     const menu = [...appMenu, ...(props.examples ? exampleMenu() : [])];
+    const currentKeys = [...new Set(currentMenuKeys(menu, pathname))];
+    // The groups of the current entry start open, in the server's page too.
+    // After that, Pro opens the groups of each page the user goes to, and the
+    // user opens and closes groups as they like: both come through here.
+    const [openKeys, setOpenKeys] = useState(() => {
+        const groups = groupKeys(menu);
+
+        return currentKeys.filter((key) => groups.includes(key));
+    });
 
     const onCollapse = (next: boolean): void => {
         if (isPhone) {
@@ -183,9 +200,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             }
             location={{ pathname }}
             route={{ path: '/', children: menu.map(toProMenu) }}
-            menuProps={{
-                selectedKeys: [...new Set(currentMenuKeys(menu, pathname))],
-            }}
+            menuProps={{ selectedKeys: currentKeys }}
+            openKeys={openKeys}
+            onOpenChange={(keys) => setOpenKeys(keys === false ? [] : keys)}
             menuItemRender={(item, dom, menuProps) => (
                 <Link
                     href={item.path ?? '/'}

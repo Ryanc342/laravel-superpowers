@@ -5,6 +5,7 @@ import { expect, test } from 'vite-plus/test';
 import Login from '@/pages/auth/login';
 import Dashboard from '@/pages/dashboard';
 import ErrorPage from '@/pages/error';
+import OrdersIndex from '@/pages/examples/orders/index';
 import Appearance from '@/pages/settings/appearance';
 import Profile from '@/pages/settings/profile';
 import Security from '@/pages/settings/security';
@@ -21,6 +22,7 @@ import { serverRenderer } from '@/ui/server-render';
 const pages: Record<string, unknown> = {
     dashboard: Dashboard,
     error: ErrorPage,
+    'examples/orders/index': OrdersIndex,
     welcome: Welcome,
     'auth/login': Login,
     'settings/profile': Profile,
@@ -120,6 +122,33 @@ test('the server marks the menu entry of the current page', async () => {
 
     expect(body).toMatch(
         /<li[^>]*class="[^"]*\bant-menu-item-selected\b[^"]*"(?:(?!<\/li>).)*href="\/dashboard"/,
+    );
+});
+
+// A page inside a group: Pro would open the group only once its JavaScript
+// runs, so the page would paint with it closed, then open it.
+test('the server renders the group of the current page open, with its entry marked', async () => {
+    const { body } = await renderPage(
+        page('examples/orders/index', '/examples/orders', {
+            orders: {
+                rows: [],
+                total: 0,
+                page: 1,
+                perPage: 20,
+                perPageOptions: [10, 20, 50, 100],
+                sort: null,
+                filters: [],
+                prefix: '',
+            },
+            hasOrders: true,
+        }),
+    );
+
+    expect(body).toMatch(
+        /<li[^>]*class="[^"]*\bant-menu-submenu-open\b[^"]*"(?:(?!<\/li>).)*Examples/,
+    );
+    expect(body).toMatch(
+        /<li[^>]*class="[^"]*\bant-menu-item-selected\b[^"]*"(?:(?!<\/li>).)*href="\/examples\/orders"/,
     );
 });
 

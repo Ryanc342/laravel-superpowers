@@ -188,3 +188,27 @@ test.each(['side', 'top', 'mix'] as const)(
         );
     },
 );
+
+test('the group of the current page is open, and the user can still close it', async () => {
+    windowWidth(1280);
+    signedInPage(true, '/examples/orders');
+
+    await act(async () => {
+        render(<AppLayout>Page</AppLayout>);
+    });
+
+    const group = () =>
+        document.querySelector('.ant-pro-sider .ant-menu-submenu');
+
+    expect(group()?.classList.contains('ant-menu-submenu-open')).toBe(true);
+
+    await act(async () => {
+        document
+            .querySelector<HTMLElement>(
+                '.ant-pro-sider .ant-menu-submenu-title',
+            )
+            ?.click();
+    });
+
+    expect(group()?.classList.contains('ant-menu-submenu-open')).toBe(false);
+});

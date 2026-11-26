@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { Grid } from 'antd';
 import { afterEach, expect, test, vi } from 'vite-plus/test';
 import { dialogKind, ResponsiveModal, ResponsiveModalForm } from '@/ui/dialog';
+import { useInertiaForm } from '@/ui/form';
 
 type Screens = ReturnType<typeof Grid.useBreakpoint>;
 
@@ -224,3 +225,37 @@ test('a modal form has the same labels from modalProps', () => {
     expect(screen.getByRole('button', { name: 'Create' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Dismiss' })).toBeTruthy();
 });
+
+/** A dialog form that spreads the forms glue's props, as a page's Quick add does. */
+function GlueDialogForm() {
+    const { formProps } = useInertiaForm(
+        { url: '/orders', method: 'post' },
+        { name: '' },
+        { precognitive: false },
+    );
+
+    return (
+        <ResponsiveModalForm open title="New" {...formProps}>
+            <ProFormText name="name" label="Name" />
+        </ResponsiveModalForm>
+    );
+}
+
+// The server is the only validator: the browser's own checks stay off in a
+// dialog too, whichever form (ModalForm or DrawerForm) it renders.
+test.each([
+    ['modal', desktop],
+    ['sheet', phone],
+])(
+    'a %s form keeps the browser checks off that the forms glue turns off',
+    (_, screens) => {
+        onScreen(screens);
+        render(<GlueDialogForm />);
+
+        const form = document.querySelector(
+            '.ant-modal form, .ant-drawer form',
+        );
+
+        expect(form?.hasAttribute('novalidate')).toBe(true);
+    },
+);

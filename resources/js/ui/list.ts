@@ -197,14 +197,34 @@ function sortOf(sorter: Sorter | Sorter[]): string | null {
 }
 
 /**
+ * A sortable column's `sortOrder`: the arrow the list's sort puts on it, or
+ * none. `field` is the column's `dataIndex`, dotted when it is nested
+ * (`customer.name`). Without it, antd shows the arrow only after a click, so
+ * a list loaded sorted (`?sort=-total`) would show none.
+ */
+export function sortOrderOf(
+    list: ListProps<unknown>,
+    field: string,
+): 'ascend' | 'descend' | null {
+    if (list.sort === field) {
+        return 'ascend';
+    }
+
+    return list.sort === `-${field}` ? 'descend' : null;
+}
+
+/**
  * `ProTable`'s props for a list: its rows and paging come from the server, and
  * every change visits the list again. Name the prop the list comes in
- * (`propName`), so only it is reloaded. A column that sorts has `sorter: true`
- * and a `dataIndex` the server's `sortable()` names; a search field's name is
- * the name of a filter.
+ * (`propName`), so only it is reloaded. A column that sorts has `sorter: true`,
+ * a `dataIndex` the server's `sortable()` names and its `sortOrder` from
+ * `sortOrderOf`; a search field's name is the name of a filter.
  *
  * ```tsx
  * const table = useInertiaTable(orders, 'orders');
+ * const columns = [
+ *     { dataIndex: 'total', sorter: true, sortOrder: sortOrderOf(orders, 'total') },
+ * ];
  * <ProTable rowKey="id" columns={columns} {...table} />
  * ```
  */

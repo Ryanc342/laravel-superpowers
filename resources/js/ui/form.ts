@@ -15,6 +15,10 @@ import type { RouteDefinition } from '@/wayfinder';
  * format their own value; a plain antd picker with a time names its format in
  * `dateFormats`.
  *
+ * An error for a list itself (`items`, such as "add at least one item") shows
+ * only where the page renders the list's errors: `ProFormList` does, under its
+ * rows; a plain `Form.List` needs a `Form.ErrorList` given its `meta.errors`.
+ *
  * Fortify's forms are submit-only (`precognitive: false`), because Fortify
  * validates inside its actions, which Precognition cannot reach.
  */

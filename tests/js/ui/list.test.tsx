@@ -11,7 +11,7 @@ import userEvent from '@testing-library/user-event';
 import { Grid } from 'antd';
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test';
 import { setLanguage } from '@/lib/i18n';
-import { listQuery, useInertiaTable } from '@/ui/list';
+import { listQuery, sortOrderOf, useInertiaTable } from '@/ui/list';
 import type { ListProps } from '@/ui/list';
 
 const get = vi.hoisted(() => vi.fn());
@@ -460,6 +460,16 @@ test('a column with a nested data index sorts by its dotted path', () => {
     expect(get.mock.calls[0][0]).toBe('/orders?page=1&sort=customer.name');
 });
 
+test('a column takes its sort arrow from the sort the list was loaded with', () => {
+    expect(sortOrderOf(listProps({ sort: 'total' }), 'total')).toBe('ascend');
+    expect(sortOrderOf(listProps({ sort: '-total' }), 'total')).toBe('descend');
+    expect(sortOrderOf(listProps({ sort: '-total' }), 'name')).toBeNull();
+    expect(sortOrderOf(listProps({ sort: null }), 'total')).toBeNull();
+    expect(
+        sortOrderOf(listProps({ sort: '-customer.name' }), 'customer.name'),
+    ).toBe('descend');
+});
+
 test('a column filter of the table is not a list filter', () => {
     const props = tableProps(listProps());
 
@@ -498,10 +508,24 @@ test('a search value that is a list goes to the URL as repeated brackets', () =>
     );
 });
 
-const columns: ProColumns<Order>[] = [
-    { title: 'Name', dataIndex: 'name', sorter: true },
-    { title: 'Total', dataIndex: 'total', sorter: true, search: false },
-];
+/** The columns of the list: each sortable one shows the sort the list has. */
+function columns(list: ListProps<Order>): ProColumns<Order>[] {
+    return [
+        {
+            title: 'Name',
+            dataIndex: 'name',
+            sorter: true,
+            sortOrder: sortOrderOf(list, 'name'),
+        },
+        {
+            title: 'Total',
+            dataIndex: 'total',
+            sorter: true,
+            sortOrder: sortOrderOf(list, 'total'),
+            search: false,
+        },
+    ];
+}
 
 /** A list on a ProTable the way a page writes it. */
 function Orders({ list }: { list: ListProps<Order> }) {
@@ -510,7 +534,7 @@ function Orders({ list }: { list: ListProps<Order> }) {
     return (
         <ProTable<Order>
             rowKey="id"
-            columns={columns}
+            columns={columns(list)}
             search={{ labelWidth: 'auto' }}
             options={false}
             {...table}
@@ -547,6 +571,17 @@ test('a click on a column title sorts through the URL', async () => {
     await userEvent.click(screen.getByRole('columnheader', { name: /Total/ }));
 
     expect(get).toHaveBeenCalledWith('/orders?page=1&sort=total', {}, onTable);
+});
+
+test('a list loaded sorted shows the arrow on its column, and on no other', () => {
+    vi.spyOn(Grid, 'useBreakpoint').mockReturnValue({ md: true });
+    render(<Orders list={listProps({ rows, sort: '-total' })} />);
+
+    const header = (name: RegExp) =>
+        screen.getByRole('columnheader', { name }).getAttribute('aria-sort');
+
+    expect(header(/Total/)).toBe('descending');
+    expect(header(/Name/)).toBeNull();
 });
 
 test('the search form starts with the filters of the URL, submits them and starts the list over', async () => {
