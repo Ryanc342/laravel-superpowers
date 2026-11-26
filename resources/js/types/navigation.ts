@@ -27,3 +27,14 @@ export type MenuItem = {
     icon?: ReactNode;
     children?: MenuItem[];
 };
+
+/**
+ * A menu entry the server sends, as the `examples` prop. The label is English,
+ * and the layout translates it like the app's own.
+ */
+export type SharedMenuItem = {
+    key: string;
+    label: string;
+    href: string;
+    children?: SharedMenuItem[];
+};

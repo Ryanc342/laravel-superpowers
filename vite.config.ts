@@ -6,8 +6,13 @@ import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
 import { defineConfig, lazyPlugins } from 'vite-plus';
 import { antdStyles } from './resources/js/ui/vite-antd-styles';
+import { buildHasExamples } from './resources/js/ui/vite-examples';
 
 export default defineConfig({
+    define: {
+        // Whether this build has the page-type examples (ui/pages.ts).
+        __EXAMPLES__: JSON.stringify(buildHasExamples()),
+    },
     plugins: lazyPlugins(() => [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],

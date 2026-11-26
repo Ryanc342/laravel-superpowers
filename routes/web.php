@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\NotFoundController;
+use App\Http\Middleware\EnsureExamplesExist;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
@@ -14,7 +15,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 require __DIR__.'/settings.php';
 
-if (app()->environment(['local', 'testing'])) {
+if (app()->environment(EnsureExamplesExist::ENVIRONMENTS)) {
     require __DIR__.'/examples.php';
 }
 

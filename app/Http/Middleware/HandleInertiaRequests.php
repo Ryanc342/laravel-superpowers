@@ -60,12 +60,35 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
-            // The page-type examples exist only in local development and in the tests, so the menu
-            // shows their group only there.
-            'examples' => app()->environment(['local', 'testing']),
+            // The menu's group of page-type examples, which exist only in local development and in
+            // the tests (EnsureExamplesExist): null anywhere else.
+            'examples' => app()->environment(EnsureExamplesExist::ENVIRONMENTS) ? $this->exampleMenu() : null,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             // The rows-per-page choices under every paginated list (components/shared/pagination.tsx).
             'perPageOptions' => [10, 20, 50, 100],
+        ];
+    }
+
+    /**
+     * The menu's group of page-type examples. Their routes are named here, on the
+     * server, so the browser's code names no example route: a production build has
+     * no example routes, and leaves the example pages out. The labels are English,
+     * and the browser translates them.
+     *
+     * @return list<array{key: string, label: string, href: string, children: list<array{key: string, label: string, href: string}>}>
+     */
+    private function exampleMenu(): array
+    {
+        return [
+            [
+                'key' => 'examples',
+                'label' => 'Examples',
+                // Where the examples' URLs start (routes/examples.php); not a page.
+                'href' => '/examples',
+                'children' => [
+                    ['key' => 'examples.orders', 'label' => 'Orders', 'href' => route('examples.orders.index', absolute: false)],
+                ],
+            ],
         ];
     }
 }

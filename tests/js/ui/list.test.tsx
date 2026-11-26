@@ -9,6 +9,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Grid } from 'antd';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test';
 import { setLanguage } from '@/lib/i18n';
 import { listQuery, sortOrderOf, useInertiaTable } from '@/ui/list';
@@ -344,14 +345,13 @@ test('the pagination is hidden only when the smallest choice already shows every
 });
 
 test('a filter set that PHP sent as an empty list is no filters', () => {
-    expect(tableProps(listProps({ filters: [] })).form).toEqual({
-        initialValues: {},
-    });
-    expect(tableProps(listProps({ filters: { status: 'open' } })).form).toEqual(
-        {
-            initialValues: { status: 'open' },
-        },
+    expect(tableProps(listProps({ filters: [] })).form.initialValues).toEqual(
+        {},
     );
+    expect(
+        tableProps(listProps({ filters: { status: 'open' } })).form
+            .initialValues,
+    ).toEqual({ status: 'open' });
 });
 
 test('a table change visits the list with the state of the URL and reloads only its prop', () => {
@@ -582,6 +582,20 @@ test('a list loaded sorted shows the arrow on its column, and on no other', () =
 
     expect(header(/Total/)).toBe('descending');
     expect(header(/Name/)).toBeNull();
+});
+
+// Pro names a form at random when it has no name, and a field's id starts
+// with the form's name, so the server's ids would not be the browser's.
+test('the search form has the name of the list, so its fields have the same ids on the server as in the browser', () => {
+    vi.spyOn(Grid, 'useBreakpoint').mockReturnValue({ md: true });
+    const ids = (root: ParentNode) =>
+        [...root.querySelectorAll('form input[id]')].map((field) => field.id);
+    const server = document.createElement('div');
+    server.innerHTML = renderToString(<Orders list={listProps({ rows })} />);
+    const { container } = render(<Orders list={listProps({ rows })} />);
+
+    expect(ids(container)).toEqual(['orders_search_name']);
+    expect(ids(server)).toEqual(ids(container));
 });
 
 test('the search form starts with the filters of the URL, submits them and starts the list over', async () => {

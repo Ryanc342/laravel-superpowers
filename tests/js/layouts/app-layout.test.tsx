@@ -17,21 +17,8 @@ const theme = vi.hoisted(() => ({
 
 vi.mock('@/theme', () => ({ default: theme }));
 
-vi.mock('@/ui/example-menu', () => ({
-    exampleMenu: () => [
-        {
-            key: 'examples',
-            label: 'Examples',
-            href: '/examples',
-            children: [
-                { key: 'users', label: 'Users', href: '/examples/users' },
-                { key: 'orders', label: 'Orders', href: '/examples/orders' },
-            ],
-        },
-    ],
-}));
-
 import AppLayout from '@/layouts/app-layout';
+import { setLanguage } from '@/lib/i18n';
 
 /**
  * A browser window of the given width: `(min-width: …)` and `(max-width: …)`
@@ -62,6 +49,19 @@ function windowWidth(width: number): void {
     });
 }
 
+/** The menu's example entries, as the server sends them in local and testing. */
+const EXAMPLES = [
+    {
+        key: 'examples',
+        label: 'Examples',
+        href: '/examples',
+        children: [
+            { key: 'users', label: 'Users', href: '/examples/users' },
+            { key: 'orders', label: 'Orders', href: '/examples/orders' },
+        ],
+    },
+];
+
 function signedInPage(sidebarOpen: boolean, url = '/dashboard'): void {
     page.url = url;
     page.props = {
@@ -70,7 +70,7 @@ function signedInPage(sidebarOpen: boolean, url = '/dashboard'): void {
         locale: 'en',
         locales: [{ value: 'en', label: 'English' }],
         translations: [],
-        examples: true,
+        examples: EXAMPLES,
         sidebarOpen,
     };
 }
@@ -82,6 +82,7 @@ function sider(): Element | null {
 afterEach(() => {
     document.cookie = 'sidebar_state=;path=/;max-age=0';
     theme.layout = 'side';
+    setLanguage('en', []);
 });
 
 // From md up the cookie alone decides, whatever the width: antd's Sider would
@@ -211,4 +212,37 @@ test('the group of the current page is open, and the user can still close it', a
     });
 
     expect(group()?.classList.contains('ant-menu-submenu-open')).toBe(false);
+});
+
+test('the menu has the example entries the server sends, translated, and none without them', async () => {
+    windowWidth(1280);
+    signedInPage(true, '/examples/orders');
+    setLanguage('zh_CN', { Examples: '示例', Users: '用户' });
+
+    const { unmount } = render(<AppLayout>Page</AppLayout>);
+
+    const entries = () =>
+        [
+            ...document.querySelectorAll(
+                '.ant-pro-sider .ant-menu-submenu-title, .ant-pro-sider .ant-menu-item a',
+            ),
+        ].map((entry) => entry.textContent);
+
+    expect(entries()).toEqual(
+        expect.arrayContaining(['示例', '用户', 'Orders']),
+    );
+    expect(
+        document.querySelector(
+            '.ant-pro-sider .ant-menu-submenu-title .anticon-experiment',
+        ),
+    ).not.toBeNull();
+
+    unmount();
+    page.props.examples = null;
+    render(<AppLayout>Page</AppLayout>);
+
+    expect(
+        document.querySelector('.ant-pro-sider .ant-menu-submenu'),
+    ).toBeNull();
+    expect(entries()).not.toContain('Examples');
 });

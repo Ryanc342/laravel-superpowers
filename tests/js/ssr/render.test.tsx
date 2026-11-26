@@ -70,7 +70,20 @@ function page(
                 twoFactorAuthentication: true,
                 passkeys: true,
             },
-            examples: true,
+            examples: [
+                {
+                    key: 'examples',
+                    label: 'Examples',
+                    href: '/examples',
+                    children: [
+                        {
+                            key: 'examples.orders',
+                            label: 'Orders',
+                            href: '/examples/orders',
+                        },
+                    ],
+                },
+            ],
             sidebarOpen: true,
             perPageOptions: [10, 20, 50, 100],
             ...props,

@@ -104,12 +104,12 @@ test('the examples menu is not shared outside local and testing', function () {
     $this->withoutVite()->actingAs(User::factory()->create());
 
     $this->get('/dashboard')
-        ->assertInertia(fn (Assert $page) => $page->where('examples', true));
+        ->assertInertia(fn (Assert $page) => $page->where('examples.0.key', 'examples'));
 
     app()->detectEnvironment(fn () => 'production');
 
     $this->get('/dashboard')
-        ->assertInertia(fn (Assert $page) => $page->where('examples', false));
+        ->assertInertia(fn (Assert $page) => $page->where('examples', null));
 });
 
 test('a long user name does not make the page wider than a phone', function (string $path) {

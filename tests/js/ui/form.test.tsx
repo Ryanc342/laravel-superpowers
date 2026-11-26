@@ -19,6 +19,7 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { useEffect, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
+import { renderToString } from 'react-dom/server';
 import {
     afterEach,
     beforeEach,
@@ -27,7 +28,12 @@ import {
     test,
     vi,
 } from 'vite-plus/test';
-import { errorsToFields, toNamePath, useInertiaForm } from '@/ui/form';
+import {
+    errorsToFields,
+    formNameFor,
+    toNamePath,
+    useInertiaForm,
+} from '@/ui/form';
 import type { InertiaAntdForm, InertiaAntdFormProps } from '@/ui/form';
 import type { RouteDefinition } from '@/wayfinder';
 
@@ -157,18 +163,21 @@ function OrderForm({
     resetOnSuccess,
     errorBag,
     onSuccess,
+    name,
 }: {
     values?: Order;
     precognitive?: boolean;
     resetOnSuccess?: (keyof Order)[];
     errorBag?: string;
     onSuccess?: () => void;
+    name?: string;
 }) {
     const form = useInertiaForm(route, values, {
         precognitive,
         resetOnSuccess,
         errorBag,
         onSuccess,
+        name,
     });
 
     useEffect(() => {
@@ -492,6 +501,45 @@ test.each([
         ).toBe(true);
     },
 );
+
+/** The ids of the fields of the forms in `root`, in the order they are rendered. */
+function fieldIds(root: ParentNode): string[] {
+    return [...root.querySelectorAll('form input[id]')].map(
+        (field) => field.id,
+    );
+}
+
+test('a form is named after where it is sent: its method and its path', () => {
+    expect(formNameFor({ url: '/orders', method: 'post' })).toBe('post_orders');
+    expect(
+        formNameFor({
+            url: '/settings/two-factor/recovery-codes?step=2#codes',
+            method: 'put',
+        }),
+    ).toBe('put_settings_two_factor_recovery_codes');
+});
+
+// Pro names a form at random when it has no name, and a field's id starts
+// with the form's name, so the server's ids would not be the browser's.
+test('a Pro form has the name of its route, so its fields have the same ids on the server as in the browser', () => {
+    const server = document.createElement('div');
+    server.innerHTML = renderToString(<ProDeliveryForm />);
+    const { container } = render(<ProDeliveryForm />);
+
+    expect(fieldIds(container)).toEqual(
+        expect.arrayContaining([
+            'post_orders_customer',
+            'post_orders_items_0_name',
+        ]),
+    );
+    expect(fieldIds(server)).toEqual(fieldIds(container));
+});
+
+test('a name in the options replaces the name of the route', () => {
+    render(<OrderForm name="checkout" />);
+
+    expect(screen.getByLabelText('Email').id).toBe('checkout_email');
+});
 
 test('a server error shows under its field, and goes when a submit-only field changes', async () => {
     render(<OrderForm precognitive={false} />);

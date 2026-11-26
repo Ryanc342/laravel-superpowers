@@ -51,6 +51,12 @@ type DateFormats = Record<string, string>;
 /** The props to spread onto antd's `Form` or one of Pro's forms. */
 export type InertiaAntdFormProps<T> = {
     form: FormInstance<T>;
+    /**
+     * Each field's id starts with it: `post_login_email`. Pro names a form at
+     * random otherwise, so the server's ids would not be the browser's, and
+     * two forms on a page would share their fields' ids.
+     */
+    name: string;
     initialValues: T;
     layout: 'vertical';
     /**
@@ -93,6 +99,8 @@ export type InertiaAntdFormOptions<T> = {
     dateFormats?: DateFormats;
     /** Runs after a successful submit. */
     onSuccess?: () => void;
+    /** The form's name, for ids a test or a page names: `formNameFor(route)` by default. */
+    name?: string;
 };
 
 export type InertiaAntdForm<T> = {
@@ -358,6 +366,21 @@ function toInertiaData(
 }
 
 /**
+ * A form's name from where it is sent, the same on the server and in the
+ * browser: `put /settings/password` is `put_settings_password`. The method
+ * tells apart two forms sent to one URL, such as a profile's update and its
+ * delete.
+ */
+export function formNameFor(route: FormRoute): string {
+    const path = route.url.split(/[?#]/)[0];
+
+    return `${route.method}_${path}`
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+}
+
+/**
  * After a failed submit, scrolls to the first field with an error, in the
  * order of the form. When no error has a field, it brings the top of the form
  * into view, where the page shows them in an `Alert`.
@@ -392,6 +415,7 @@ export function useInertiaForm<T extends Record<string, unknown>>(
         errorBag,
         dateFormats = {},
         onSuccess,
+        name = formNameFor(route),
     } = options;
     const [form] = Form.useForm<T>();
     // antd types a form's field names from T; the glue handles any name.
@@ -551,6 +575,7 @@ export function useInertiaForm<T extends Record<string, unknown>>(
     return {
         formProps: {
             form,
+            name,
             initialValues,
             layout: 'vertical',
             noValidate: true,

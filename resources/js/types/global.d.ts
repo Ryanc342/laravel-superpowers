@@ -1,4 +1,5 @@
 import type { Auth } from '@/types/auth';
+import type { SharedMenuItem } from '@/types/navigation';
 
 declare module 'react' {
     interface InputHTMLAttributes<T> {
@@ -23,8 +24,8 @@ declare module '@inertiajs/core' {
                 twoFactorAuthentication: boolean;
                 passkeys: boolean;
             };
-            // Whether the page-type examples exist (local and testing only), for the menu.
-            examples: boolean;
+            // The menu's group of page-type examples, in local and testing only: null elsewhere.
+            examples: SharedMenuItem[] | null;
             sidebarOpen: boolean;
             perPageOptions: number[];
             [key: string]: unknown;

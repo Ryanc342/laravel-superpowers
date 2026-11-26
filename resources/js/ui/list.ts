@@ -299,7 +299,9 @@ export function useInertiaTable<Row>(
                 visit({ sort: sortOf(sorter) });
             }
         },
-        form: { initialValues: filters },
+        // Pro names a form at random otherwise, and its fields' ids start with
+        // the name, so the server's ids would not be the browser's.
+        form: { name: `${propName}_search`, initialValues: filters },
         formRef,
         onSubmit: (params) => visit({ filters: params }),
         onReset: () => visit({ filters: {} }),

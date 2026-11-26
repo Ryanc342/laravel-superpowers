@@ -126,7 +126,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     const [phoneMenuOpen, setPhoneMenuOpen] = useState(false);
     const pathname = url.split(/[?#]/)[0];
     const layout = projectTheme.layout ?? 'side';
-    const menu = [...appMenu, ...(props.examples ? exampleMenu() : [])];
+    const menu = [...appMenu, ...exampleMenu(props.examples)];
     const currentKeys = [...new Set(currentMenuKeys(menu, pathname))];
     // The groups of the current entry start open, in the server's page too.
     // After that, Pro opens the groups of each page the user goes to, and the

@@ -67,6 +67,8 @@ export default function OrderForm({ order }: { order: EditedOrder | null }) {
     const { formProps, unplacedErrors } = useInertiaForm<OrderValues>(
         order === null ? store() : update(order.id),
         valuesOf(order),
+        // One name for a new order and an edited one, whatever its number.
+        { name: 'order' },
     );
     const title =
         order === null
@@ -103,10 +105,8 @@ export default function OrderForm({ order }: { order: EditedOrder | null }) {
                     ],
                 }}
             >
-                {/* A name of its own, which the fields' ids start with: Pro would make one up, another on the server than in the browser. */}
                 <ProForm<OrderValues>
                     {...formProps}
-                    name="order"
                     submitter={{
                         searchConfig: { submitText: t('Save') },
                         submitButtonProps: { 'data-test': 'save-order-button' },

@@ -47,15 +47,13 @@ function QuickAdd() {
     const { formProps, unplacedErrors } = useInertiaForm<QuickAddValues>(
         store(),
         { customer: '', ordered_at: null, draft: true },
-        { resetOnSuccess: ['customer', 'ordered_at'] },
+        // A shorter name than its route's, for its fields' ids: `quick_add_customer`.
+        { resetOnSuccess: ['customer', 'ordered_at'], name: 'quick_add' },
     );
 
     return (
         <ResponsiveModalForm<QuickAddValues>
             {...formProps}
-            // A name of its own, which the fields' ids start with: Pro would
-            // make one up, another on the server than in the browser.
-            name="quick_add"
             title={t('Quick add')}
             width={480}
             trigger={
