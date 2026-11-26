@@ -34,9 +34,9 @@ function cancel(modal: Pick<ModalProps, 'onCancel'>, event: unknown): void {
 
 /**
  * A modal's props, as a sheet has them: the bottom drawer's. It is as tall as
- * its content, and scrolls inside when that is more than 90% of the screen.
- * A `Drawer` is 378px high by default, and `DrawerForm`'s 800px is taller than
- * a phone.
+ * its content, and scrolls inside when that is more than 90% of the screen
+ * the phone's browser leaves it (`dvh`, without its address bar). A `Drawer`
+ * is 378px high by default, and `DrawerForm`'s 800px is taller than a phone.
  */
 function sheetProps(
     modal: Omit<ModalProps, 'open'>,
@@ -44,7 +44,11 @@ function sheetProps(
     return {
         placement: 'bottom',
         size: 'auto',
-        styles: { section: { maxHeight: '90vh' } },
+        styles: { section: { maxHeight: '90dvh' } },
+        closable: modal.closable,
+        className: modal.className,
+        zIndex: modal.zIndex,
+        getContainer: modal.getContainer,
         destroyOnHidden: modal.destroyOnHidden,
         keyboard: modal.keyboard,
         maskClosable: modal.maskClosable,
@@ -89,9 +93,11 @@ export type ResponsiveModalProps = Omit<ModalProps, 'footer'> & {
 };
 
 /**
- * A `Modal` that is a bottom sheet on a phone. It takes a `Modal`'s props: the
- * ones that only make sense for a modal (`width`, `centered`…) do not reach the
- * sheet. Unless `footer` is set, both have the OK and Cancel buttons.
+ * A `Modal` that is a bottom sheet on a phone. It takes a `Modal`'s props:
+ * `closable`, `className`, `zIndex`, `getContainer`, `destroyOnHidden`,
+ * `keyboard`, `maskClosable` and `afterClose` carry over to the sheet, and the
+ * ones that only make sense for a modal (`width`, `centered`…) do not. Unless
+ * `footer` is set, both have the OK and Cancel buttons.
  */
 export function ResponsiveModal(props: ResponsiveModalProps) {
     const kind = useDialogKind();
@@ -151,9 +157,10 @@ export function ResponsiveModal(props: ResponsiveModalProps) {
 
 /**
  * A `ModalForm` that is a bottom-sheet `DrawerForm` on a phone. It takes a
- * `ModalForm`'s props: `modalProps.onCancel`, `afterClose`, `destroyOnHidden`,
- * `keyboard`, `maskClosable`, `okText` and `cancelText` carry over to the
- * sheet, and `width` and the rest of `modalProps` do not. `okText` and
+ * `ModalForm`'s props: `modalProps.onCancel`, `afterClose`, `closable`,
+ * `className`, `zIndex`, `getContainer`, `destroyOnHidden`, `keyboard`,
+ * `maskClosable`, `okText` and `cancelText` carry over to the sheet, and
+ * `width` and the rest of `modalProps` do not. `okText` and
  * `cancelText` are the submitter's labels, as in a `ModalForm`, and a label
  * that `submitter.searchConfig` sets wins over them.
  */

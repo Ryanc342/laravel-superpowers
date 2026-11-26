@@ -79,11 +79,14 @@ test('a user changes their password', function () {
     expect(Hash::check('new-password', $user->fresh()->password))->toBeTrue();
 });
 
-test('a password that is not confirmed shows its error while typing, and the error goes when it is', function () {
+test('a password that is not confirmed shows its error while typing, once the confirmation is filled, and the error goes when it is', function () {
     $this->actingAs(User::factory()->create());
 
+    // The new password is checked before the user reaches its confirmation.
     visitSecurityPage()
         ->type('password', 'new-password')
+        ->wait(1)
+        ->assertDontSee('The password field confirmation does not match.')
         ->type('password_confirmation', 'another-password')
         ->assertSee('The password field confirmation does not match.')
         ->type('password_confirmation', 'new-password')

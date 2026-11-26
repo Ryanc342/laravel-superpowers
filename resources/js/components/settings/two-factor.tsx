@@ -187,6 +187,11 @@ function SetupDialog({
                                 }
                             />
                         </Form.Item>
+                        {/* Enter in the code sends it: a form of several fields
+                            sends on Enter only through a submit button of its
+                            own. Hidden, it is in no one's way, and needs no label. */}
+                        {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label */}
+                        <button type="submit" hidden />
                     </Form>
                 </Flex>
             </ResponsiveModal>

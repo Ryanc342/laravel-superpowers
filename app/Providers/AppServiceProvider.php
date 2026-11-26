@@ -37,6 +37,9 @@ class AppServiceProvider extends ServiceProvider
      * the user types (Precognition) count apart, so that typing a password
      * never uses up the sends. A check does not tell whether the current
      * password is right (PasswordUpdateRequest), so its limit is far higher.
+     *
+     * Deleting the account checks the password too, so it is limited to six
+     * tries a minute as well.
      */
     protected function configureRateLimiting(): void
     {
@@ -47,6 +50,8 @@ class AppServiceProvider extends ServiceProvider
                 ? Limit::perMinute(120)->by('precognition|'.$userKey)
                 : Limit::perMinute(6)->by($userKey);
         });
+
+        RateLimiter::for('account-deletion', fn (Request $request): Limit => Limit::perMinute(6)->by((string) $request->user()?->getAuthIdentifier()));
     }
 
     /**

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Support\Str;
 use Symfony\Component\Finder\Finder;
 
@@ -116,7 +117,8 @@ function chineseSentences(): array
 
     foreach ([lang_path('template/zh_CN.json'), lang_path('zh_CN.json')] as $path) {
         if (file_exists($path)) {
-            $sentences = [...$sentences, ...json_decode(file_get_contents($path), true, flags: JSON_THROW_ON_ERROR)];
+            // Not a spread: it would renumber a key that is a number ("404").
+            $sentences = array_replace($sentences, json_decode(file_get_contents($path), true, flags: JSON_THROW_ON_ERROR));
         }
     }
 
@@ -138,6 +140,28 @@ test('every literal sentence the code shows is translated into Chinese', functio
         $missing,
         "These sentences have no Chinese. Add each to lang/template/zh_CN.json when it is one of the template's own sentences, or to lang/zh_CN.json when it is a project's:\n".implode("\n", $missing),
     );
+});
+
+// The example menu's labels, the error pages' titles among them, are English
+// strings the server sends and the browser translates (`t(item.label)`): no
+// literal call holds them.
+test('every label of the example menu is translated into Chinese', function () {
+    $this->actingAs(User::factory()->create());
+
+    $labels = [];
+    $collect = function (array $entries) use (&$collect, &$labels): void {
+        foreach ($entries as $entry) {
+            $labels[] = $entry['label'];
+            $collect($entry['children'] ?? []);
+        }
+    };
+    $collect($this->get(route('dashboard'))->inertiaProps('examples'));
+
+    $chinese = chineseSentences();
+
+    expect($labels)->toContain('Examples', 'Orders', 'Page not found')
+        ->and(array_values(array_filter($labels, fn (string $label): bool => trim($chinese[$label] ?? '') === '')))
+        ->toBe([], 'These labels of the example menu have no Chinese in lang/template/zh_CN.json.');
 });
 
 test('the scan reads literal sentences in JavaScript and leaves everything else', function () {

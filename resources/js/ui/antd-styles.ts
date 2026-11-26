@@ -9,12 +9,12 @@ import type * as ReactDomServer from 'react-dom/server';
 import { CSS_VAR_KEY, DARK_SCOPE, LAYOUT_TOKEN, themeConfig } from './theme';
 import type { ProjectTheme } from './theme';
 
+type AnyComponent = ReactModule.FunctionComponent<Record<string, unknown>>;
+
 /**
  * The parts of Pro with styles of their own that the sample renders from
  * their own files (see `loadModules`).
  */
-type AnyComponent = ReactModule.FunctionComponent<Record<string, unknown>>;
-
 type ProPart =
     | 'Highlight'
     | 'FieldCheckbox'

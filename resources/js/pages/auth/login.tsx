@@ -20,9 +20,12 @@ export default function Login({ status }: { status?: string }) {
         <>
             <Head title={t('Log in')} />
 
+            {/* The status is the page's; the errors are the password form's, under the passkey's "or". */}
+            <FormAlerts status={status} />
+
             {features.passkeys && <PasskeySignIn />}
 
-            <FormAlerts status={status} errors={unplacedErrors} />
+            <FormAlerts errors={unplacedErrors} />
 
             <Form {...formProps}>
                 <Form.Item label={t('Email address')} name="email" required>

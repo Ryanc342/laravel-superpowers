@@ -70,6 +70,27 @@ test('a precognitive password update with a password that is not confirmed is re
     expect(Hash::check('password', $user->fresh()->password))->toBeTrue();
 });
 
+// The new password is checked as the user leaves it, before they reach the
+// confirmation: it must not say the confirmation does not match yet.
+test('a precognitive check says nothing about the confirmation until it is filled, and the send still asks for it', function () {
+    $user = User::factory()->create();
+    $values = [
+        'current_password' => 'password',
+        'password' => 'new-password',
+        'password_confirmation' => '',
+    ];
+
+    $this->actingAs($user)
+        ->putJson(route('user-password.update'), $values)
+        ->assertJsonValidationErrors(['password' => 'The password field confirmation does not match.']);
+
+    $this->withPrecognition()
+        ->putJson(route('user-password.update'), $values)
+        ->assertNoContent();
+
+    expect(Hash::check('password', $user->fresh()->password))->toBeTrue();
+});
+
 test('a precognitive password update with valid values passes and saves nothing', function () {
     $user = User::factory()->create();
 

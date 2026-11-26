@@ -119,6 +119,13 @@ test('tChoice fills the extra placeholders next to :count', () => {
     ).toBe('Ada has 3 tasks');
 });
 
+// Laravel's trans_choice adds the count after the caller's replacements,
+// unless the caller gives one: what fills :Count and :COUNT is the same.
+test('tChoice fills :count after the other replacements, and a count the caller gives wins, like trans_choice', () => {
+    expect(tChoice(':Count tasks', 3, { Count: 'x' })).toBe('3 tasks');
+    expect(tChoice(':count tasks', 3, { count: 'three' })).toBe('three tasks');
+});
+
 test('tChoice keeps a value that looks like :count or a replacement pattern as it is', () => {
     expect(tChoice(':name has :count tasks', 3, { name: ':count' })).toBe(
         ':count has 3 tasks',

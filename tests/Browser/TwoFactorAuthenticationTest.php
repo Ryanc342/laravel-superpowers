@@ -36,6 +36,25 @@ test('a user turns on two-factor authentication', function () {
     expect($user->fresh()->two_factor_confirmed_at)->not->toBeNull();
 });
 
+test('a user confirms the setup code with Enter', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $page = visitSecurityPage()
+        ->press('Enable 2FA')
+        ->press('Continue')
+        ->assertSee('Verify authentication code');
+
+    $secret = decrypt($user->fresh()->two_factor_secret);
+
+    $page->type(FIRST_CODE_DIGIT, app(Google2FA::class)->getCurrentOtp($secret))
+        ->keys('[data-test="code"] input >> nth=5', 'Enter')
+        ->assertSee('Disable 2FA')
+        ->assertNoJavaScriptErrors();
+
+    expect($user->fresh()->two_factor_confirmed_at)->not->toBeNull();
+});
+
 /*
  * The same button is "Continue" and then "Confirm": a click on it must only
  * move to the code step. Sent as it is, the click would submit the still empty

@@ -124,3 +124,22 @@ test('correct password must be provided to delete account', function () {
 
     expect($user->fresh())->not->toBeNull();
 });
+
+// The password is checked on each try: without a limit, the form would be a
+// way to guess it.
+test('deleting the account is limited to six tries a minute', function () {
+    $user = User::factory()->create();
+
+    foreach (range(1, 6) as $ignored) {
+        $this->actingAs($user)
+            ->from(route('profile.edit'))
+            ->delete(route('profile.destroy'), ['password' => 'wrong-password'])
+            ->assertSessionHasErrors('password');
+    }
+
+    $this->actingAs($user)
+        ->delete(route('profile.destroy'), ['password' => 'password'])
+        ->assertTooManyRequests();
+
+    expect($user->fresh())->not->toBeNull();
+});

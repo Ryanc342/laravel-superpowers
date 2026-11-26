@@ -124,7 +124,8 @@ export function listQuery(
         change.sort !== undefined ||
         change.filters !== undefined;
 
-    // The page goes first, so a key that is new sits ahead of the rest in the address.
+    // `set` leaves a key the address has where it is and adds a new one at the
+    // end. The page is set first, so a new page key comes before the others this adds.
     if (change.page !== undefined) {
         query.set(`${prefix}page`, String(change.page));
     } else if (changesTheRows) {

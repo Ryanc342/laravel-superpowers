@@ -111,6 +111,58 @@ test('a sheet keeps a footer the caller sets, and has none when it is turned off
     expect(document.querySelector('.ant-drawer-footer')).toBeNull();
 });
 
+/** A container for a dialog, in the page, and the props that put a dialog in it. */
+function ownContainer() {
+    const container = document.createElement('div');
+    document.body.append(container);
+
+    return {
+        container,
+        props: {
+            closable: false,
+            className: 'delete-dialog',
+            zIndex: 1234,
+            getContainer: () => container,
+        },
+    };
+}
+
+test('a sheet keeps the modal’s closable, className, zIndex and container', () => {
+    onScreen(phone);
+    const { container, props } = ownContainer();
+    render(
+        <ResponsiveModal open title="Delete" {...props}>
+            Are you sure?
+        </ResponsiveModal>,
+    );
+
+    const drawer = container.querySelector<HTMLElement>('.ant-drawer');
+
+    expect(drawer).not.toBeNull();
+    expect(container.querySelector('.delete-dialog')).not.toBeNull();
+    expect(container.querySelector('.ant-drawer-close')).toBeNull();
+    expect(drawer?.style.zIndex).toBe('1234');
+    container.remove();
+});
+
+test('a sheet form keeps the closable, className, zIndex and container of modalProps', () => {
+    onScreen(phone);
+    const { container, props } = ownContainer();
+    render(
+        <ResponsiveModalForm open title="New order" modalProps={props}>
+            <ProFormText name="name" label="Name" />
+        </ResponsiveModalForm>,
+    );
+
+    const drawer = container.querySelector<HTMLElement>('.ant-drawer');
+
+    expect(drawer).not.toBeNull();
+    expect(container.querySelector('.delete-dialog')).not.toBeNull();
+    expect(container.querySelector('.ant-drawer-close')).toBeNull();
+    expect(drawer?.style.zIndex).toBe('1234');
+    container.remove();
+});
+
 test('on a phone a modal form is a bottom drawer, and it submits', async () => {
     onScreen(phone);
     const onFinish = vi.fn(async () => true);

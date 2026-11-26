@@ -635,6 +635,52 @@ function firstStepWithError(steps: string[][], errors: ServerErrors): number {
     );
 }
 
+type StepForms = RefObject<FormInstance | undefined>[];
+
+/**
+ * Where Pro puts a ref to each step's form (`formMapRef`): how many steps
+ * there really are. Pro fills it once the StepsForm has rendered its steps,
+ * which can be long after the hook first ran: a StepsForm in a dialog renders
+ * when the dialog opens. So a development build checks the steps against the
+ * list (`listedSteps` entries) then, once for each StepsForm that renders.
+ * React empties it when the StepsForm goes.
+ */
+function useStepForms(listedSteps: number): RefObject<StepForms> {
+    const listed = useRef(listedSteps);
+
+    useEffect(() => {
+        listed.current = listedSteps;
+    }, [listedSteps]);
+
+    const [stepForms] = useState(() => {
+        let forms: StepForms | null = [];
+        let checked: StepForms | null = null;
+
+        return {
+            get current(): StepForms {
+                return forms ?? [];
+            },
+            set current(next: StepForms | null) {
+                forms = next;
+
+                if (!import.meta.env.DEV || next === null || next === checked) {
+                    return;
+                }
+
+                checked = next;
+
+                if (next.length !== listed.current) {
+                    console.error(
+                        `useInertiaStepsForm: the StepsForm has ${next.length} steps, and the list of their fields has ${listed.current} entries. List one for every step, [] for a step with nothing to check.`,
+                    );
+                }
+            },
+        };
+    });
+
+    return stepForms;
+}
+
 /**
  * Connects Pro's `StepsForm` to Inertia: one `useInertiaForm` for every step,
  * so the last step sends what all of them hold. Spread `stepsFormProps` onto
@@ -667,7 +713,7 @@ export function useInertiaStepsForm<T extends Record<string, unknown>>(
     options: InertiaAntdFormOptions<T> = {},
 ): InertiaStepsForm<T> {
     const [current, setCurrent] = useState(0);
-    const stepForms = useRef<RefObject<FormInstance | undefined>[]>([]);
+    const stepForms = useStepForms(steps.length);
     // The errors to bring into view once the step that has them shows.
     const errorsToShow = useRef<ServerErrors | null>(null);
     const { formProps, processing, unplacedErrors, validateFields } =
@@ -696,21 +742,11 @@ export function useInertiaStepsForm<T extends Record<string, unknown>>(
         }
     }, [current, fieldStore]);
 
-    useEffect(() => {
-        const stepCount = stepForms.current?.length ?? 0;
-
-        if (import.meta.env.DEV && stepCount !== steps.length) {
-            console.error(
-                `useInertiaStepsForm: the StepsForm has ${stepCount} steps, and the list of their fields has ${steps.length} entries. List one for every step, [] for a step with nothing to check.`,
-            );
-        }
-    }, [steps.length]);
-
     // Every step's values, not those of the step whose `Form` ran.
     const valuesOfEveryStep = (): T => form.getFieldsValue(true) as T;
 
     const finishStep = (): Promise<boolean> => {
-        const isLastStep = current >= (stepForms.current?.length ?? 0) - 1;
+        const isLastStep = current >= stepForms.current.length - 1;
         const fields = steps[current] ?? [];
 
         if (isLastStep) {

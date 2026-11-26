@@ -144,5 +144,10 @@ export function tChoice(
         translation === undefined || language === 'en',
     );
 
-    return fill(line, { count, ...replace });
+    // As trans_choice: the count goes after the other replacements, unless
+    // the caller gives one.
+    return fill(
+        line,
+        Object.hasOwn(replace, 'count') ? replace : { ...replace, count },
+    );
 }

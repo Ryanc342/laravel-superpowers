@@ -69,7 +69,37 @@ type Supplier = { company: string; contact: string };
 
 const route: RouteDefinition<'post'> = { url: '/suppliers', method: 'post' };
 
+type SupplierStepsForm = ReturnType<typeof useInertiaStepsForm<Supplier>>;
+
 /** Three steps: the company, the contact, and a summary with nothing to check. */
+function SupplierStepForms({ supplier }: { supplier: SupplierStepsForm }) {
+    return (
+        <StepsForm<Supplier> {...supplier.stepsFormProps}>
+            <StepsForm.StepForm
+                name="company"
+                title="Company step"
+                {...supplier.stepFormProps}
+            >
+                <ProFormText name="company" label="Company" />
+            </StepsForm.StepForm>
+            <StepsForm.StepForm
+                name="contact"
+                title="Contact step"
+                {...supplier.stepFormProps}
+            >
+                <ProFormText name="contact" label="Contact" />
+            </StepsForm.StepForm>
+            <StepsForm.StepForm
+                name="confirm"
+                title="Confirm step"
+                {...supplier.stepFormProps}
+            >
+                Check the supplier, then send it.
+            </StepsForm.StepForm>
+        </StepsForm>
+    );
+}
+
 function SupplierSteps({
     steps = [['company'], ['contact'], []],
 }: {
@@ -86,29 +116,26 @@ function SupplierSteps({
             {supplier.unplacedErrors.length > 0 && (
                 <Alert type="error" title={supplier.unplacedErrors.join(' ')} />
             )}
-            <StepsForm<Supplier> {...supplier.stepsFormProps}>
-                <StepsForm.StepForm
-                    name="company"
-                    title="Company step"
-                    {...supplier.stepFormProps}
-                >
-                    <ProFormText name="company" label="Company" />
-                </StepsForm.StepForm>
-                <StepsForm.StepForm
-                    name="contact"
-                    title="Contact step"
-                    {...supplier.stepFormProps}
-                >
-                    <ProFormText name="contact" label="Contact" />
-                </StepsForm.StepForm>
-                <StepsForm.StepForm
-                    name="confirm"
-                    title="Confirm step"
-                    {...supplier.stepFormProps}
-                >
-                    Check the supplier, then send it.
-                </StepsForm.StepForm>
-            </StepsForm>
+            <SupplierStepForms supplier={supplier} />
+        </>
+    );
+}
+
+/** The same steps behind a button, as in a dialog: the StepsForm renders after the hook first ran. */
+function SupplierStepsLater({ steps }: { steps: string[][] }) {
+    const [open, setOpen] = useState(false);
+    const supplier = useInertiaStepsForm<Supplier>(
+        route,
+        { company: '', contact: '' },
+        steps,
+    );
+
+    return (
+        <>
+            <button type="button" onClick={() => setOpen(true)}>
+                Add a supplier
+            </button>
+            {open && <SupplierStepForms supplier={supplier} />}
         </>
     );
 }
@@ -296,4 +323,44 @@ test('the StepsForm decides which step is the last, and a list without an entry 
     await press('send');
 
     await waitFor(() => expect(inertia.submit).toHaveBeenCalledOnce());
+});
+
+test('a StepsForm that renders later, as in a dialog, is checked once it has rendered its steps', async () => {
+    const reported = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const reports = () =>
+        reported.mock.calls.filter(([message]) =>
+            String(message).startsWith('useInertiaStepsForm'),
+        );
+    const opened = async () => {
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Add a supplier' }),
+        );
+        await waitFor(() =>
+            expect(screen.getByLabelText('Company')).toBeTruthy(),
+        );
+    };
+
+    const { unmount } = render(
+        <SupplierStepsLater steps={[['company'], ['contact'], []]} />,
+    );
+    await opened();
+
+    expect(reports()).toEqual([]);
+    unmount();
+
+    render(<SupplierStepsLater steps={[['company'], ['contact']]} />);
+
+    expect(reports()).toEqual([]);
+
+    await opened();
+
+    await waitFor(() =>
+        expect(reports()).toEqual([
+            [
+                expect.stringContaining(
+                    'the StepsForm has 3 steps, and the list of their fields has 2 entries',
+                ),
+            ],
+        ]),
+    );
 });

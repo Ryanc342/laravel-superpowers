@@ -103,6 +103,22 @@ test('a status from the server is a success alert above the form, and it stays',
     expect(screen.queryByLabelText('Close')).toBeNull();
 });
 
+// The status is about the page, not about the password form under the
+// passkey's "or": it is the first thing on the page.
+test('the status comes before the passkey sign-in', () => {
+    render(<Login status="Your password has been reset." />);
+
+    const status = screen.getByRole('alert');
+    const passkey = screen.getByRole('button', {
+        name: /Sign in with a passkey/,
+    });
+
+    expect(
+        status.compareDocumentPosition(passkey) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+});
+
 test('the verification notice names a sent link, and shows nothing for another status', () => {
     const { unmount } = render(<VerifyEmail status="verification-link-sent" />);
 

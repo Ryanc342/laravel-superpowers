@@ -30,62 +30,62 @@ export default function PasswordForm({
         <ProCard title={t('Update password')} headerBordered>
             <Row>
                 <Col xs={24} md={16} xl={12}>
-                    {unplacedErrors.length > 0 && (
-                        <Flex vertical>
+                    <Flex vertical gap="middle">
+                        {unplacedErrors.length > 0 && (
                             <Alert
                                 type="error"
                                 showIcon
                                 title={unplacedErrors.join(' ')}
                             />
-                        </Flex>
-                    )}
-                    <Form {...formProps}>
-                        <Form.Item
-                            label={t('Current password')}
-                            name="current_password"
-                            required
-                        >
-                            <Input.Password
+                        )}
+                        <Form {...formProps}>
+                            <Form.Item
+                                label={t('Current password')}
                                 name="current_password"
-                                autoComplete="current-password"
-                            />
-                        </Form.Item>
-
-                        <Form.Item
-                            label={t('New password')}
-                            name="password"
-                            required
-                        >
-                            <Input.Password
-                                name="password"
-                                autoComplete="new-password"
-                                passwordrules={passwordRules}
-                            />
-                        </Form.Item>
-
-                        <Form.Item
-                            label={t('Confirm password')}
-                            name="password_confirmation"
-                            required
-                        >
-                            <Input.Password
-                                name="password_confirmation"
-                                autoComplete="new-password"
-                                passwordrules={passwordRules}
-                            />
-                        </Form.Item>
-
-                        <Form.Item>
-                            <Button
-                                type="primary"
-                                htmlType="submit"
-                                loading={processing}
-                                data-test="update-password-button"
+                                required
                             >
-                                {t('Save')}
-                            </Button>
-                        </Form.Item>
-                    </Form>
+                                <Input.Password
+                                    name="current_password"
+                                    autoComplete="current-password"
+                                />
+                            </Form.Item>
+
+                            <Form.Item
+                                label={t('New password')}
+                                name="password"
+                                required
+                            >
+                                <Input.Password
+                                    name="password"
+                                    autoComplete="new-password"
+                                    passwordrules={passwordRules}
+                                />
+                            </Form.Item>
+
+                            <Form.Item
+                                label={t('Confirm password')}
+                                name="password_confirmation"
+                                required
+                            >
+                                <Input.Password
+                                    name="password_confirmation"
+                                    autoComplete="new-password"
+                                    passwordrules={passwordRules}
+                                />
+                            </Form.Item>
+
+                            <Form.Item>
+                                <Button
+                                    type="primary"
+                                    htmlType="submit"
+                                    loading={processing}
+                                    data-test="update-password-button"
+                                >
+                                    {t('Save')}
+                                </Button>
+                            </Form.Item>
+                        </Form>
+                    </Flex>
                 </Col>
             </Row>
         </ProCard>
