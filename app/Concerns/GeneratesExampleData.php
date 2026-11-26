@@ -13,7 +13,7 @@ use Illuminate\Support\Collection;
  * are no tables. Faker is a development dependency, which is enough: the
  * examples exist only in local development and in the tests.
  *
- * @phpstan-type ExampleOrderItem array{name: string, quantity: int, price: int}
+ * @phpstan-type ExampleOrderItem array{line: int, name: string, quantity: int, price: int}
  * @phpstan-type ExampleOrderEvent array{status: string, at: string}
  * @phpstan-type ExampleOrder array{id: int, number: string, customer: string, status: string, total: int, ordered_at: string, notes: string|null, items: list<ExampleOrderItem>, history: list<ExampleOrderEvent>}
  */
@@ -77,11 +77,13 @@ trait GeneratesExampleData
     private function makeExampleOrder(Generator $faker, int $id, string $orderedAt, string $customer): array
     {
         $products = $faker->randomElements(self::EXAMPLE_PRODUCTS, $faker->numberBetween(1, 4));
-        $items = array_map(fn (string $product) => [
+        // Each line has its number, which a table keys its rows by: two lines can be of one product.
+        $items = array_map(fn (string $product, int $index) => [
+            'line' => $index + 1,
             'name' => $product,
             'quantity' => $faker->numberBetween(1, 5),
             'price' => $faker->numberBetween(5, 500) * 100,
-        ], array_values($products));
+        ], array_values($products), array_keys(array_values($products)));
         $status = ['open', 'paid', 'shipped', 'cancelled'][$faker->numberBetween(0, 3)];
 
         return [

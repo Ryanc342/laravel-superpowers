@@ -74,6 +74,19 @@ jobs:
           # server in a deploy). Running the tests is not that.
           LARAVEL_BYPASS_ENV_CHECK: '1'
 
+      # Last, because the build writes the route functions into the checkout as
+      # production has them, with no example routes. A production build must
+      # not need them, and must leave the example pages out.
+      - name: Build for production
+        run: |
+          out="$RUNNER_TEMP/production-build"
+          APP_ENV=production npx vp build --outDir "$out/client" --emptyOutDir
+          APP_ENV=production npx vp build --ssr --outDir "$out/ssr" --emptyOutDir
+          if grep -l 'resources/js/pages/examples/' "$out/client/manifest.json" "$out/ssr/ssr-manifest.json"; then
+            echo 'The production build has example pages in it.' >&2
+            exit 1
+          fi
+
   browser:
     name: browser tests
     runs-on: ubuntu-latest

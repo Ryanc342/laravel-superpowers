@@ -4,6 +4,7 @@ namespace App\Http\Requests\Examples;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * An order from the long form, or a draft from the list's Quick add, which
@@ -21,7 +22,8 @@ class OrderRequest extends FormRequest
             'customer' => ['required', 'string', 'max:100'],
             'ordered_at' => ['required', 'date'],
             'draft' => ['sometimes', 'boolean'],
-            'items' => ['required_without:draft', 'array', 'min:1'],
+            // Not `required_without:draft`, which any `draft` sent satisfies, `false` and `0` too.
+            'items' => [Rule::requiredIf(! $this->boolean('draft')), 'array', 'min:1'],
             'items.*.name' => ['required', 'string', 'max:100'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
             'notes' => ['nullable', 'string', 'max:1000'],
@@ -36,8 +38,8 @@ class OrderRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'items.required_without' => __('Add at least one item.'),
-            'items.min' => __('Add at least one item.'),
+            'items.required' => __('Add at least one product.'),
+            'items.min' => __('Add at least one product.'),
         ];
     }
 
@@ -51,8 +53,8 @@ class OrderRequest extends FormRequest
         return [
             'customer' => __('customer'),
             'ordered_at' => __('order date'),
-            'items' => __('items'),
-            'items.*.name' => __('item name'),
+            'items' => __('products'),
+            'items.*.name' => __('product'),
             'items.*.quantity' => __('quantity'),
             'notes' => __('notes'),
         ];

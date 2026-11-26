@@ -31,12 +31,17 @@ class OrderController extends Controller
         $orders = $request->boolean('empty') ? collect() : $this->exampleOrders();
         $filters = $request->filterValues();
 
+        // A filter is there or not: `when()` on its value would skip a search for "0".
+        $number = Arr::string($filters, 'number', '');
+        $customer = Arr::string($filters, 'customer', '');
+        $status = Arr::string($filters, 'status', '');
+
         $matching = $orders
-            ->when($filters['number'] ?? null, fn (Collection $rows, string $number) => $rows
+            ->when($number !== '', fn (Collection $rows) => $rows
                 ->filter(fn (array $order) => Str::contains($order['number'], $number, ignoreCase: true)))
-            ->when($filters['customer'] ?? null, fn (Collection $rows, string $customer) => $rows
+            ->when($customer !== '', fn (Collection $rows) => $rows
                 ->filter(fn (array $order) => Str::contains($order['customer'], $customer, ignoreCase: true)))
-            ->when($filters['status'] ?? null, fn (Collection $rows, string $status) => $rows
+            ->when($status !== '', fn (Collection $rows) => $rows
                 ->where('status', $status))
             ->values();
 
@@ -96,7 +101,8 @@ class OrderController extends Controller
 
     /**
      * Deleted from the list, the user goes back to the list as it was. Deleted
-     * from its own page, which is gone, they go to the list.
+     * from its own page, which is gone, they go to the list. The page is told
+     * by its path, so a query string on it (`?tab=history`) does not matter.
      */
     public function destroy(int $order): RedirectResponse
     {
@@ -104,8 +110,8 @@ class OrderController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Order deleted.')]);
 
-        return url()->previous() === route('examples.orders.show', $order)
-            ? to_route('examples.orders.index')
-            : back();
+        $fromItsOwnPage = parse_url(url()->previous(), PHP_URL_PATH) === route('examples.orders.show', $order, absolute: false);
+
+        return $fromItsOwnPage ? to_route('examples.orders.index') : back();
     }
 }

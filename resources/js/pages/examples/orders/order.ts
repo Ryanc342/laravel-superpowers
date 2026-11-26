@@ -20,8 +20,13 @@ export type OrderRow = {
     ordered_at: string;
 };
 
-/** A line of an order. `price` is in cents. */
-export type OrderItem = { name: string; quantity: number; price: number };
+/** A line of an order: `line` is its number in the order. `price` is in cents. */
+export type OrderItem = {
+    line: number;
+    name: string;
+    quantity: number;
+    price: number;
+};
 
 /**
  * Each status's label and its tag's colour: antd's preset status colours,
@@ -32,10 +37,21 @@ export const orderStatuses: Record<
     OrderStatus,
     { label: string; color: 'warning' | 'processing' | 'success' | 'default' }
 > = {
-    open: { label: msg('Open'), color: 'warning' },
+    open: { label: msg('Awaiting payment'), color: 'warning' },
     paid: { label: msg('Paid'), color: 'processing' },
     shipped: { label: msg('Shipped'), color: 'success' },
     cancelled: { label: msg('Cancelled'), color: 'default' },
+};
+
+/**
+ * What happened when an order reached each status, for its history: an order
+ * that is now paid was placed, then paid. Translate it where it is shown.
+ */
+export const orderEvents: Record<OrderStatus, string> = {
+    open: msg('Order placed'),
+    paid: msg('Payment received'),
+    shipped: msg('Shipped'),
+    cancelled: msg('Cancelled'),
 };
 
 /** A status's `Tag`: `<Tag {...statusTag(order.status)} />`. */

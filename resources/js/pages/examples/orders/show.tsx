@@ -15,7 +15,7 @@ import { t } from '@/lib/i18n';
 import {
     deleteOrder,
     formatMoney,
-    orderStatuses,
+    orderEvents,
     statusTag,
 } from '@/pages/examples/orders/order';
 import type {
@@ -28,7 +28,7 @@ import PageTitle from '@/ui/page-title';
 
 /*
  * The detail example: the page's actions in its header, the order's fields
- * in ProDescriptions, and what belongs to it (its items, its history) in tabs.
+ * in ProDescriptions, and what belongs to it (its lines, its history) in tabs.
  */
 
 type Order = OrderRow & {
@@ -48,17 +48,17 @@ export default function OrderShow({ order }: { order: Order }) {
         },
         { title: t('Order date'), dataIndex: 'ordered_at' },
         {
-            title: t('Total'),
+            title: t('Amount'),
             dataIndex: 'total',
             render: () => formatMoney(order.total),
         },
         { title: t('Notes'), dataIndex: 'notes', span: 2 },
     ];
     const itemColumns: ProColumns<OrderItem>[] = [
-        { title: t('Item name'), dataIndex: 'name' },
+        { title: t('Product'), dataIndex: 'name' },
         { title: t('Quantity'), dataIndex: 'quantity', align: 'right' },
         {
-            title: t('Price'),
+            title: t('Unit price'),
             dataIndex: 'price',
             align: 'right',
             render: (_, item) => formatMoney(item.price),
@@ -126,10 +126,10 @@ export default function OrderShow({ order }: { order: Order }) {
                             items: [
                                 {
                                     key: 'items',
-                                    label: t('Items'),
+                                    label: t('Order lines'),
                                     children: (
                                         <ProTable<OrderItem>
-                                            rowKey="name"
+                                            rowKey="line"
                                             columns={itemColumns}
                                             dataSource={order.items}
                                             search={false}
@@ -152,9 +152,9 @@ export default function OrderShow({ order }: { order: Order }) {
                                                     content: (
                                                         <Flex gap="small">
                                                             {t(
-                                                                orderStatuses[
+                                                                orderEvents[
                                                                     status
-                                                                ].label,
+                                                                ],
                                                             )}
                                                             <Typography.Text type="secondary">
                                                                 {at}

@@ -65,9 +65,21 @@ describe('on a desktop', function () {
             ->assertNoJavaScriptErrors();
     });
 
+    test('an order\'s history says what happened at each step', function () {
+        $shipped = $this->get(route('examples.orders.index', ['filter' => ['status' => 'shipped']]))
+            ->inertiaProps('orders.rows.0.id');
+
+        visit("/examples/orders/{$shipped}")
+            ->click('History')
+            ->assertSee('Order placed')
+            ->assertSee('Payment received')
+            ->assertDontSee('Awaiting payment')
+            ->assertNoJavaScriptErrors();
+    });
+
     test('a list loaded sorted shows the sort on its column', function () {
         visit('/examples/orders?sort=-total')
-            ->assertScript("document.querySelector('th[aria-sort]').textContent", 'Total')
+            ->assertScript("document.querySelector('th[aria-sort]').textContent", 'Amount')
             ->assertAttribute('th[aria-sort]', 'aria-sort', 'descending');
     });
 
@@ -123,7 +135,7 @@ describe('on a desktop', function () {
     test('an order with its last item removed is told to add one, under the items', function () {
         visit('/examples/orders/create')
             ->click('.ant-pro-form-list-action-icon.action-remove')
-            ->assertSeeIn('.ant-pro-form-list', 'Add at least one item.')
+            ->assertSeeIn('.ant-pro-form-list', 'Add at least one product.')
             ->assertNoJavaScriptErrors();
     });
 

@@ -126,7 +126,7 @@ export default function OrdersIndex({
             render: (_, order) => <Tag {...statusTag(order.status)} />,
         },
         {
-            title: t('Total'),
+            title: t('Amount'),
             dataIndex: 'total',
             search: false,
             sorter: true,

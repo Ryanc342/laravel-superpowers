@@ -65,6 +65,14 @@ describe('index', function () {
                 ->where('orders.rows.0.number', 'SO-2026-0137'));
     });
 
+    // Every order number has a 0 in it (SO-2026-…), and no customer has.
+    test('a filter of 0 is a filter too', function () {
+        $this->get(route('examples.orders.index', ['filter' => ['customer' => '0']]))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('orders.filters', ['customer' => '0'])
+                ->where('orders.total', 0));
+    });
+
     test('the list is sorted by total, largest first', function () {
         $this->get(route('examples.orders.index', ['sort' => '-total']))
             ->assertInertia(fn (Assert $page) => $page
@@ -92,6 +100,12 @@ describe('show', function () {
             ->inertiaProps('order');
 
         expect($order())->toBe($order());
+    });
+
+    test('the lines of an order are numbered, so two lines of one product stay apart', function () {
+        $items = $this->get(route('examples.orders.show', 5))->inertiaProps('order.items');
+
+        expect(array_column($items, 'line'))->toBe(range(1, count($items)));
     });
 
     test('an order that does not exist is not found', function () {
@@ -136,14 +150,23 @@ describe('store', function () {
             ->assertSessionHasErrors([
                 'customer' => 'The customer field is required.',
                 'ordered_at' => 'The order date field is required.',
-                'items' => 'Add at least one item.',
+                'items' => 'Add at least one product.',
             ]);
     });
+
+    test('an order that is not a draft needs its items, however it says so', function (mixed $draft) {
+        $this->post(route('examples.orders.store'), ['customer' => 'Acme Ltd', 'ordered_at' => '2026-11-26', 'draft' => $draft])
+            ->assertSessionHasErrors(['items' => 'Add at least one product.']);
+    })->with([
+        'false' => false,
+        "'0'" => '0',
+        '0' => 0,
+    ]);
 
     test('an item with no name or a quantity under 1 is refused under that item', function () {
         $this->post(route('examples.orders.store'), exampleOrderInput(['items' => [['name' => '', 'quantity' => 0]]]))
             ->assertSessionHasErrors([
-                'items.0.name' => 'The item name field is required.',
+                'items.0.name' => 'The product field is required.',
                 'items.0.quantity' => 'The quantity field must be at least 1.',
             ]);
     });
@@ -170,7 +193,7 @@ describe('store', function () {
             ->withHeader('Precognition-Validate-Only', 'items.0.name')
             ->postJson(route('examples.orders.store'), ['items' => [['name' => '', 'quantity' => 1]]])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['items.0.name' => 'The item name field is required.'])
+            ->assertJsonValidationErrors(['items.0.name' => 'The product field is required.'])
             ->assertJsonMissingValidationErrors(['customer', 'items.0.quantity']);
     });
 });
@@ -196,9 +219,12 @@ describe('update and destroy', function () {
             ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Order deleted.']);
     });
 
-    test('deleting from the order\'s own page goes to the list', function () {
-        $this->from(route('examples.orders.show', 7))
+    test('deleting from the order\'s own page goes to the list, whatever its query string', function (array $query) {
+        $this->from(route('examples.orders.show', [7, ...$query]))
             ->delete(route('examples.orders.destroy', 7))
             ->assertRedirect(route('examples.orders.index'));
-    });
+    })->with([
+        'no query' => [[]],
+        'a query' => [['tab' => 'history']],
+    ]);
 });

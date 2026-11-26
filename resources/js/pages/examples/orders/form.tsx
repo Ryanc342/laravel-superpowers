@@ -148,12 +148,12 @@ export default function OrderForm({ order }: { order: EditedOrder | null }) {
                             </Row>
                         </ProCard>
 
-                        <ProCard title={t('Items')} headerBordered>
+                        <ProCard title={t('Order lines')} headerBordered>
                             {/* ProFormList shows the list's own error, such as no items, under it. */}
                             <ProFormList
                                 name="items"
                                 creatorButtonProps={{
-                                    creatorButtonText: t('Add item'),
+                                    creatorButtonText: t('Add product'),
                                 }}
                                 creatorRecord={NEW_ITEM}
                                 copyIconProps={false}
@@ -162,7 +162,7 @@ export default function OrderForm({ order }: { order: EditedOrder | null }) {
                                     <Col xs={16} md={12}>
                                         <ProFormText
                                             name="name"
-                                            label={t('Item name')}
+                                            label={t('Product')}
                                             required
                                         />
                                     </Col>
