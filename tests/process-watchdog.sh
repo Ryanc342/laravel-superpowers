@@ -10,8 +10,10 @@
 # <pid> is gone and the marker is still there, the run was killed, and with
 # `kill -9` nothing else cleans up behind it. The watchdog ends the descendants
 # it noted, and also what the run started too shortly before it was killed to
-# be noted: whatever in the run's process group has no parent left but init
-# (TERM first, KILL after two seconds). So no orphan is left holding the test
+# be noted: whatever came into the run's process group after the watchdog
+# started and has no parent left in it, whether init or a subreaper took it
+# over. It sends TERM first and, two seconds later, KILL, looking again for what
+# the ended processes had started. So no orphan is left holding the test
 # database lock or the stdout of whoever started the run.
 #
 # When the marker is gone, the run ended normally and the watchdog just exits.
@@ -85,30 +87,17 @@ descendantsOf() {
     '
 }
 
-# Ask for the run's process group and for what runs above the run while the
-# run is still there to ask about. Each command a shell, the hook or Claude
-# Code starts gets a group of its own, so the group holds only the run, what
-# the run started, and the command that started the run.
-group=$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')
-ancestors=""
-ancestor=$pid
-
-while ancestor=$(ps -o ppid= -p "$ancestor" 2>/dev/null | tr -d ' ') && [ -n "$ancestor" ] && [ "$ancestor" -gt 1 ]; do
-    ancestors="$ancestors $ancestor"
-done
-
-# Print the PIDs in <group> that nothing looks after any more: their parent is
-# neither in the group nor above the run, as happens to what the run started
-# once the run is gone. What runs above the run, and the watchdog, which the run
-# starts the same way, are left out. So are processes whose parent is still in
-# the group or above the run, such as the `tee` of a pipeline.
-abandonedIn() {
-    ps -A -o pid= -o ppid= -o pgid= | awk -v group="$1" -v self="$$" -v above="$ancestors" '
+# Print the PIDs in <group> that were not in it when the watchdog started
+# ($present) and have no parent in it: what lost its parent since, which init
+# or a subreaper took over. Processes whose parent is still in the group are
+# left out, as are init and the watchdog.
+takenOverIn() {
+    ps -A -o pid= -o ppid= -o pgid= | awk -v group="$1" -v self="$$" -v present="$present" '
         BEGIN {
-            count = split(above, list, " ")
+            count = split(present, list, " ")
 
             for (i = 1; i <= count; i++) {
-                kept[list[i]] = 1
+                before[list[i]] = 1
             }
         }
         $3 == group {
@@ -117,7 +106,7 @@ abandonedIn() {
         }
         END {
             for (candidate in member) {
-                if (candidate != self && !(candidate in kept) && !(parent[candidate] in member) && !(parent[candidate] in kept)) {
+                if (candidate + 0 > 1 && candidate != self && !(candidate in before) && !(parent[candidate] in member)) {
                     print candidate
                 }
             }
@@ -125,12 +114,62 @@ abandonedIn() {
     '
 }
 
+# The run's process group. The run starts the watchdog in that group, so when
+# the watchdog is in another one, or the group is unknown, 0 or 1, something is
+# unexpected: then only what the watchdog noted is ended.
+group=$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')
+
+if [ -z "$group" ] || [ "$group" -le 1 ] || [ "$group" != "$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' ')" ]; then
+    group=""
+fi
+
+# Everything in the group now that is not the run or below it: the command
+# that started the run, the rest of a pipeline (`tee`), whatever that command
+# had left running before (such as a database server), and the watchdog. None
+# of it is ended for being in the group. On one line, as BSD awk refuses a
+# newline in a -v value.
+present=""
+
+if [ -n "$group" ]; then
+    present=$(ps -A -o pid= -o ppid= -o pgid= | awk -v group="$group" -v root="$pid" '
+        {
+            parent[$1] = $2
+            inGroup[$1] = ($3 == group)
+            pids[NR] = $1
+        }
+        END {
+            below[root] = 1
+
+            do {
+                added = 0
+
+                for (i = 1; i <= NR; i++) {
+                    candidate = pids[i]
+
+                    if (!(candidate in below) && (parent[candidate] in below)) {
+                        below[candidate] = 1
+                        added = 1
+                    }
+                }
+            } while (added)
+
+            for (i = 1; i <= NR; i++) {
+                candidate = pids[i]
+
+                if (inGroup[candidate] && !(candidate in below)) {
+                    printf "%s ", candidate
+                }
+            }
+        }
+    ')
+fi
+
 noted=""
 
 while [ -e "$marker" ]; do
     # List first and only keep the list when the run was still there after it:
-    # once the run has gone its children belong to init, so a list taken after
-    # that is empty and would wipe the one worth keeping.
+    # once the run has gone its children belong to init (or a subreaper), so a
+    # list taken after that is empty and would wipe the one worth keeping.
     snapshot=$(descendantsOf "$pid")
 
     if isRunning "$pid"; then
@@ -149,7 +188,7 @@ while [ -e "$marker" ]; do
     left=$noted
 
     if [ -n "$group" ]; then
-        left="$left $(abandonedIn "$group")"
+        left="$left $(takenOverIn "$group")"
     fi
 
     for descendant in $left; do
@@ -157,6 +196,14 @@ while [ -e "$marker" ]; do
     done
 
     sleep 2
+
+    # What the ended processes had started, such as the server below dash's
+    # `sh -c` on Linux, has lost its parent in the group since: list again.
+    left=$noted
+
+    if [ -n "$group" ]; then
+        left="$left $(takenOverIn "$group")"
+    fi
 
     for descendant in $left; do
         kill -KILL "$descendant" 2>/dev/null
