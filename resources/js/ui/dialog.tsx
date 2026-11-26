@@ -57,6 +57,33 @@ function sheetProps(
     };
 }
 
+type Submitter = ModalFormProps['submitter'];
+
+/**
+ * The submitter of a sheet form. A `ModalForm` labels its buttons from
+ * `modalProps.okText` and `cancelText`; a `DrawerForm` only from the antd
+ * locale, so the sheet gets them as the submitter's labels. Labels the caller
+ * sets on the submitter itself come first, and `submitter={false}` stays off.
+ */
+function sheetSubmitter(
+    submitter: Submitter,
+    modal: ModalFormProps['modalProps'],
+): Submitter {
+    if (submitter === false) {
+        return false;
+    }
+
+    const labels = {
+        ...(modal?.okText !== undefined && { submitText: modal.okText }),
+        ...(modal?.cancelText !== undefined && { resetText: modal.cancelText }),
+    };
+
+    return {
+        ...submitter,
+        searchConfig: { ...labels, ...submitter?.searchConfig },
+    };
+}
+
 export type ResponsiveModalProps = Omit<ModalProps, 'footer'> & {
     footer?: ReactNode;
 };
@@ -125,8 +152,10 @@ export function ResponsiveModal(props: ResponsiveModalProps) {
 /**
  * A `ModalForm` that is a bottom-sheet `DrawerForm` on a phone. It takes a
  * `ModalForm`'s props: `modalProps.onCancel`, `afterClose`, `destroyOnHidden`,
- * `keyboard` and `maskClosable` carry over to the sheet, and `width` and the
- * rest of `modalProps` do not.
+ * `keyboard`, `maskClosable`, `okText` and `cancelText` carry over to the
+ * sheet, and `width` and the rest of `modalProps` do not. `okText` and
+ * `cancelText` are the submitter's labels, as in a `ModalForm`, and a label
+ * that `submitter.searchConfig` sets wins over them.
  */
 export function ResponsiveModalForm<T = Record<string, unknown>>({
     modalProps,
@@ -142,6 +171,10 @@ export function ResponsiveModalForm<T = Record<string, unknown>>({
     }
 
     return (
-        <DrawerForm<T> {...props} drawerProps={sheetProps(modalProps ?? {})} />
+        <DrawerForm<T>
+            {...props}
+            submitter={sheetSubmitter(props.submitter, modalProps)}
+            drawerProps={sheetProps(modalProps ?? {})}
+        />
     );
 }

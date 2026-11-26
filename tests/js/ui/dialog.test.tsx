@@ -157,3 +157,70 @@ test('a sheet form closes through the modal’s onCancel', async () => {
 
     expect(onCancel).toHaveBeenCalledTimes(1);
 });
+
+test('a sheet form has the button labels the modal form has, from modalProps', () => {
+    onScreen(phone);
+    render(
+        <ResponsiveModalForm
+            open
+            title="New"
+            modalProps={{ okText: 'Create', cancelText: 'Dismiss' }}
+        >
+            <ProFormText name="name" label="Name" />
+        </ResponsiveModalForm>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Create' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toBeTruthy();
+});
+
+test('a sheet form keeps the labels of its own submitter over modalProps', () => {
+    onScreen(phone);
+    render(
+        <ResponsiveModalForm
+            open
+            title="New"
+            modalProps={{ okText: 'Create', cancelText: 'Dismiss' }}
+            submitter={{ searchConfig: { submitText: 'Save' } }}
+        >
+            <ProFormText name="name" label="Name" />
+        </ResponsiveModalForm>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Create' })).toBeNull();
+});
+
+test('a sheet form with no submitter has no buttons, whatever modalProps say', () => {
+    onScreen(phone);
+    render(
+        <ResponsiveModalForm
+            open
+            title="New"
+            modalProps={{ okText: 'Create' }}
+            submitter={false}
+        >
+            <ProFormText name="name" label="Name" />
+        </ResponsiveModalForm>,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Create' })).toBeNull();
+    expect(document.querySelector('.ant-drawer-footer')).toBeNull();
+});
+
+test('a modal form has the same labels from modalProps', () => {
+    onScreen(desktop);
+    render(
+        <ResponsiveModalForm
+            open
+            title="New"
+            modalProps={{ okText: 'Create', cancelText: 'Dismiss' }}
+        >
+            <ProFormText name="name" label="Name" />
+        </ResponsiveModalForm>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Create' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toBeTruthy();
+});
