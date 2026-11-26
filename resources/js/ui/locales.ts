@@ -6,12 +6,21 @@ import zhCN from 'antd/locale/zh_CN';
 import type { Locale } from 'antd/es/locale';
 
 /**
+ * antd's locale files are CommonJS. The browser bundle gives the locale itself,
+ * but the server bundle leaves antd to Node, which gives the whole module,
+ * `{ default: locale }`. Both leave here as the locale.
+ */
+function unwrapLocale(imported: Locale | { default: Locale }): Locale {
+    return 'default' in imported ? imported.default : imported;
+}
+
+/**
  * The antd locale for the page's language (`zh_CN` or `en`), which gives the
  * built-in text of antd and Pro (pagination, empty states, the search form's
  * buttons). English is the answer for any language the template does not know.
  */
 export function antdLocaleFor(locale: string): Locale {
-    return locale === 'zh_CN' ? zhCN : enUS;
+    return unwrapLocale(locale === 'zh_CN' ? zhCN : enUS);
 }
 
 /**
