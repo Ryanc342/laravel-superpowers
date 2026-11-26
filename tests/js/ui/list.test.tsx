@@ -1,4 +1,3 @@
-import { mergeDataIntoQueryString } from '@inertiajs/core';
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns } from '@ant-design/pro-components';
 import {
@@ -384,15 +383,37 @@ test('a visit keeps another list repeated keys as they are and sends them untouc
     );
 });
 
-test('Inertia visits an address that has a query as it is when the visit has no data', () => {
-    const [href, data] = mergeDataIntoQueryString(
-        'get',
-        '/orders?a[]=1&a[]=2&filter[tags][]=x&filter[tags][]=y',
-        {},
+test('Inertia visits the address the hook built, repeated and bracketed keys as they are', async () => {
+    // The real router, behind the hook's call: it cancels the visit at its `before` event,
+    // which holds the URL the request would have had.
+    const { router } =
+        await vi.importActual<typeof import('@inertiajs/react')>(
+            '@inertiajs/react',
+        );
+    get.mockImplementation((...args: Parameters<typeof router.get>) =>
+        router.get(...args),
     );
+    const visited: string[] = [];
+    const stop = router.on('before', (event) => {
+        visited.push(event.detail.visit.url.search);
 
-    expect(href).toBe('/orders?a[]=1&a[]=2&filter[tags][]=x&filter[tags][]=y');
-    expect(data).toEqual({});
+        return false;
+    });
+
+    at(
+        '/orders?a[]=1&a[]=2&items_filter[status][]=paid&items_filter[status][]=open&filter[tags][]=x&filter[tags][]=y&page=2',
+    );
+    tableProps(listProps()).onChange?.(
+        { current: 3, pageSize: 20 },
+        {},
+        {},
+        extra('paginate'),
+    );
+    stop();
+
+    expect(visited).toEqual([
+        '?a[]=1&a[]=2&items_filter[status][]=paid&items_filter[status][]=open&filter[tags][]=x&filter[tags][]=y&page=3',
+    ]);
 });
 
 test('picking another page size is a change of rows per page, which resets the page', () => {
