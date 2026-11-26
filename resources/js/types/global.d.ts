@@ -13,7 +13,8 @@ declare module '@inertiajs/core' {
             auth: Auth;
             locale: string;
             locales: { value: string; label: string }[];
-            translations: Record<string, string>;
+            // English has no sentences, and PHP sends its empty table as `[]`, not `{}`.
+            translations: Record<string, string> | [];
             sidebarOpen: boolean;
             perPageOptions: number[];
             [key: string]: unknown;

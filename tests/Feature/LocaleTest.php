@@ -126,6 +126,15 @@ test("the translations prop holds the current language's sentences, and English 
         ->assertInertia(fn (Assert $page) => $page->where('translations', []));
 });
 
+test('the translations are a once prop named for the language, so a switch sends them again', function () {
+    config(['app.locale' => 'zh_CN']);
+
+    $onceProps = fn ($response): array => array_keys($response->viewData('page')['onceProps']);
+
+    expect($onceProps($this->get(route('home'))))->toBe(['translations.zh_CN'])
+        ->and($onceProps($this->withUnencryptedCookie('locale', 'en')->get(route('home'))))->toBe(['translations.en']);
+});
+
 test("the project's lang/zh_CN.json wins over the template's on the same key", function () {
     $projectLangPath = sys_get_temp_dir().'/lang-'.Str::random(12);
     File::ensureDirectoryExists($projectLangPath);
