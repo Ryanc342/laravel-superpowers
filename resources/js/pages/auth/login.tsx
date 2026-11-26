@@ -1,95 +1,91 @@
-import { Head } from '@inertiajs/react';
-import CheckboxField from '@/components/shared/checkbox-field';
-import PasswordField from '@/components/shared/password-field';
-import StackedForm from '@/components/shared/stacked-form';
-import StatusMessage from '@/components/shared/status-message';
-import SubmitButton from '@/components/shared/submit-button';
-import TextField from '@/components/shared/text-field';
-import TextLink from '@/components/text-link';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { Button, Checkbox, Flex, Form, Input, Typography } from 'antd';
+import FormAlerts from '@/components/auth/form-alerts';
+import PasskeySignIn from '@/components/auth/passkey-sign-in';
+import { msg, t } from '@/lib/i18n';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
-import PasskeyVerify from '@/components/passkey-verify';
+import { useInertiaForm } from '@/ui/form';
 
-type Props = {
-    status?: string;
-    canResetPassword: boolean;
-};
+export default function Login({ status }: { status?: string }) {
+    const { features } = usePage().props;
+    const { formProps, processing, unplacedErrors } = useInertiaForm(
+        store(),
+        { email: '', password: '', remember: false },
+        { precognitive: false, resetOnSuccess: ['password'] },
+    );
 
-export default function Login({ status, canResetPassword }: Props) {
     return (
         <>
-            <Head title="Log in" />
+            <Head title={t('Log in')} />
 
-            <PasskeyVerify />
+            {/* The status is the page's; the errors are the password form's, under the passkey's "or". */}
+            <FormAlerts status={status} />
 
-            <StackedForm
-                {...store.form()}
-                resetOnSuccess={['password']}
-                wideButtons
-            >
-                {({ errors }) => (
-                    <>
-                        <TextField
-                            id="email"
-                            label="Email address"
-                            type="email"
-                            name="email"
-                            required
-                            autoFocus
-                            tabIndex={1}
-                            autoComplete="email"
-                            error={errors.email}
-                        />
+            {features.passkeys && <PasskeySignIn />}
 
-                        <PasswordField
-                            id="password"
-                            label="Password"
-                            name="password"
-                            required
-                            tabIndex={2}
-                            autoComplete="current-password"
-                            error={errors.password}
-                        />
+            <FormAlerts errors={unplacedErrors} />
 
-                        <div className="flex items-center justify-between gap-4">
-                            <CheckboxField
-                                id="remember"
-                                label="Remember me"
-                                name="remember"
-                                tabIndex={3}
-                            />
-                            {canResetPassword && (
-                                <TextLink
-                                    href={request()}
-                                    className="text-sm"
-                                    tabIndex={5}
-                                >
-                                    Forgot your password?
-                                </TextLink>
-                            )}
-                        </div>
+            <Form {...formProps}>
+                <Form.Item label={t('Email address')} name="email" required>
+                    <Input
+                        name="email"
+                        type="email"
+                        // oxlint-disable-next-line jsx-a11y/no-autofocus
+                        autoFocus
+                        autoComplete="email"
+                    />
+                </Form.Item>
 
-                        <SubmitButton tabIndex={4} data-test="login-button">
-                            Log in
-                        </SubmitButton>
+                <Form.Item label={t('Password')} name="password" required>
+                    <Input.Password
+                        name="password"
+                        autoComplete="current-password"
+                    />
+                </Form.Item>
 
-                        <p className="text-center text-sm text-muted-foreground">
-                            Don't have an account?{' '}
-                            <TextLink href={register()} tabIndex={5}>
-                                Sign up
-                            </TextLink>
-                        </p>
-                    </>
+                <Form.Item>
+                    <Flex justify="space-between" gap="small">
+                        <Form.Item
+                            name="remember"
+                            valuePropName="checked"
+                            noStyle
+                        >
+                            <Checkbox>{t('Remember me')}</Checkbox>
+                        </Form.Item>
+                        {features.resetPasswords && (
+                            <Link as={Typography.Link} href={request()}>
+                                {t('Forgot password?')}
+                            </Link>
+                        )}
+                    </Flex>
+                </Form.Item>
+
+                <Form.Item>
+                    <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={processing}
+                        data-test="login-button"
+                    >
+                        {t('Log in')}
+                    </Button>
+                </Form.Item>
+
+                {features.registration && (
+                    <Flex justify="center" gap="small">
+                        <Typography.Text type="secondary">
+                            {t("Don't have an account?")}
+                        </Typography.Text>
+                        <Link as={Typography.Link} href={register()}>
+                            {t('Sign up')}
+                        </Link>
+                    </Flex>
                 )}
-            </StackedForm>
-
-            <StatusMessage message={status} />
+            </Form>
         </>
     );
 }
 
-Login.layout = {
-    title: 'Log in to your account',
-    description: 'Enter your email and password below to log in',
-};
+Login.layout = { title: msg('Log in to your account') };

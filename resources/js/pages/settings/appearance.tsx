@@ -1,23 +1,34 @@
+import { DesktopOutlined, MoonOutlined, SunOutlined } from '@ant-design/icons';
+import { ProCard } from '@ant-design/pro-components';
 import { Head } from '@inertiajs/react';
-import AppearanceTabs from '@/components/appearance-tabs';
-import Section from '@/components/shared/section';
+import { Segmented } from 'antd';
+import { t } from '@/lib/i18n';
+import { useAppearance } from '@/ui/appearance';
+import type { Appearance as AppearanceChoice } from '@/ui/appearance';
 
 export default function Appearance() {
+    const { appearance, setAppearance } = useAppearance();
+    const choices: {
+        value: AppearanceChoice;
+        icon: React.ReactNode;
+        label: string;
+    }[] = [
+        { value: 'light', icon: <SunOutlined />, label: t('Light') },
+        { value: 'dark', icon: <MoonOutlined />, label: t('Dark') },
+        { value: 'system', icon: <DesktopOutlined />, label: t('System') },
+    ];
+
     return (
         <>
-            <Head title="Appearance settings" />
+            <Head title={t('Appearance')} />
 
-            <Section title="Appearance settings">
-                <p className="text-sm text-muted-foreground">
-                    Update the appearance settings for your account
-                </p>
-                <AppearanceTabs />
-            </Section>
+            <ProCard title={t('Appearance')} headerBordered>
+                <Segmented<AppearanceChoice>
+                    value={appearance}
+                    onChange={setAppearance}
+                    options={choices}
+                />
+            </ProCard>
         </>
     );
 }
-
-// The settings layout names the page and its sub-nav; no breadcrumbs.
-Appearance.layout = {
-    breadcrumbs: [],
-};

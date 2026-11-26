@@ -75,7 +75,8 @@
         "check:browser": [
             "Composer\\Config::disableProcessTimeout",
             "@php artisan config:clear --ansi",
-            "npm run build",
+            "npm run build:dev",
+            "npx vp build --ssr",
             "@php artisan test --testsuite=Browser --compact"
         ],
         "fix": [
@@ -134,7 +135,7 @@
     "prefer-stable": true,
     "scripts-descriptions": {
         "check": "Run every check: Pint, PHPStan, Oxfmt + Oxlint, tsc, Vitest and Pest (no browser tests).",
-        "check:browser": "Build the frontend and run the browser tests.",
+        "check:browser": "Build the frontend in development mode, so React's and antd's warnings reach the console, build the SSR bundle the page sweep renders every page through, and run the browser tests.",
         "fix": "Fix what Pint, Oxfmt and Oxlint can fix on their own."
     }
 }

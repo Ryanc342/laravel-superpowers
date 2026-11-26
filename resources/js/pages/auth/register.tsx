@@ -1,94 +1,83 @@
-import { Head } from '@inertiajs/react';
-import PasswordField from '@/components/shared/password-field';
-import StackedForm from '@/components/shared/stacked-form';
-import SubmitButton from '@/components/shared/submit-button';
-import TextField from '@/components/shared/text-field';
-import TextLink from '@/components/text-link';
+import { Head, Link } from '@inertiajs/react';
+import { Button, Flex, Form, Input, Typography } from 'antd';
+import FormAlerts from '@/components/auth/form-alerts';
+import { msg, t } from '@/lib/i18n';
 import { login } from '@/routes';
 import { store } from '@/routes/register';
+import { useInertiaForm } from '@/ui/form';
 
-type Props = {
-    passwordRules: string;
-};
+export default function Register({ passwordRules }: { passwordRules: string }) {
+    const { formProps, processing, unplacedErrors } = useInertiaForm(
+        store(),
+        { name: '', email: '', password: '', password_confirmation: '' },
+        {
+            precognitive: false,
+            resetOnSuccess: ['password', 'password_confirmation'],
+        },
+    );
 
-export default function Register({ passwordRules }: Props) {
     return (
         <>
-            <Head title="Register" />
-            <StackedForm
-                {...store.form()}
-                resetOnSuccess={['password', 'password_confirmation']}
-                disableWhileProcessing
-                wideButtons
-            >
-                {({ errors }) => (
-                    <>
-                        <TextField
-                            id="name"
-                            label="Name"
-                            type="text"
-                            required
-                            autoFocus
-                            tabIndex={1}
-                            autoComplete="name"
-                            name="name"
-                            error={errors.name}
-                        />
+            <Head title={t('Register')} />
 
-                        <TextField
-                            id="email"
-                            label="Email address"
-                            type="email"
-                            required
-                            tabIndex={2}
-                            autoComplete="email"
-                            name="email"
-                            error={errors.email}
-                        />
+            <FormAlerts errors={unplacedErrors} />
 
-                        <PasswordField
-                            id="password"
-                            label="Password"
-                            required
-                            tabIndex={3}
-                            autoComplete="new-password"
-                            name="password"
-                            passwordrules={passwordRules}
-                            error={errors.password}
-                        />
+            <Form {...formProps}>
+                <Form.Item label={t('Name')} name="name" required>
+                    <Input
+                        name="name"
+                        // oxlint-disable-next-line jsx-a11y/no-autofocus
+                        autoFocus
+                        autoComplete="name"
+                    />
+                </Form.Item>
 
-                        <PasswordField
-                            id="password_confirmation"
-                            label="Confirm password"
-                            required
-                            tabIndex={4}
-                            autoComplete="new-password"
-                            name="password_confirmation"
-                            passwordrules={passwordRules}
-                            error={errors.password_confirmation}
-                        />
+                <Form.Item label={t('Email address')} name="email" required>
+                    <Input name="email" type="email" autoComplete="email" />
+                </Form.Item>
 
-                        <SubmitButton
-                            tabIndex={5}
-                            data-test="register-user-button"
-                        >
-                            Create account
-                        </SubmitButton>
+                <Form.Item label={t('Password')} name="password" required>
+                    <Input.Password
+                        name="password"
+                        autoComplete="new-password"
+                        passwordrules={passwordRules}
+                    />
+                </Form.Item>
 
-                        <p className="text-center text-sm text-muted-foreground">
-                            Already have an account?{' '}
-                            <TextLink href={login()} tabIndex={6}>
-                                Log in
-                            </TextLink>
-                        </p>
-                    </>
-                )}
-            </StackedForm>
+                <Form.Item
+                    label={t('Confirm password')}
+                    name="password_confirmation"
+                    required
+                >
+                    <Input.Password
+                        name="password_confirmation"
+                        autoComplete="new-password"
+                        passwordrules={passwordRules}
+                    />
+                </Form.Item>
+
+                <Form.Item>
+                    <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={processing}
+                        data-test="register-user-button"
+                    >
+                        {t('Create account')}
+                    </Button>
+                </Form.Item>
+
+                <Flex justify="center" gap="small">
+                    <Typography.Text type="secondary">
+                        {t('Already have an account?')}
+                    </Typography.Text>
+                    <Link as={Typography.Link} href={login()}>
+                        {t('Log in')}
+                    </Link>
+                </Flex>
+            </Form>
         </>
     );
 }
 
-Register.layout = {
-    title: 'Create an account',
-    description: 'Enter your details below to create your account',
-};
+Register.layout = { title: msg('Create an account') };

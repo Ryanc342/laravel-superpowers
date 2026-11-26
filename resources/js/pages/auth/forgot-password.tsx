@@ -1,50 +1,54 @@
-import { Head } from '@inertiajs/react';
-import StackedForm from '@/components/shared/stacked-form';
-import StatusMessage from '@/components/shared/status-message';
-import SubmitButton from '@/components/shared/submit-button';
-import TextField from '@/components/shared/text-field';
-import TextLink from '@/components/text-link';
+import { Head, Link } from '@inertiajs/react';
+import { Button, Flex, Form, Input, Typography } from 'antd';
+import FormAlerts from '@/components/auth/form-alerts';
+import { msg, t } from '@/lib/i18n';
 import { login } from '@/routes';
 import { email } from '@/routes/password';
+import { useInertiaForm } from '@/ui/form';
 
 export default function ForgotPassword({ status }: { status?: string }) {
+    const { formProps, processing, unplacedErrors } = useInertiaForm(
+        email(),
+        { email: '' },
+        { precognitive: false },
+    );
+
     return (
         <>
-            <Head title="Forgot password" />
+            <Head title={t('Forgot password')} />
 
-            <div className="grid gap-6">
-                <StatusMessage message={status} />
+            <FormAlerts status={status} errors={unplacedErrors} />
 
-                <StackedForm {...email.form()} wideButtons>
-                    {({ errors }) => (
-                        <>
-                            <TextField
-                                id="email"
-                                label="Email address"
-                                type="email"
-                                name="email"
-                                autoComplete="off"
-                                autoFocus
-                                error={errors.email}
-                            />
+            <Form {...formProps}>
+                <Form.Item label={t('Email address')} name="email" required>
+                    <Input
+                        name="email"
+                        type="email"
+                        // oxlint-disable-next-line jsx-a11y/no-autofocus
+                        autoFocus
+                        autoComplete="email"
+                    />
+                </Form.Item>
 
-                            <SubmitButton data-test="email-password-reset-link-button">
-                                Email password reset link
-                            </SubmitButton>
-                        </>
-                    )}
-                </StackedForm>
+                <Form.Item>
+                    <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={processing}
+                        data-test="email-password-reset-link-button"
+                    >
+                        {t('Email password reset link')}
+                    </Button>
+                </Form.Item>
 
-                <p className="space-x-1 text-center text-sm text-muted-foreground">
-                    <span>Or, return to</span>
-                    <TextLink href={login()}>log in</TextLink>
-                </p>
-            </div>
+                <Flex justify="center">
+                    <Link as={Typography.Link} href={login()}>
+                        {t('Back to log in')}
+                    </Link>
+                </Flex>
+            </Form>
         </>
     );
 }
 
-ForgotPassword.layout = {
-    title: 'Forgot password',
-    description: 'Enter your email to receive a password reset link',
-};
+ForgotPassword.layout = { title: msg('Forgot password') };

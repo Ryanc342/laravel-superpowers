@@ -1,6 +1,6 @@
 # Laravel Superpowers
 
-A Laravel starter for building with AI coding agents. It is the official [Laravel React starter kit](https://github.com/laravel/react-starter-kit) (Laravel, Inertia, React, Tailwind, Fortify) set up to be worked on through [superpowers](https://github.com/obra/superpowers) in Claude Code and Codex:
+A Laravel starter for building with AI coding agents. It is the official [Laravel React starter kit](https://github.com/laravel/react-starter-kit) (Laravel, Inertia, React, Ant Design 6 and Pro, Fortify), with Tailwind kept for marketing pages only, set up to be worked on through [superpowers](https://github.com/obra/superpowers) in Claude Code and Codex:
 
 - Project rules in `.ai/guidelines/project.md`, which [Laravel Boost](https://github.com/laravel/boost) turns into `CLAUDE.md` and `AGENTS.md`.
 - `composer check` as the definition of done: Pint, PHPStan, Oxfmt + Oxlint, tsc, Vitest and Pest. `composer check:browser` adds the browser tests.

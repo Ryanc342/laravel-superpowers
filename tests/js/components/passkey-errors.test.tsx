@@ -1,8 +1,8 @@
 import { act, render, screen } from '@testing-library/react';
-import { toast } from 'sonner';
+import { App } from 'antd';
 import { afterEach, expect, test, vi } from 'vite-plus/test';
-import PasskeyRegistration from '@/components/passkey-register';
-import PasskeyVerify from '@/components/passkey-verify';
+import PasskeySignIn from '@/components/auth/passkey-sign-in';
+import Passkeys from '@/components/settings/passkeys';
 
 type HookOptions = { onError?: (error: Error) => void };
 
@@ -28,21 +28,22 @@ vi.mock('@laravel/passkeys/react', () => ({
     usePasskeyVerify: fakeHook,
     usePasskeyRegister: fakeHook,
 }));
-vi.mock('@inertiajs/react', () => ({ router: { visit: vi.fn() } }));
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
+vi.mock('@inertiajs/react', () => ({
+    router: { visit: vi.fn(), reload: vi.fn() },
+}));
 
 afterEach(() => {
-    vi.mocked(toast.error).mockClear();
     passkeys.options = undefined;
     passkeys.error = null;
 });
 
-test.each([
-    ['signing in', () => <PasskeyVerify />],
-    ['adding a passkey', () => <PasskeyRegistration onSuccess={vi.fn()} />],
-])('a failed passkey prompt while %s is a toast', (_, component) => {
+test('a failed passkey prompt while signing in is an antd message, not text in the page', async () => {
     passkeys.error = 'The passkey prompt was cancelled.';
-    render(component());
+    const { container } = render(
+        <App>
+            <PasskeySignIn />
+        </App>,
+    );
 
     act(() => {
         passkeys.options?.onError?.(
@@ -50,8 +51,28 @@ test.each([
         );
     });
 
-    expect(toast.error).toHaveBeenCalledWith(
-        'The passkey prompt was cancelled.',
+    const shown = await screen.findByText('The passkey prompt was cancelled.');
+
+    expect(shown.closest('.ant-message')).not.toBeNull();
+    expect(container.contains(shown)).toBe(false);
+});
+
+test('a failed passkey prompt while adding a passkey is an antd message, not text in the page', async () => {
+    passkeys.error = 'The passkey prompt was cancelled.';
+    const { container } = render(
+        <App>
+            <Passkeys passkeys={[]} />
+        </App>,
     );
-    expect(screen.queryByText('The passkey prompt was cancelled.')).toBeNull();
+
+    act(() => {
+        passkeys.options?.onError?.(
+            new Error('The passkey prompt was cancelled.'),
+        );
+    });
+
+    const shown = await screen.findByText('The passkey prompt was cancelled.');
+
+    expect(shown.closest('.ant-message')).not.toBeNull();
+    expect(container.contains(shown)).toBe(false);
 });

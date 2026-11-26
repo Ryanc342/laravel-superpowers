@@ -1,270 +1,39 @@
+@layer theme, base, antd, components, utilities;
+
+/*
+ * antd's styles (virtual:antd.css, generated at build time) sit above
+ * Tailwind's reset and below its utilities, so a utility class still wins over
+ * an antd rule. This line comes first, so that no stylesheet can set another
+ * order.
+ */
+
 @import 'tailwindcss';
 
-@import 'tw-animate-css';
-
 @source '../views';
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
+/* The antd style generator runs in Node: its strings are CSS, not classes. */
+@source not '../js/ui/antd-styles.ts';
+
+/* The app's dark mode is `html.dark` (ui/appearance.ts), not the browser's setting. */
 @custom-variant dark (&:is(.dark *));
 
 /*
- * A boxed field's label (FloatingLabel) rests inside the box while its control,
- * the `peer` before it, is empty and not focused: an input or a textarea shows
- * its blank placeholder, a select has no value (Radix sets data-placeholder),
- * a date picker has no date (data-empty). A control the browser has autofilled
- * is never empty: Safari keeps matching :placeholder-shown after it fills one.
+ * Tailwind is for the welcome page and a project's own marketing pages. The
+ * app's pages are antd's, in the app's theme (theme.ts), so this stylesheet
+ * holds no colours of its own.
  */
-@custom-variant field-empty (.peer:is(:placeholder-shown, [data-placeholder], [data-empty]):not(:focus, [data-state='open'], :autofill) ~ &);
-
 @theme {
     --font-sans:
         'Instrument Sans', ui-sans-serif, system-ui, 'PingFang SC',
         'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC',
         'Noto Sans SC', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
-
-    /* The display size: the home hero and the pricing page only. */
-    --text-display: 2.25rem;
-    --text-display--line-height: 1.15;
-    --text-display--font-weight: 600;
-    --text-display-lg: 3rem;
-    --text-display-lg--line-height: 1.1;
-    --text-display-lg--font-weight: 600;
-
-    --radius-lg: var(--radius);
-    --radius-md: calc(var(--radius) - 2px);
-    --radius-sm: calc(var(--radius) - 4px);
-
-    --color-background: var(--background);
-    --color-foreground: var(--foreground);
-
-    --color-card: var(--card);
-    --color-card-foreground: var(--card-foreground);
-
-    --color-popover: var(--popover);
-    --color-popover-foreground: var(--popover-foreground);
-
-    --color-primary: var(--primary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-primary-pressed: var(--primary-pressed);
-
-    --color-secondary: var(--secondary);
-    --color-secondary-foreground: var(--secondary-foreground);
-    --color-secondary-pressed: var(--secondary-pressed);
-
-    --color-muted: var(--muted);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-qr-background: var(--qr-background);
-
-    --color-accent: var(--accent);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-accent-pressed: var(--accent-pressed);
-
-    --color-destructive: var(--destructive);
-    --color-destructive-foreground: var(--destructive-foreground);
-    --color-destructive-pressed: var(--destructive-pressed);
-
-    --color-success: var(--success);
-    --color-success-foreground: var(--success-foreground);
-    --color-success-pressed: var(--success-pressed);
-
-    --color-warning: var(--warning);
-    --color-warning-foreground: var(--warning-foreground);
-    --color-warning-pressed: var(--warning-pressed);
-
-    --color-border: var(--border);
-    --color-input: var(--input);
-    --color-input-focus: var(--input-focus);
-    --color-ring: var(--ring);
-
-    --color-chart-1: var(--chart-1);
-    --color-chart-2: var(--chart-2);
-    --color-chart-3: var(--chart-3);
-    --color-chart-4: var(--chart-4);
-    --color-chart-5: var(--chart-5);
-
-    --color-sidebar: var(--sidebar);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-accent-pressed: var(--sidebar-accent-pressed);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-ring: var(--sidebar-ring);
-}
-
-/*
- * Clean and bright: white surfaces, one blue primary colour, a light grey
- * sidebar. Everything that carries the brand (focus ring, selected sidebar
- * item, chart-1) follows --primary, so a project rebrands by changing
- * --primary in :root and in .dark, and the logo.
- *
- * Status tokens: --success and --warning are fills with their -foreground as
- * the text on them. --destructive is a fill with white text, and
- * --destructive-foreground is red text on the page surface.
- * Every text and fill pair is at least 4.5:1 in light and in dark.
- */
-:root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.21 0.02 265);
-    --card: oklch(1 0 0);
-    --card-foreground: var(--foreground);
-    --popover: oklch(1 0 0);
-    --popover-foreground: var(--foreground);
-    --primary: oklch(0.546 0.245 262.881);
-    --primary-foreground: oklch(0.985 0 0);
-    --primary-pressed: oklch(0.46 0.22 263);
-    --secondary: oklch(0.965 0.006 265);
-    --secondary-foreground: var(--foreground);
-    --secondary-pressed: oklch(0.9 0 0);
-    --muted: oklch(0.97 0.005 265);
-    --muted-foreground: oklch(0.49 0.025 265);
-    /* White behind a QR code, so phones can scan it. */
-    --qr-background: oklch(1 0 0);
-    --accent: oklch(0.95 0 0);
-    --accent-foreground: var(--foreground);
-    --accent-pressed: oklch(0.9 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(0.53 0.23 27.325);
-    --destructive-pressed: oklch(0.5 0.22 27.3);
-    --success: oklch(0.527 0.154 150.069);
-    --success-foreground: oklch(0.985 0 0);
-    --success-pressed: oklch(0.47 0.14 150);
-    --warning: oklch(0.769 0.188 70.08);
-    --warning-foreground: var(--foreground);
-    --warning-pressed: oklch(0.7 0.17 70);
-    --border: oklch(0.925 0.006 265);
-    --input: oklch(0.9 0.008 265);
-    --input-focus: oklch(0.5 0.025 265);
-    --ring: var(--primary);
-    --chart-1: var(--primary);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --radius: 0.5rem;
-    --sidebar: oklch(0.975 0.004 265);
-    --sidebar-foreground: var(--foreground);
-    --sidebar-primary: var(--primary);
-    --sidebar-primary-foreground: var(--primary-foreground);
-    --sidebar-accent: oklch(0.94 0 0);
-    --sidebar-accent-foreground: var(--foreground);
-    --sidebar-accent-pressed: oklch(0.89 0 0);
-    --sidebar-border: var(--border);
-    --sidebar-ring: var(--primary);
-}
-
-.dark {
-    --background: oklch(0.16 0.01 265);
-    --foreground: oklch(0.97 0.005 265);
-    --card: oklch(0.19 0.012 265);
-    --card-foreground: var(--foreground);
-    --popover: oklch(0.21 0.012 265);
-    --popover-foreground: var(--foreground);
-    --primary: oklch(0.7 0.17 260);
-    --primary-foreground: oklch(0.145 0 0);
-    --primary-pressed: oklch(0.6 0.17 260);
-    --secondary: oklch(0.27 0.012 265);
-    --secondary-foreground: var(--foreground);
-    --secondary-pressed: oklch(0.22 0 0);
-    --muted: oklch(0.25 0.012 265);
-    --muted-foreground: oklch(0.72 0.02 265);
-    /* Stays white in dark mode: a QR code is dark on white to be scanned. */
-    --qr-background: oklch(1 0 0);
-    --accent: oklch(0.3 0 0);
-    --accent-foreground: var(--foreground);
-    --accent-pressed: oklch(0.24 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(0.72 0.17 22);
-    --destructive-pressed: oklch(0.5 0.22 27.3);
-    --success: oklch(0.723 0.191 149.579);
-    --success-foreground: oklch(0.145 0 0);
-    --success-pressed: oklch(0.65 0.18 149.6);
-    --warning: oklch(0.795 0.184 86.047);
-    --warning-foreground: oklch(0.145 0 0);
-    --warning-pressed: oklch(0.72 0.17 86);
-    --border: oklch(0.3 0.012 265);
-    --input: oklch(0.33 0.014 265);
-    --input-focus: oklch(0.72 0.02 265);
-    --ring: var(--primary);
-    --chart-1: var(--primary);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.19 0.01 265);
-    --sidebar-foreground: var(--foreground);
-    --sidebar-primary: var(--primary);
-    --sidebar-primary-foreground: var(--primary-foreground);
-    --sidebar-accent: oklch(0.28 0 0);
-    --sidebar-accent-foreground: var(--foreground);
-    --sidebar-accent-pressed: oklch(0.23 0 0);
-    --sidebar-border: var(--border);
-    --sidebar-ring: var(--primary);
-}
-
-@layer base {
-    * {
-        @apply border-border;
-    }
-
-    body {
-        @apply bg-background text-foreground;
-    }
-
-    /*
-     * Browsers paint an autofilled field pale yellow (Safari) or blue (Chrome)
-     * with !important, so background-color cannot undo it. An inset shadow
-     * covers that paint with the page's own background, and the text keeps the
-     * theme's colour in light and dark.
-     */
-    input:autofill {
-        box-shadow: inset 0 0 0 100vmax var(--background);
-        -webkit-text-fill-color: var(--foreground);
-        caret-color: var(--foreground);
-    }
-}
-
-/*
- * Everything the user can click shows the pointing hand; a disabled control
- * keeps the arrow. These rules sit outside @layer on purpose: components set
- * `cursor-default` on their menu items, and an unlayered rule beats every
- * utility class, so the cursor stays decided in this one place.
- */
-button:not(:disabled):not([aria-disabled='true']):not([data-disabled]):not(
-        [data-slot='sidebar-rail']
-    ),
-[role='button']:not([aria-disabled='true']):not([data-disabled]),
-[role='tab']:not([aria-disabled='true']):not([data-disabled]),
-[role='menuitem']:not([aria-disabled='true']):not([data-disabled]),
-[role='menuitemcheckbox']:not([aria-disabled='true']):not([data-disabled]),
-[role='menuitemradio']:not([aria-disabled='true']):not([data-disabled]),
-[role='option']:not([aria-disabled='true']):not([data-disabled]),
-[role='checkbox']:not([aria-disabled='true']):not([data-disabled]),
-[role='radio']:not([aria-disabled='true']):not([data-disabled]),
-[role='switch']:not([aria-disabled='true']):not([data-disabled]),
-a[href],
-summary,
-label[for],
-select:not(:disabled),
-input[type='checkbox']:not(:disabled),
-input[type='radio']:not(:disabled),
-input[type='submit']:not(:disabled),
-input[type='button']:not(:disabled) {
-    cursor: pointer;
-}
-
-:disabled,
-[aria-disabled='true'],
-[data-disabled] {
-    cursor: default;
 }
 
 /*
  * Motion is a quick transition on hover, open, close and expand. When the
  * user asks for reduced motion, nothing moves: transitions and animations
- * (dialog, sheet, dropdown, caret blink) finish at once.
+ * (antd's too) finish at once.
  */
 @media (prefers-reduced-motion: reduce) {
     *,
@@ -274,46 +43,5 @@ input[type='button']:not(:disabled) {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
-    }
-}
-
-/*
- * A page is printed on A4 in black on white, without the app's chrome (the
- * sidebar, the top bar, toasts). The buttons of
- * a print page hide themselves with Tailwind's `print:hidden`. The colour
- * tokens are set to their light values, so a printout from dark mode is
- * readable.
- */
-@media print {
-    @page {
-        size: A4;
-        margin: 15mm;
-    }
-
-    :root,
-    .dark {
-        --background: oklch(1 0 0);
-        --foreground: oklch(0.21 0.02 265);
-        --muted-foreground: oklch(0.4 0.025 265);
-        --border: oklch(0.8 0.006 265);
-        color-scheme: light;
-    }
-
-    html,
-    body {
-        background: var(--background);
-    }
-
-    [data-slot='sidebar'],
-    [data-slot='sidebar-inset'] > header,
-    [data-sonner-toaster] {
-        display: none !important;
-    }
-
-    [data-slot='sidebar-inset'] {
-        margin: 0 !important;
-        min-height: 0 !important;
-        border-width: 0 !important;
-        border-radius: 0 !important;
     }
 }
