@@ -9,11 +9,13 @@
 # descendant of <pid>: the parallel workers and the Playwright server. When
 # <pid> is gone and the marker is still there, the run was killed, and with
 # `kill -9` nothing else cleans up behind it. The watchdog ends the descendants
-# it noted (TERM first, KILL after two seconds), so no orphan is left holding
-# the test database lock or the stdout of whoever started the run.
+# it noted, and also what the run started too shortly before it was killed to
+# be noted: whatever in the run's process group has no parent left but init
+# (TERM first, KILL after two seconds). So no orphan is left holding the test
+# database lock or the stdout of whoever started the run.
 #
 # When the marker is gone, the run ended normally and the watchdog just exits.
-# It only ever signals PIDs it noted, never a process matched by name.
+# It only ever signals PIDs it found this way, never a process matched by name.
 
 pid=$1
 marker=$2
@@ -83,6 +85,46 @@ descendantsOf() {
     '
 }
 
+# Ask for the run's process group and for what runs above the run while the
+# run is still there to ask about. Each command a shell, the hook or Claude
+# Code starts gets a group of its own, so the group holds only the run, what
+# the run started, and the command that started the run.
+group=$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')
+ancestors=""
+ancestor=$pid
+
+while ancestor=$(ps -o ppid= -p "$ancestor" 2>/dev/null | tr -d ' ') && [ -n "$ancestor" ] && [ "$ancestor" -gt 1 ]; do
+    ancestors="$ancestors $ancestor"
+done
+
+# Print the PIDs in <group> that nothing looks after any more: their parent is
+# neither in the group nor above the run, as happens to what the run started
+# once the run is gone. What runs above the run, and the watchdog, which the run
+# starts the same way, are left out. So are processes whose parent is still in
+# the group or above the run, such as the `tee` of a pipeline.
+abandonedIn() {
+    ps -A -o pid= -o ppid= -o pgid= | awk -v group="$1" -v self="$$" -v above="$ancestors" '
+        BEGIN {
+            count = split(above, list, " ")
+
+            for (i = 1; i <= count; i++) {
+                kept[list[i]] = 1
+            }
+        }
+        $3 == group {
+            member[$1] = 1
+            parent[$1] = $2
+        }
+        END {
+            for (candidate in member) {
+                if (candidate != self && !(candidate in kept) && !(parent[candidate] in member) && !(parent[candidate] in kept)) {
+                    print candidate
+                }
+            }
+        }
+    '
+}
+
 noted=""
 
 while [ -e "$marker" ]; do
@@ -104,13 +146,19 @@ while [ -e "$marker" ]; do
         exit 0
     fi
 
-    for descendant in $noted; do
+    left=$noted
+
+    if [ -n "$group" ]; then
+        left="$left $(abandonedIn "$group")"
+    fi
+
+    for descendant in $left; do
         kill -TERM "$descendant" 2>/dev/null
     done
 
     sleep 2
 
-    for descendant in $noted; do
+    for descendant in $left; do
         kill -KILL "$descendant" 2>/dev/null
     done
 
