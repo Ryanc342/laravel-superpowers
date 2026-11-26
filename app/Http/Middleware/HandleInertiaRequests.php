@@ -73,12 +73,27 @@ class HandleInertiaRequests extends Middleware
      * The menu's group of page-type examples. Their routes are named here, on the
      * server, so the browser's code names no example route: a production build has
      * no example routes, and leaves the example pages out. The labels are English,
-     * and the browser translates them.
+     * and the browser translates them. Each entry is named after the page it opens.
      *
-     * @return list<array{key: string, label: string, href: string, children: list<array{key: string, label: string, href: string}>}>
+     * @return list<array{key: string, label: string, href: string, children: list<array{key: string, label: string, href: string, children?: list<array{key: string, label: string, href: string}>}>}>
      */
     private function exampleMenu(): array
     {
+        /** @param  array<string, string|int>  $parameters */
+        $entry = fn (string $key, string $label, string $route, array $parameters = []): array => [
+            'key' => "examples.{$key}",
+            'label' => $label,
+            'href' => route($route, $parameters, absolute: false),
+        ];
+        $errors = [
+            403 => 'No permission',
+            404 => 'Page not found',
+            419 => 'Page expired',
+            429 => 'Too many requests',
+            500 => 'Something went wrong',
+            503 => 'Back soon',
+        ];
+
         return [
             [
                 'key' => 'examples',
@@ -86,7 +101,30 @@ class HandleInertiaRequests extends Middleware
                 // Where the examples' URLs start (routes/examples.php); not a page.
                 'href' => '/examples',
                 'children' => [
-                    ['key' => 'examples.orders', 'label' => 'Orders', 'href' => route('examples.orders.index', absolute: false)],
+                    $entry('orders', 'Orders', 'examples.orders.index'),
+                    $entry('steps', 'New supplier', 'examples.steps.create'),
+                    $entry('queue', 'Support queue', 'examples.queue.index'),
+                    $entry('dashboard', 'Sales overview', 'examples.dashboard.index'),
+                    $entry('report', 'Sales by product', 'examples.report.index'),
+                    [
+                        'key' => 'examples.result',
+                        'label' => 'Result pages',
+                        'href' => '/examples/result',
+                        'children' => [
+                            $entry('result.success', 'Supplier added', 'examples.result.show', ['status' => 'success']),
+                            $entry('result.error', 'Supplier not added', 'examples.result.show', ['status' => 'error']),
+                        ],
+                    ],
+                    [
+                        'key' => 'examples.errors',
+                        'label' => 'Error pages',
+                        'href' => '/examples/errors',
+                        'children' => array_map(
+                            fn (int $status, string $title) => $entry("errors.{$status}", $title, 'examples.errors.show', ['status' => $status]),
+                            array_keys($errors),
+                            $errors,
+                        ),
+                    ],
                 ],
             ],
         ];

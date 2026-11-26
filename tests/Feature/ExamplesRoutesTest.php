@@ -52,6 +52,30 @@ test('the menu gets the examples from the server, and none outside local and tes
         ->assertInertia(fn (Assert $page) => $page->where('examples', null));
 });
 
+test('the menu leads to every example page', function () {
+    $this->actingAs(User::factory()->create());
+
+    $hrefs = function (array $items) use (&$hrefs): array {
+        return collect($items)->flatMap(fn (array $item) => isset($item['children']) ? $hrefs($item['children']) : [$item['href']])->all();
+    };
+
+    expect($hrefs($this->get(route('dashboard'))->inertiaProps('examples')))->toBe([
+        '/examples/orders',
+        '/examples/steps',
+        '/examples/queue',
+        '/examples/dashboard',
+        '/examples/report',
+        '/examples/result/success',
+        '/examples/result/error',
+        '/examples/errors/403',
+        '/examples/errors/404',
+        '/examples/errors/419',
+        '/examples/errors/429',
+        '/examples/errors/500',
+        '/examples/errors/503',
+    ]);
+});
+
 // The menu's labels are English, and the browser translates them with t(),
 // so the check of the sentences the code shows does not see them.
 test('every label of the examples menu has Chinese', function () {

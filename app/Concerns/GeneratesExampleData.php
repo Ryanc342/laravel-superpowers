@@ -16,6 +16,10 @@ use Illuminate\Support\Collection;
  * @phpstan-type ExampleOrderItem array{line: int, name: string, quantity: int, price: int}
  * @phpstan-type ExampleOrderEvent array{status: string, at: string}
  * @phpstan-type ExampleOrder array{id: int, number: string, customer: string, status: string, total: int, ordered_at: string, notes: string|null, items: list<ExampleOrderItem>, history: list<ExampleOrderEvent>}
+ * @phpstan-type ExampleTask array{id: int, title: string, customer: string, assignee: string, priority: string, status: string, created_on: string}
+ * @phpstan-type ExampleActivity array{key: string, order_id: int, number: string, customer: string, event: string, at: string}
+ * @phpstan-type ExampleSalesRow array{product: string, units: int, average_price: int, revenue: int}
+ * @phpstan-type ExampleSalesTotals array{orders: int, units: int, revenue: int, average_order: int}
  */
 trait GeneratesExampleData
 {
@@ -26,6 +30,28 @@ trait GeneratesExampleData
         'Desk lamp', 'Office chair', 'Monitor stand', 'Keyboard', 'Mouse', 'Notebook',
         'Whiteboard', 'Desk organiser', 'Headphones', 'USB-C hub', 'Webcam', 'Printer paper',
     ];
+
+    /**
+     * What a customer asks about an order, in the queue example: `:order` is its number.
+     */
+    private const array EXAMPLE_TASK_SUBJECTS = [
+        'Refund for :order', 'New delivery address for :order', 'Copy of the invoice for :order',
+        'Damaged item in :order', 'Late delivery of :order', 'Cancel :order',
+    ];
+
+    /**
+     * The statuses of a task in the queue example, in the order a task goes through them.
+     *
+     * @var list<string>
+     */
+    protected const array EXAMPLE_TASK_STATUSES = ['todo', 'in_progress', 'completed'];
+
+    /**
+     * How urgent a task in the queue example is.
+     *
+     * @var list<string>
+     */
+    protected const array EXAMPLE_TASK_PRIORITIES = ['low', 'medium', 'high'];
 
     /**
      * 137 orders, SO-2026-0001 to SO-2026-0137, placed through 2026 in that
@@ -69,6 +95,130 @@ trait GeneratesExampleData
     protected function exampleOrder(int $id): array
     {
         return $this->exampleOrders()->firstWhere('id', $id) ?? abort(404);
+    }
+
+    /**
+     * The five people the queue example's tasks are assigned to.
+     *
+     * @return list<string>
+     */
+    protected function exampleAssignees(): array
+    {
+        $faker = Factory::create();
+        $faker->seed(2026);
+
+        $assignees = array_map(fn () => $faker->name(), range(1, 5));
+
+        $faker->seed();
+
+        return $assignees;
+    }
+
+    /**
+     * 60 tasks for the queue example, each about one of the example orders,
+     * oldest first. Like the orders, they are the same on every request.
+     *
+     * @return Collection<int, ExampleTask>
+     */
+    protected function exampleTasks(): Collection
+    {
+        $orders = $this->exampleOrders();
+        $assignees = $this->exampleAssignees();
+
+        $faker = Factory::create();
+        $faker->seed(2026);
+
+        $dates = collect(range(1, 60))
+            ->map(fn () => $faker->dateTimeBetween('2026-10-01', '2026-11-26')->format('Y-m-d'))
+            ->sort()
+            ->values();
+
+        $pick = fn (array $choices): string => $choices[$faker->numberBetween(0, count($choices) - 1)];
+
+        $tasks = $dates->map(function (string $createdOn, int $index) use ($faker, $pick, $orders, $assignees): array {
+            $order = $orders[$faker->numberBetween(0, $orders->count() - 1)];
+
+            return [
+                'id' => $index + 1,
+                'title' => strtr($pick(self::EXAMPLE_TASK_SUBJECTS), [':order' => $order['number']]),
+                'customer' => $order['customer'],
+                'assignee' => $pick($assignees),
+                'priority' => $pick(self::EXAMPLE_TASK_PRIORITIES),
+                'status' => $pick(self::EXAMPLE_TASK_STATUSES),
+                'created_on' => $createdOn,
+            ];
+        });
+
+        $faker->seed();
+
+        return $tasks;
+    }
+
+    /**
+     * What happened to the example orders, newest first: each step of each
+     * order's history, for the dashboard example's activity feed. `event` is
+     * the status the order reached; `key` tells the entries apart. No order
+     * has two steps on one day, so the day and the order's id decide where
+     * each entry goes.
+     *
+     * @return Collection<int, ExampleActivity>
+     */
+    protected function exampleActivity(): Collection
+    {
+        return $this->exampleOrders()
+            ->flatMap(fn (array $order) => array_map(fn (array $event) => [
+                'key' => "{$order['id']}-{$event['status']}",
+                'order_id' => $order['id'],
+                'number' => $order['number'],
+                'customer' => $order['customer'],
+                'event' => $event['status'],
+                'at' => $event['at'],
+            ], $order['history']))
+            ->sortBy([['at', 'desc'], ['order_id', 'desc']])
+            ->values();
+    }
+
+    /**
+     * The report example's sales by product, from the orders placed between
+     * `$from` and `$to` (both `Y-m-d`, either end open when null), most
+     * revenue first. A cancelled order sold nothing, so it is left out. Money
+     * is in cents.
+     *
+     * @return array{rows: Collection<int, ExampleSalesRow>, totals: ExampleSalesTotals}
+     */
+    protected function exampleSalesReport(?string $from, ?string $to): array
+    {
+        $orders = $this->exampleOrders()
+            ->reject(fn (array $order) => $order['status'] === 'cancelled')
+            ->filter(fn (array $order) => ($from === null || $order['ordered_at'] >= $from)
+                && ($to === null || $order['ordered_at'] <= $to));
+
+        $rows = $orders->flatMap(fn (array $order) => $order['items'])
+            ->groupBy('name')
+            ->map(function (Collection $lines, string $product): array {
+                $units = $lines->reduce(fn (int $sum, array $line) => $sum + $line['quantity'], 0);
+                $revenue = $lines->reduce(fn (int $sum, array $line) => $sum + $line['quantity'] * $line['price'], 0);
+
+                return [
+                    'product' => $product,
+                    'units' => $units,
+                    'average_price' => intdiv($revenue, $units),
+                    'revenue' => $revenue,
+                ];
+            })
+            ->sortByDesc('revenue')
+            ->values();
+        $revenue = $rows->reduce(fn (int $sum, array $row) => $sum + $row['revenue'], 0);
+
+        return [
+            'rows' => $rows,
+            'totals' => [
+                'orders' => $orders->count(),
+                'units' => $rows->reduce(fn (int $sum, array $row) => $sum + $row['units'], 0),
+                'revenue' => $revenue,
+                'average_order' => $orders->isEmpty() ? 0 : intdiv($revenue, $orders->count()),
+            ],
+        ];
     }
 
     /**
