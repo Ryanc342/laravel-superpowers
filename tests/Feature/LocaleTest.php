@@ -62,6 +62,22 @@ test('an unknown saved language falls back to the cookie', function () {
         ->assertInertia(fn (Assert $page) => $page->where('locale', 'en'));
 });
 
+test("the browser's language is never consulted", function () {
+    config(['app.locale' => 'zh_CN']);
+
+    $this->withHeader('Accept-Language', 'en')
+        ->get(route('home'))
+        ->assertInertia(fn (Assert $page) => $page->where('locale', 'zh_CN'));
+});
+
+test('a cookie that holds a list is ignored', function () {
+    config(['app.locale' => 'zh_CN']);
+
+    // PHP builds an array from a cookie sent as `locale[]=en`; withUnencryptedCookie() takes only strings.
+    $this->call('GET', route('home'), cookies: ['locale' => ['en']])
+        ->assertInertia(fn (Assert $page) => $page->where('locale', 'zh_CN'));
+});
+
 test('every page offers both languages, each named in itself', function () {
     $this->get(route('home'))
         ->assertInertia(fn (Assert $page) => $page->where('locales', [
@@ -182,3 +198,34 @@ test('the password reset mail is in Chinese for a Chinese user', function () {
     expect($mail->subject)->toBe('重置你的密码')
         ->and($mail->actionText)->toBe('重置密码');
 });
+
+test("a notification goes out in the user's saved language, whatever the app is running in", function () {
+    config(['app.locale' => 'zh_CN']);
+    Notification::fake();
+    $user = User::factory()->create(['locale' => 'en']);
+
+    $user->sendPasswordResetNotification('token');
+
+    Notification::assertSentTo(
+        $user,
+        ResetPassword::class,
+        fn (ResetPassword $notification, array $channels, User $notifiable, ?string $locale): bool => $locale === 'en',
+    );
+});
+
+test("a notification to a user who saved no language, or one that is not known, follows the app's language", function (?string $saved) {
+    config(['app.locale' => 'zh_CN']);
+    Notification::fake();
+    $user = User::factory()->create(['locale' => $saved]);
+
+    $user->sendPasswordResetNotification('token');
+
+    Notification::assertSentTo(
+        $user,
+        ResetPassword::class,
+        fn (ResetPassword $notification, array $channels, User $notifiable, ?string $locale): bool => $locale === null,
+    );
+})->with([
+    'none saved' => null,
+    'not a known language' => 'fr',
+]);

@@ -15,6 +15,14 @@ declare module '@inertiajs/core' {
             locales: { value: string; label: string }[];
             // English has no sentences, and PHP sends its empty table as `[]`, not `{}`.
             translations: Record<string, string> | [];
+            // Which of Fortify's features config/fortify.php has on.
+            features: {
+                registration: boolean;
+                resetPasswords: boolean;
+                emailVerification: boolean;
+                twoFactorAuthentication: boolean;
+                passkeys: boolean;
+            };
             sidebarOpen: boolean;
             perPageOptions: number[];
             [key: string]: unknown;

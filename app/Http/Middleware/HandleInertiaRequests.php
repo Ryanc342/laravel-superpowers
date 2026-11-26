@@ -6,6 +6,7 @@ use App\Enums\Locale;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Middleware;
+use Laravel\Fortify\Features;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -47,6 +48,15 @@ class HandleInertiaRequests extends Middleware
             'locales' => Locale::options(),
             'translations' => Inertia::once(fn (): array => Locale::current()->sentences())
                 ->as('translations.'.Locale::current()->value),
+            // Which of Fortify's features config/fortify.php has on. The pages hide every way into a
+            // feature that is off.
+            'features' => [
+                'registration' => Features::enabled(Features::registration()),
+                'resetPasswords' => Features::enabled(Features::resetPasswords()),
+                'emailVerification' => Features::enabled(Features::emailVerification()),
+                'twoFactorAuthentication' => Features::canManageTwoFactorAuthentication(),
+                'passkeys' => Features::enabled(Features::passkeys()),
+            ],
             'auth' => [
                 'user' => $request->user(),
             ],
