@@ -192,8 +192,8 @@ while [ -e "$marker" ]; do
 
     if [ -n "$group" ]; then
         # What is in the group now. The KILL pass looks no further, so what
-        # the command that started the run starts after it is not taken for
-        # the run's.
+        # the command that started the run starts from here on is not taken
+        # for the run's.
         members=" $(ps -A -o pid= -o pgid= | awk -v group="$group" '$2 == group { printf "%s ", $1 }') "
         left="$left $(takenOverIn "$group")"
     fi

@@ -216,9 +216,10 @@ type LeftBehindRun = {
  *   command's group. Next to the run the caller started a shell that looks
  *   after a sleep (`bystander`) and starts another one (`worker`) while the
  *   run is going, as `php artisan serve &` looks after its server and starts
- *   new workers. Once the run is gone and the watchdog has sent TERM, the
- *   caller leaves one more sleep running with no parent but init
- *   (`afterward`), as `composer check; (php artisan serve &)` would.
+ *   new workers. Once the run is gone and the watchdog has listed the group
+ *   for its TERM pass, the caller leaves one more sleep running with no
+ *   parent but init (`afterward`), as `composer check; (php artisan serve &)`
+ *   would.
  * - 'pipeline': the caller is a shell with job control that runs
  *   `run | bystander`, as a terminal runs `composer check | tee`. The pipeline
  *   gets a group of its own, and the bystander's parent, the caller, is
