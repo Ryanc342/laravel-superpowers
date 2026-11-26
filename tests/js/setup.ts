@@ -12,6 +12,15 @@ vi.stubGlobal(
     },
 );
 
+// jsdom has no matchMedia. This browser prefers light, and never changes its
+// mind; a test of dark mode replaces it.
+vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener() {},
+    removeEventListener() {},
+}));
+
 // Unmount what each test rendered, so nothing it left behind reaches the next test.
 afterEach(() => {
     cleanup();

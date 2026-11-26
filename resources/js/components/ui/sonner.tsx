@@ -1,5 +1,3 @@
-import { useFlashToast } from '@/hooks/use-flash-toast';
-import { useNetworkErrorToast } from '@/hooks/use-network-error-toast';
 import { useValidationErrorToasts } from '@/hooks/use-validation-error-toasts';
 import { useAppearance } from '@/hooks/use-appearance';
 import { Toaster as Sonner, type ToasterProps } from 'sonner';
@@ -7,8 +5,7 @@ import { Toaster as Sonner, type ToasterProps } from 'sonner';
 function Toaster({ ...props }: ToasterProps) {
     const { appearance } = useAppearance();
 
-    useFlashToast();
-    useNetworkErrorToast();
+    // Flash and network messages are antd's (RootLayout); this is what is left.
     useValidationErrorToasts();
 
     return (

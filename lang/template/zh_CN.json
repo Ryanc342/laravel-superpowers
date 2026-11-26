@@ -16,5 +16,7 @@
     "All rights reserved.": "保留所有权利。",
     "Profile updated.": "个人资料已更新",
     "Password updated.": "密码已更新",
-    "Language: :language": "语言：:language"
+    "Language: :language": "语言：:language",
+    "Network error": "网络错误",
+    "Check your connection and try again": "请检查网络连接后重试"
 }

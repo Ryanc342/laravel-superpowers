@@ -32,11 +32,19 @@ const templateTheme: ProjectTheme = {
  * The antd theme for both the ConfigProvider and the build-time styles: the
  * project's theme over the template's, with the settings the generated CSS
  * depends on (its CSS variable key, and no styles made at runtime).
+ *
+ * `algorithm` is antd's `theme.darkAlgorithm` for a dark page. It is a
+ * parameter, not an import, so that the build can load this file without
+ * loading antd.
  */
-export function themeConfig(project: ProjectTheme): ThemeConfig {
+export function themeConfig(
+    project: ProjectTheme,
+    algorithm?: ThemeConfig['algorithm'],
+): ThemeConfig {
     return {
         token: { ...templateTheme.token, ...project.token },
         components: { ...templateTheme.components, ...project.components },
+        ...(algorithm && { algorithm }),
         cssVar: { key: CSS_VAR_KEY },
         zeroRuntime: true,
     };

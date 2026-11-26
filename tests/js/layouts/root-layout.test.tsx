@@ -1,15 +1,28 @@
-import { render, screen } from '@testing-library/react';
-import { Empty } from 'antd';
+import { act, render, screen } from '@testing-library/react';
+import { Empty, theme } from 'antd';
 import dayjs from 'dayjs';
 import { memo } from 'react';
 import { afterEach, expect, test, vi } from 'vite-plus/test';
 import { t } from '@/lib/i18n';
+import { useAppearance } from '@/ui/appearance';
 
 const page = vi.hoisted(() => ({
     props: {} as Record<string, unknown>,
 }));
+const listeners = vi.hoisted(() => new Map<string, (event: Event) => void>());
+const subscriptions = vi.hoisted(() => ({ count: 0 }));
 
-vi.mock('@inertiajs/react', () => ({ usePage: () => page }));
+vi.mock('@inertiajs/react', () => ({
+    usePage: () => page,
+    router: {
+        on: (name: string, listener: (event: Event) => void) => {
+            subscriptions.count++;
+            listeners.set(name, listener);
+
+            return () => listeners.delete(name);
+        },
+    },
+}));
 
 import RootLayout from '@/layouts/root-layout';
 
@@ -38,6 +51,9 @@ function layout() {
 
 afterEach(() => {
     document.documentElement.removeAttribute('lang');
+    document.documentElement.classList.remove('dark');
+    document.cookie = 'appearance=;path=/;max-age=0';
+    localStorage.clear();
 });
 
 test('a Chinese page gets Chinese sentences, antd text, dates and <html lang>', () => {
@@ -70,4 +86,110 @@ test('a switch without a page load changes every sentence, even in a component t
     expect(screen.getByText('Log in')).toBeTruthy();
     expect(emptyText()).toBe('No data');
     expect(document.documentElement.lang).toBe('en');
+});
+
+/** The page background antd makes for the theme it is given. */
+function Background() {
+    const { token } = theme.useToken();
+
+    return <span data-test="background">{token.colorBgContainer}</span>;
+}
+
+function background(): string | null | undefined {
+    return document.querySelector('[data-test="background"]')?.textContent;
+}
+
+function ChooseDark() {
+    const { setAppearance } = useAppearance();
+
+    return <button onClick={() => setAppearance('dark')}>Dark</button>;
+}
+
+test('a light page gets the light theme and a dark page the dark one', () => {
+    page.props = english;
+    const { unmount } = render(
+        <RootLayout>
+            <Background />
+        </RootLayout>,
+    );
+
+    expect(background()).toBe('#ffffff');
+
+    unmount();
+    document.cookie = 'appearance=dark;path=/';
+    render(
+        <RootLayout>
+            <Background />
+        </RootLayout>,
+    );
+
+    expect(background()).toBe('#141414');
+});
+
+test('choosing dark in the page changes antd to the dark theme without a reload', () => {
+    page.props = english;
+    render(
+        <RootLayout>
+            <Background />
+            <ChooseDark />
+        </RootLayout>,
+    );
+
+    act(() => screen.getByRole('button', { name: 'Dark' }).click());
+
+    expect(background()).toBe('#141414');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+});
+
+test('a flash from the server shows as an antd message, in the page', async () => {
+    page.props = english;
+    render(
+        <RootLayout>
+            <span>Page</span>
+        </RootLayout>,
+    );
+
+    act(() =>
+        listeners.get('flash')?.(
+            new CustomEvent('flash', {
+                detail: {
+                    flash: {
+                        toast: { type: 'success', message: 'Profile updated.' },
+                    },
+                },
+            }),
+        ),
+    );
+
+    expect(await screen.findByText('Profile updated.')).toBeTruthy();
+});
+
+test('a failed request shows an antd notification, in the language of the page', async () => {
+    page.props = {
+        locale: 'zh_CN',
+        translations: { 'Network error': '网络错误' },
+    };
+    render(
+        <RootLayout>
+            <span>Page</span>
+        </RootLayout>,
+    );
+
+    act(() => listeners.get('networkError')?.(new CustomEvent('networkError')));
+
+    expect(await screen.findByText('网络错误')).toBeTruthy();
+});
+
+test('the listeners are not renewed when the language switches', () => {
+    page.props = chinese;
+    const { rerender } = render(layout());
+    const before = subscriptions.count;
+
+    page.props = english;
+    rerender(layout());
+
+    expect(before).toBeGreaterThan(0);
+    expect(subscriptions.count).toBe(before);
+    expect(listeners.has('flash')).toBe(true);
+    expect(listeners.has('networkError')).toBe(true);
 });
