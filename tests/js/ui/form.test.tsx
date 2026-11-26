@@ -32,6 +32,7 @@ type VisitOptions = {
 
 type ValidationConfig = {
     only?: string[];
+    onStart?: () => void;
     onSuccess?: () => void;
     onValidationError?: () => void;
     onFinish?: () => void;
@@ -203,9 +204,24 @@ function alertText(): string | null {
     return document.querySelector('.ant-alert')?.textContent ?? null;
 }
 
+/** The fields the form asked the server to check, one call at a time. */
+function checkedFields(): unknown[] {
+    return inertia.validate.mock.calls.map(([field]) => field);
+}
+
 /** What the last submit was given. */
 function lastSubmit(): [unknown, VisitOptions] {
     return inertia.submit.mock.lastCall as [unknown, VisitOptions];
+}
+
+/** What a promise settled to by now, or `'pending'` while it has not. */
+function settled<T>(promise: Promise<T>): Promise<T | 'pending'> {
+    return Promise.race([
+        promise,
+        new Promise<'pending'>((resolve) =>
+            setTimeout(() => resolve('pending'), 50),
+        ),
+    ]);
 }
 
 /** Submits the form as antd does once its own checks pass. */
@@ -318,11 +334,7 @@ test('a precognitive form checks the changed field on the server, with a 500ms d
     await userEvent.type(screen.getByLabelText('Item 1'), 'c');
 
     expect(inertia.withPrecognition).toHaveBeenCalledWith(route);
-    expect(inertia.validate.mock.calls).toEqual([
-        ['email'],
-        ['email'],
-        ['items.0.name'],
-    ]);
+    expect(checkedFields()).toEqual(['email', 'email', 'items.0.name']);
     expect(inertia.validator.setTimeout.mock.calls).toEqual([[500]]);
 });
 
@@ -331,7 +343,7 @@ test('changing a list checks the list, not the fields of the row it added', asyn
 
     await userEvent.click(screen.getByRole('button', { name: 'Add item' }));
 
-    expect(inertia.validate.mock.calls).toEqual([['items']]);
+    expect(checkedFields()).toEqual(['items']);
 });
 
 test('a precognitive field that became valid loses its error', async () => {
@@ -462,4 +474,51 @@ test('validateFields resolves false when the check ends with no verdict, as on a
     act(() => config.onFinish?.());
 
     await expect(result).resolves.toBe(false);
+});
+
+test('a step check that a keystroke replaces within the debounce window resolves false', async () => {
+    render(<OrderForm />);
+
+    // The debounce holds the step check back: a check went out just before.
+    const passed = hook().validateFields(['email']);
+    await userEvent.type(screen.getByLabelText('Email'), 'a');
+
+    // It sends only the latest call, the keystroke's, and the step check's
+    // callbacks never run.
+    const [, keystroke] = inertia.validate.mock.lastCall as [
+        string,
+        ValidationConfig?,
+    ];
+    act(() => {
+        keystroke?.onStart?.();
+        keystroke?.onSuccess?.();
+        keystroke?.onFinish?.();
+    });
+
+    await expect(settled(passed)).resolves.toBe(false);
+});
+
+test('a step check held back behind a keystroke’s check keeps its verdict', async () => {
+    render(<OrderForm />);
+
+    // The keystroke's check goes out at once, and the step check waits.
+    await userEvent.type(screen.getByLabelText('Email'), 'a');
+    const [, keystroke] = inertia.validate.mock.lastCall as [
+        string,
+        ValidationConfig?,
+    ];
+    act(() => keystroke?.onStart?.());
+    const passed = hook().validateFields(['email']);
+    const [step] = inertia.validate.mock.lastCall as [ValidationConfig];
+
+    // The keystroke's answer comes back, then the step check is sent.
+    act(() => {
+        keystroke?.onSuccess?.();
+        keystroke?.onFinish?.();
+        step.onStart?.();
+        step.onSuccess?.();
+        step.onFinish?.();
+    });
+
+    await expect(passed).resolves.toBe(true);
 });

@@ -70,7 +70,9 @@ export type InertiaAntdForm<T> = {
     unplacedErrors: string[];
     /**
      * Checks these fields (Laravel keys) on the server, and resolves whether
-     * they passed: a `StepsForm` step's `onFinish`. A form that is not
+     * they passed: a `StepsForm` step's `onFinish`. It always settles: a check
+     * that is cancelled, fails on the network, or is replaced within the
+     * debounce by a keystroke's check resolves `false`. A form that is not
      * precognitive is checked on submit only, so its fields pass here.
      */
     validateFields: (names: string[]) => Promise<boolean>;
@@ -228,6 +230,8 @@ export function useInertiaForm<T extends Record<string, unknown>>(
     const { errors } = inertiaForm;
     const [unplacedErrors, setUnplacedErrors] = useState<string[]>([]);
     const errorsShown = useRef(false);
+    // The step check that the debounce holds back, until it is sent.
+    const queuedCheck = useRef<((passed: boolean) => void) | null>(null);
 
     useEffect(() => {
         validator?.setTimeout(VALIDATION_TIMEOUT_MS);
@@ -273,7 +277,11 @@ export function useInertiaForm<T extends Record<string, unknown>>(
 
         if (precognitiveForm) {
             changed.forEach((name) =>
-                precognitiveForm.validate(errorKey(name)),
+                precognitiveForm.validate(errorKey(name), {
+                    // The debounce sends only its latest call, so once this
+                    // check is sent, a step check it held back never will be.
+                    onStart: () => queuedCheck.current?.(false),
+                }),
             );
 
             return;
@@ -325,13 +333,29 @@ export function useInertiaForm<T extends Record<string, unknown>>(
         }
 
         return new Promise((resolve) => {
+            const settle = (passed: boolean): void => {
+                leaveQueue();
+                resolve(passed);
+            };
+            const leaveQueue = (): void => {
+                if (queuedCheck.current === settle) {
+                    queuedCheck.current = null;
+                }
+            };
+
+            // This call replaces a step check still held back.
+            queuedCheck.current?.(false);
+            queuedCheck.current = settle;
+
             precognitiveForm.validate({
                 only: names,
-                onSuccess: () => resolve(true),
-                onValidationError: () => resolve(false),
-                // A check that ended with no verdict (offline, a server
-                // error) does not pass. After a verdict this does nothing.
-                onFinish: () => resolve(false),
+                onStart: leaveQueue,
+                onSuccess: () => settle(true),
+                onValidationError: () => settle(false),
+                // A sent check always finishes, also when it was cancelled
+                // or failed on the network. Without a verdict, it does not
+                // pass; after one, this does nothing.
+                onFinish: () => settle(false),
             });
         });
     };
