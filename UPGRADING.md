@@ -2,7 +2,7 @@
 
 What to do in a project started from laravel-superpowers after it merges a template version. There is one section per version (`sp-vX.Y.Z` tag), newest first. Do what every section newer than the version you were on lists, oldest first. [`.ai/guidelines/project.md`](.ai/guidelines/project.md) has the rules for the merge itself.
 
-## sp-v1.3.0 (unreleased)
+## sp-v1.3.0
 
 chisel is removed. The Stop hook now checks only what a session changed, with a SessionStart hook that records what was there before.
 
