@@ -1,13 +1,11 @@
-import { useValidationErrorToasts } from '@/hooks/use-validation-error-toasts';
 import { useAppearance } from '@/hooks/use-appearance';
 import { Toaster as Sonner, type ToasterProps } from 'sonner';
 
 function Toaster({ ...props }: ToasterProps) {
     const { appearance } = useAppearance();
 
-    // Flash and network messages are antd's (RootLayout); this is what is left.
-    useValidationErrorToasts();
-
+    // Flash and network messages are antd's (RootLayout), and a validation error
+    // shows under its field or in the form's Alert, never as a toast.
     return (
         <Sonner
             theme={appearance}

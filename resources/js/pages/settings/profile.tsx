@@ -1,20 +1,11 @@
-import { Head, usePage } from '@inertiajs/react';
-import { Link } from '@inertiajs/react';
-import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
-import DeleteUser from '@/components/delete-user';
-import Actions from '@/components/shared/actions';
-import Section from '@/components/shared/section';
-import StackedForm from '@/components/shared/stacked-form';
-import StatusMessage from '@/components/shared/status-message';
-import SubmitButton from '@/components/shared/submit-button';
-import TextField from '@/components/shared/text-field';
-import { textLinkClassName } from '@/components/text-link';
-import type { Auth } from '@/types';
+import { ProCard } from '@ant-design/pro-components';
+import { Head, useForm, usePage } from '@inertiajs/react';
+import { Alert, Button, Col, Flex, Form, Input, Row } from 'antd';
+import DeleteAccount from '@/components/settings/delete-account';
+import { t } from '@/lib/i18n';
+import { update } from '@/routes/profile';
 import { send } from '@/routes/verification';
-
-type PageProps = {
-    auth: Auth;
-};
+import { useInertiaForm } from '@/ui/form';
 
 export default function Profile({
     mustVerifyEmail,
@@ -23,88 +14,105 @@ export default function Profile({
     mustVerifyEmail: boolean;
     status?: string;
 }) {
-    const { auth } = usePage<PageProps>().props;
+    const { user } = usePage().props.auth;
+    const resend = useForm({});
+    const { formProps, processing, unplacedErrors } = useInertiaForm(update(), {
+        name: user.name,
+        email: user.email,
+    });
+    const isUnverified = mustVerifyEmail && user.email_verified_at === null;
 
     return (
         <>
-            <Head title="Profile settings" />
+            <Head title={t('Profile')} />
 
-            <Section title="Profile">
-                <p className="text-sm text-muted-foreground">
-                    Update your name and email address
-                </p>
-
-                <StackedForm
-                    {...ProfileController.update.form()}
-                    options={{
-                        preserveScroll: true,
-                    }}
-                >
-                    {({ errors }) => (
-                        <>
-                            <TextField
-                                id="name"
-                                label="Name"
-                                defaultValue={auth.user.name}
-                                name="name"
-                                required
-                                autoComplete="name"
-                                error={errors.name}
-                            />
-
-                            <TextField
-                                id="email"
-                                label="Email address"
-                                type="email"
-                                defaultValue={auth.user.email}
-                                name="email"
-                                required
-                                autoComplete="username"
-                                error={errors.email}
-                            />
-
-                            {mustVerifyEmail &&
-                                auth.user.email_verified_at === null && (
-                                    <div className="space-y-2">
-                                        <p className="text-sm text-muted-foreground">
-                                            Your email address is unverified.{' '}
-                                            <Link
-                                                href={send()}
-                                                as="button"
-                                                className={textLinkClassName}
-                                            >
-                                                Click here to re-send the
-                                                verification email.
-                                            </Link>
-                                        </p>
-
-                                        <StatusMessage
-                                            message={
-                                                status ===
-                                                'verification-link-sent'
-                                                    ? 'A new verification link has been sent to your email address.'
-                                                    : undefined
-                                            }
-                                        />
-                                    </div>
+            <Flex vertical gap="middle">
+                <ProCard title={t('Profile')} headerBordered>
+                    <Row>
+                        <Col xs={24} md={16} xl={12}>
+                            <Flex vertical gap="middle">
+                                {status === 'verification-link-sent' && (
+                                    <Alert
+                                        type="success"
+                                        showIcon
+                                        title={t(
+                                            'A new verification link has been sent to your email address.',
+                                        )}
+                                    />
                                 )}
+                                {unplacedErrors.length > 0 && (
+                                    <Alert
+                                        type="error"
+                                        showIcon
+                                        title={unplacedErrors.join(' ')}
+                                    />
+                                )}
+                                {isUnverified && (
+                                    <Alert
+                                        type="warning"
+                                        showIcon
+                                        title={t(
+                                            'Your email address is unverified.',
+                                        )}
+                                        action={
+                                            <Button
+                                                type="link"
+                                                loading={resend.processing}
+                                                onClick={() =>
+                                                    resend.submit(send(), {
+                                                        preserveScroll: true,
+                                                    })
+                                                }
+                                            >
+                                                {t(
+                                                    'Re-send verification email',
+                                                )}
+                                            </Button>
+                                        }
+                                    />
+                                )}
+                                <Form {...formProps}>
+                                    <Form.Item
+                                        label={t('Name')}
+                                        name="name"
+                                        required
+                                    >
+                                        <Input
+                                            name="name"
+                                            autoComplete="name"
+                                        />
+                                    </Form.Item>
 
-                            <Actions>
-                                <SubmitButton data-test="update-profile-button">
-                                    Save
-                                </SubmitButton>
-                            </Actions>
-                        </>
-                    )}
-                </StackedForm>
-            </Section>
+                                    <Form.Item
+                                        label={t('Email address')}
+                                        name="email"
+                                        required
+                                    >
+                                        <Input
+                                            name="email"
+                                            type="email"
+                                            autoComplete="username"
+                                        />
+                                    </Form.Item>
 
-            <DeleteUser />
+                                    <Form.Item>
+                                        <Button
+                                            type="primary"
+                                            htmlType="submit"
+                                            loading={processing}
+                                            data-test="update-profile-button"
+                                        >
+                                            {t('Save')}
+                                        </Button>
+                                    </Form.Item>
+                                </Form>
+                            </Flex>
+                        </Col>
+                    </Row>
+                </ProCard>
+
+                <DeleteAccount />
+            </Flex>
         </>
     );
 }
-
-// The settings layout names the page and its sub-nav; no breadcrumbs.
-Profile.layout = {
-    breadcrumbs: [],
-};

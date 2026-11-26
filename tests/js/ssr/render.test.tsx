@@ -4,6 +4,9 @@ import type { ResolvedComponent } from '@inertiajs/react';
 import { expect, test } from 'vite-plus/test';
 import Login from '@/pages/auth/login';
 import Dashboard from '@/pages/dashboard';
+import Appearance from '@/pages/settings/appearance';
+import Profile from '@/pages/settings/profile';
+import Security from '@/pages/settings/security';
 import { serverRenderer } from '@/ui/server-render';
 
 /*
@@ -16,11 +19,18 @@ import { serverRenderer } from '@/ui/server-render';
 const pages: Record<string, unknown> = {
     dashboard: Dashboard,
     'auth/login': Login,
+    'settings/profile': Profile,
+    'settings/security': Security,
+    'settings/appearance': Appearance,
 };
 
 const renderPage = serverRenderer((name) => pages[name] as ResolvedComponent);
 
-function page(component: string, url: string): Page {
+function page(
+    component: string,
+    url: string,
+    props: Record<string, unknown> = {},
+): Page {
     return {
         component,
         url,
@@ -57,6 +67,7 @@ function page(component: string, url: string): Page {
             examples: true,
             sidebarOpen: true,
             perPageOptions: [10, 20, 50, 100],
+            ...props,
         },
     } as unknown as Page;
 }
@@ -142,4 +153,52 @@ test('a page with no nested theme gets no extra styles', async () => {
 
     expect(nestedKeys(body)).toEqual([]);
     expect(serverStyles(head)).toBeUndefined();
+});
+
+// The settings pages touch no browser API while they render: the server
+// renders them, and the browser hydrates what it rendered.
+test('the settings pages render on the server, with their sections', async () => {
+    const profile = await renderPage(
+        page('settings/profile', '/settings/profile', {
+            mustVerifyEmail: true,
+        }),
+    );
+    const security = await renderPage(
+        page('settings/security', '/settings/security', {
+            passwordRules: '',
+            canManageTwoFactor: true,
+            twoFactorEnabled: true,
+            requiresConfirmation: true,
+            canManagePasskeys: true,
+            passkeys: [],
+        }),
+    );
+    const appearance = await renderPage(
+        page('settings/appearance', '/settings/appearance'),
+    );
+
+    expect(profile.body).toContain('Delete account');
+    expect(profile.body).toContain('Your email address is unverified.');
+    expect(security.body).toContain('Update password');
+    expect(security.body).toContain('Disable 2FA');
+    expect(security.body).toContain('No passkeys yet');
+    expect(appearance.body).toContain('ant-segmented');
+});
+
+test('the security page leaves out the sections of the features that are off', async () => {
+    const { body } = await renderPage(
+        page('settings/security', '/settings/security', {
+            passwordRules: '',
+            canManageTwoFactor: false,
+            canManagePasskeys: false,
+            passkeys: [],
+        }),
+    );
+
+    // The page's own props, which name the features, are in a script tag.
+    const markup = body.replace(/<script[\s\S]*?<\/script>/, '');
+
+    expect(markup).toContain('Update password');
+    expect(markup).not.toContain('Two-factor authentication');
+    expect(markup).not.toContain('Passkeys');
 });

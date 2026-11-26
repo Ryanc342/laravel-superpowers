@@ -35,6 +35,7 @@ type Errors = Record<string, string>;
 
 type VisitOptions = {
     preserveScroll?: boolean;
+    errorBag?: string;
     onSuccess?: () => void;
     onError?: (errors: Errors) => void;
     onFinish?: () => void;
@@ -154,16 +155,19 @@ function OrderForm({
     values = initialValues,
     precognitive,
     resetOnSuccess,
+    errorBag,
     onSuccess,
 }: {
     values?: Order;
     precognitive?: boolean;
     resetOnSuccess?: (keyof Order)[];
+    errorBag?: string;
     onSuccess?: () => void;
 }) {
     const form = useInertiaForm(route, values, {
         precognitive,
         resetOnSuccess,
+        errorBag,
         onSuccess,
     });
 
@@ -585,6 +589,22 @@ test('submitting sends the form through Inertia and keeps the scroll', async () 
         ordered_at: '2026-11-01',
         items: [{ name: '' }],
     });
+});
+
+test('a form that Fortify validates in an error bag sends the bag with the submit, so its errors reach the fields', async () => {
+    render(<OrderForm errorBag="confirmTwoFactorAuthentication" />);
+
+    void submitForm();
+
+    expect(lastSubmit()[1].errorBag).toBe('confirmTwoFactorAuthentication');
+});
+
+test('a form without an error bag sends none', async () => {
+    render(<OrderForm />);
+
+    void submitForm();
+
+    expect(lastSubmit()[1].errorBag).toBeUndefined();
 });
 
 test('a failed submit scrolls to the first field with an error, in form order', async () => {

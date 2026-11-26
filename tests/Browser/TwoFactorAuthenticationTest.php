@@ -22,17 +22,89 @@ test('a user turns on two-factor authentication', function () {
     $page = visitSecurityPage()
         ->press('Enable 2FA')
         ->assertSee('Enable two-factor authentication')
+        ->assertPresent('.ant-modal svg')
         ->press('Continue')
         ->assertSee('Verify authentication code');
 
     $secret = decrypt($user->fresh()->two_factor_secret);
 
-    $page->type('code', app(Google2FA::class)->getCurrentOtp($secret))
+    $page->type(FIRST_CODE_DIGIT, app(Google2FA::class)->getCurrentOtp($secret))
         ->press('Confirm')
         ->assertSee('Disable 2FA')
         ->assertNoJavaScriptErrors();
 
     expect($user->fresh()->two_factor_confirmed_at)->not->toBeNull();
+});
+
+test('the setup dialog shows the key to enter by hand', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $page = visitSecurityPage()
+        ->press('Enable 2FA')
+        ->assertSee('Enable two-factor authentication');
+
+    $secret = decrypt($user->fresh()->two_factor_secret);
+
+    $page->assertSee($secret);
+});
+
+test('a wrong setup code shows its error once, under the code', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    visitSecurityPage()
+        ->press('Enable 2FA')
+        ->press('Continue')
+        ->type(FIRST_CODE_DIGIT, '000000')
+        ->press('Confirm')
+        ->assertSee('The provided two factor authentication code was invalid.')
+        ->assertCount('.ant-form-item-explain-error', 1)
+        ->assertScript("document.body.innerText.split('The provided two factor authentication code was invalid.').length - 1", 1);
+
+    expect($user->fresh()->two_factor_confirmed_at)->toBeNull();
+});
+
+test('a user turns two-factor authentication off after confirming it', function () {
+    $user = User::factory()->withTwoFactor()->create();
+    $this->actingAs($user);
+
+    visitSecurityPage()
+        ->press('Disable 2FA')
+        ->assertSee('Disable two-factor authentication?')
+        ->press('Disable')
+        ->assertSee('Enable 2FA');
+
+    expect($user->fresh()->two_factor_secret)->toBeNull();
+});
+
+test('keeping two-factor authentication on when the confirmation is cancelled', function () {
+    $user = User::factory()->withTwoFactor()->create();
+    $this->actingAs($user);
+
+    visitSecurityPage()
+        ->press('Disable 2FA')
+        ->press('Cancel')
+        ->assertSee('Disable 2FA');
+
+    expect($user->fresh()->two_factor_secret)->not->toBeNull();
+});
+
+test('a user views and regenerates their recovery codes', function () {
+    $user = User::factory()->withTwoFactor()->create();
+    $this->actingAs($user);
+
+    visitSecurityPage()
+        ->assertDontSee('recovery-code-1')
+        ->press('View recovery codes')
+        ->assertSee('recovery-code-1')
+        ->press('Regenerate codes')
+        ->assertSee('Regenerate recovery codes?')
+        ->press('Regenerate')
+        ->assertDontSee('recovery-code-1')
+        ->assertNoJavaScriptErrors();
+
+    expect(json_decode(decrypt($user->fresh()->two_factor_recovery_codes)))->not->toContain('recovery-code-1');
 });
 
 test('a user with two-factor authentication logs in with a code from their app', function () {

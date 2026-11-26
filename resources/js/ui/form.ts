@@ -73,6 +73,13 @@ export type InertiaAntdFormOptions<T> = {
     /** Fields emptied after a successful submit, such as a password. */
     resetOnSuccess?: (keyof T)[];
     /**
+     * The name of the error bag the server puts this form's errors in, which
+     * Fortify's two-factor confirmation does (`confirmTwoFactorAuthentication`).
+     * Without it, Inertia hands the form the bags one by one, and no field
+     * finds its error.
+     */
+    errorBag?: string;
+    /**
      * How a plain antd picker's date reaches the server, by field dot path,
      * where `*` is any row index: `{ starts_at: 'YYYY-MM-DD HH:mm:ss',
      * 'items.*.at': 'HH:mm:ss' }`. A range's path formats both its ends. A
@@ -378,6 +385,7 @@ export function useInertiaForm<T extends Record<string, unknown>>(
     const {
         precognitive = true,
         resetOnSuccess = [],
+        errorBag,
         dateFormats = {},
         onSuccess,
     } = options;
@@ -483,6 +491,7 @@ export function useInertiaForm<T extends Record<string, unknown>>(
             syncData(values);
             inertiaForm.submit(route, {
                 preserveScroll: true,
+                ...(errorBag && { errorBag }),
                 onSuccess: () => {
                     accepted = true;
 
