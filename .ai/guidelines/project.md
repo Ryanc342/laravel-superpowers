@@ -25,7 +25,7 @@
     - Before you resolve the lock files, read `UPGRADING.md` and do what it lists for each template version (`sp-vX.Y.Z` tag) newer than the last one merged. Some of its steps change how the lock files are resolved.
     - The template owns its tooling files: `tests/Pest.php`, `tests/bootstrap.php`, `tests/TestCase.php`, `tests/process-watchdog.sh`, `tests/Browser/PageSweepTest.php`, `.ai/hooks/check.sh`, and the hooks block of `.claude/settings.json` and `.codex/hooks.json`. In a conflict in one of them, take the template's version (`git checkout --theirs <file>`), then add the project's own additions back.
     - The template also owns its UI files, and leaves alone the few a project owns: see "Who owns which file" below.
-    - Merge both sides of a `composer.json` conflict by hand.
+    - Merge both sides of a `composer.json` or `config/boost.php` conflict by hand.
     - For `composer.lock`, start from the project's version (`git checkout --ours composer.lock`), then run `composer update <the packages whose constraints the template changed> --no-scripts`, then `php artisan package:discover` and `php artisan boost:update`. Never add `-W`. When other packages must move too, use `--with-dependencies` and name the package.
     - Treat `package-lock.json` the same way: start from the project's version, merge `package.json` by hand, then run `npm update <the packages the template changed>`. Never add `--force` or `--legacy-peer-deps`.
 - Only laravel-superpowers has an `upstream` remote (laravel/react-starter-kit). Merge its updates the same way: cut `chore/sync-upstream-<YYYY-MM-DD>` from `develop`, `git merge upstream/main`, run both checks, merge into `develop`. "Ours" is always the template. Resolve conflicts like this:
