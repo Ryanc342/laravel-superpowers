@@ -32,9 +32,22 @@ export default defineConfig({
         }),
     ]),
     ssr: {
-        // Pro's ES build imports antd's locale files without their extension,
-        // which Node cannot load, so the SSR bundle carries Pro itself.
-        noExternal: ['@ant-design/pro-components'],
+        // The SSR bundle carries what Node cannot load from node_modules as
+        // the bundler would. Pro's ES build imports antd's locale files
+        // without their extension. Pro's page header and table take the
+        // default export of @rc-component/resize-observer, whose CommonJS
+        // build Node hands over as the whole module, so React gets an object
+        // for a component; its ES build in turn imports @rc-component/util's
+        // files without their extension. The rest stays in node_modules, so
+        // the server has one copy of what antd and Pro share: Pro reads
+        // @rc-component/form's FieldContext, which antd's Form provides.
+        // tests/Browser/PageSweepTest.php renders every page through this
+        // bundle.
+        noExternal: [
+            '@ant-design/pro-components',
+            '@rc-component/resize-observer',
+            '@rc-component/util',
+        ],
     },
     server: {
         watch: {

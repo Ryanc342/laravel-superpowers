@@ -143,10 +143,10 @@ test('a user deletes their account from the sheet that rises on a phone', functi
     $user = User::factory()->create();
     $this->actingAs($user);
 
-    // The settings menu lies across on a phone: the page has taken the width,
-    // so the dialog opens as a sheet and not as a modal that then changes.
+    // Pro shows its menu button on a phone: the page has taken the width, so
+    // the dialog opens as a sheet and not as a modal that then changes.
     visit('/settings/profile')->on()->mobile()
-        ->assertPresent('.ant-menu-horizontal')
+        ->assertPresent('.ant-pro-global-header-collapsed-button')
         ->press('@delete-user-button')
         ->assertPresent('.ant-drawer-bottom')
         ->type('input[name="password"]', 'password')

@@ -1,4 +1,5 @@
 import { createCache, extractStyle, StyleProvider } from '@ant-design/cssinjs';
+import { preloadAllProFieldValueTypes } from '@ant-design/pro-components';
 import type { InertiaAppSSRResponse, Page } from '@inertiajs/core';
 import { createInertiaApp } from '@inertiajs/react';
 import type { ResolvedComponent } from '@inertiajs/react';
@@ -68,10 +69,16 @@ function underDarkScope(rule: string): string {
  * The styles are in `@layer antd`, so the variables antd writes in the browser
  * (outside any layer) take over once it runs, also when the theme changes.
  * They carry no `data-inertia`, so a visit leaves them in place.
+ *
+ * Pro loads each kind of field's code the first time one shows, behind
+ * Suspense, and a server render does not wait for it: the field would be a
+ * "…" until the browser's JavaScript ran. So every kind is loaded before the
+ * first render. The browser loads them before it hydrates (`app.tsx`).
  */
 export function serverRenderer(
     resolve: PageResolver,
 ): (page: Page) => Promise<InertiaAppSSRResponse> {
+    const proFields = preloadAllProFieldValueTypes();
     const inertiaRender = createInertiaApp({
         resolve,
         title: pageTitle,
@@ -96,6 +103,8 @@ export function serverRenderer(
     }
 
     return async (page) => {
+        await proFields;
+
         const light = await renderAs('system', page);
 
         if (light.variables.length === 0) {

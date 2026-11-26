@@ -229,7 +229,6 @@ export default function QueueExample({
                 <ProTable<TaskRow>
                     rowKey="id"
                     columns={columns}
-                    search={{ labelWidth: 'auto' }}
                     options={false}
                     toolBarRender={false}
                     rowSelection={{

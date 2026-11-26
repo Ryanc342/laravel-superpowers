@@ -1,0 +1,36 @@
+/*
+ * The phone layout of the signed-in pages, in CSS, so that the page the
+ * server renders already has it before its JavaScript runs. The server cannot
+ * see the screen, so it renders the computer's layout; antd's own components
+ * that switch layout in JavaScript would jump once React hydrates the page.
+ * Below antd's `md` breakpoint (768px) is a phone, as Pro counts it.
+ *
+ * In `@layer antd`, after antd's own rules: a project's styles still win.
+ */
+
+@layer antd {
+    @media (max-width: 767.98px) {
+        /*
+         * Pro's side menu, and the space it keeps for itself when it is
+         * fixed. Once its JavaScript runs, Pro shows the menu in a drawer on
+         * a phone, inside the drawer's own elements, and renders neither of
+         * these.
+         */
+        .ant-pro-layout .ant-layout > .ant-pro-sider,
+        .ant-pro-layout .ant-layout > :has(+ .ant-pro-sider) {
+            display: none;
+        }
+
+        /* The settings menu (layouts/settings-layout.tsx) lies across. */
+        .settings-layout-menu.ant-menu-inline {
+            display: flex;
+            overflow-x: auto;
+            border-inline-end: 0;
+        }
+
+        .settings-layout-menu.ant-menu-inline > .ant-menu-item {
+            flex: none;
+            width: auto;
+        }
+    }
+}

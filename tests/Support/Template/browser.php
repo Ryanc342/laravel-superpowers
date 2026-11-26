@@ -24,6 +24,22 @@ if (! function_exists('projectSweptPages')) {
     }
 }
 
+if (! function_exists('projectSweptGuestPages')) {
+    /**
+     * The project's own pages for guests, by what they are, for the page
+     * sweep, which opens them signed out next to the template's sign-in pages
+     * and home page: `['the pricing page' => '/pricing']`. A project declares
+     * its own `projectSweptGuestPages()` next to its `projectSweptPages()`.
+     * The template has none.
+     *
+     * @return array<string, string>
+     */
+    function projectSweptGuestPages(): array
+    {
+        return [];
+    }
+}
+
 if (! function_exists('visitSecurityPage')) {
     /**
      * Open the security settings page as the signed-in user, confirming the

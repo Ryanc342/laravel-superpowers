@@ -82,6 +82,10 @@ jobs:
           out="$RUNNER_TEMP/production-build"
           APP_ENV=production npx vp build --outDir "$out/client" --emptyOutDir
           APP_ENV=production npx vp build --ssr --outDir "$out/ssr" --emptyOutDir
+          # A manifest that moved would make the check below pass on nothing.
+          for manifest in "$out/client/manifest.json" "$out/ssr/ssr-manifest.json"; do
+            test -f "$manifest" || { echo "The production build wrote no $manifest." >&2; exit 1; }
+          done
           if grep -l 'resources/js/pages/examples/' "$out/client/manifest.json" "$out/ssr/ssr-manifest.json"; then
             echo 'The production build has example pages in it.' >&2
             exit 1
@@ -143,6 +147,8 @@ jobs:
       - name: Install Chromium for Playwright
         run: npx playwright install --with-deps chromium
 
+      # It builds the SSR bundle too: the page sweep renders every page
+      # through it, on an SSR server of the test run's own.
       - name: Run the browser tests
         run: composer check:browser
 

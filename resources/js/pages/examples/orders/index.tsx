@@ -193,7 +193,6 @@ export default function OrdersIndex({
                     <ProTable<OrderRow>
                         rowKey="id"
                         columns={columns}
-                        search={{ labelWidth: 'auto' }}
                         options={false}
                         toolBarRender={false}
                         locale={{

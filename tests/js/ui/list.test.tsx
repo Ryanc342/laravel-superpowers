@@ -9,6 +9,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Grid } from 'antd';
+import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test';
 import { setLanguage } from '@/lib/i18n';
@@ -303,17 +304,18 @@ test('the hook gives ProTable the rows, the paging from the server and a scrolli
         total: 45,
         pageSizeOptions: [10, 20, 50, 100],
         showSizeChanger: true,
-        simple: false,
     });
 });
 
-test('the pagination is simple below the md breakpoint and before the screen is known', () => {
-    expect(tableProps(listProps(), { xs: true })).toMatchObject({
-        pagination: { simple: true },
-    });
-    expect(tableProps(listProps(), {})).toMatchObject({
-        pagination: { simple: true },
-    });
+// The server cannot see the screen: a pager that changed with it would jump
+// once the server's page hydrated. antd's CSS fits the one pager to a phone.
+test('the pager is the same on every screen, and before the screen is known', () => {
+    const pager = (screens: object) =>
+        JSON.stringify(tableProps(listProps(), screens).pagination);
+
+    expect(pager({ xs: true })).toBe(pager({ md: true }));
+    expect(pager({})).toBe(pager({ md: true }));
+    expect(tableProps(listProps()).pagination).not.toHaveProperty('simple');
 });
 
 test('the total is a plural sentence that has Chinese', () => {
@@ -535,7 +537,6 @@ function Orders({ list }: { list: ListProps<Order> }) {
         <ProTable<Order>
             rowKey="id"
             columns={columns(list)}
-            search={{ labelWidth: 'auto' }}
             options={false}
             {...table}
         />
@@ -596,6 +597,35 @@ test('the search form has the name of the list, so its fields have the same ids 
 
     expect(ids(container)).toEqual(['orders_search_name']);
     expect(ids(server)).toEqual(ids(container));
+});
+
+// Pro's search form lays its fields out by its width, which it takes as
+// 1024px on the server and reads from the page in the browser.
+test("the search form has the server's columns while React hydrates the page, then Pro's own", async () => {
+    const searches: unknown[] = [];
+
+    function SearchOf({ list }: { list: ListProps<Order> }) {
+        searches.push(useInertiaTable(list, 'orders').search);
+
+        return null;
+    }
+
+    const server = document.createElement('div');
+    server.innerHTML = renderToString(<SearchOf list={listProps()} />);
+
+    expect(searches).toEqual([{ labelWidth: 'auto', span: 8 }]);
+
+    searches.length = 0;
+    await act(async () => {
+        hydrateRoot(server, <SearchOf list={listProps()} />);
+    });
+
+    expect(searches[0]).toEqual({ labelWidth: 'auto', span: 8 });
+    expect(searches.at(-1)).toEqual({ labelWidth: 'auto' });
+
+    // A page the browser renders by itself has no server page to match. The
+    // page sweep (tests/Browser/PageSweepTest.php) checks the hydration itself.
+    expect(tableProps(listProps()).search).toEqual({ labelWidth: 'auto' });
 });
 
 test('the search form starts with the filters of the URL, submits them and starts the list over', async () => {

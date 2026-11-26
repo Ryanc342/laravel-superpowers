@@ -77,6 +77,31 @@ function block(css: string, selector: string): string | undefined {
         : css.slice(start + selector.length + 1, css.indexOf('}', start));
 }
 
+// Pro loads each kind of field's code the first time one shows, and a render
+// on the server does not wait for it: the field would be a "…" until the
+// browser's JavaScript ran. First in the file, before another render has
+// loaded any field's code.
+test('the server renders Pro\'s fields themselves, not their "…" while their code loads', async () => {
+    const { body } = await renderPage(
+        page('examples/orders/index', '/examples/orders', {
+            orders: {
+                rows: [],
+                total: 0,
+                page: 1,
+                perPage: 20,
+                perPageOptions: [10, 20, 50, 100],
+                sort: null,
+                filters: [],
+                prefix: '',
+            },
+            hasOrders: true,
+        }),
+    );
+
+    expect(body).toContain('ant-pro-query-filter');
+    expect(body).not.toContain('data-pro-field-loading');
+});
+
 test('the dashboard example renders on the server inside the app shell', async () => {
     const { body } = await renderPage(
         page('examples/dashboard', '/examples/dashboard', salesFigures),

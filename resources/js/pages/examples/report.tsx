@@ -131,7 +131,6 @@ export default function ReportExample({ sales }: { sales: SalesList }) {
                     <ProTable<SalesRow>
                         rowKey="product"
                         columns={columns}
-                        search={{ labelWidth: 'auto' }}
                         options={false}
                         toolBarRender={false}
                         summary={() => (

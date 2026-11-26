@@ -3,8 +3,7 @@ import type {
     ProFormInstance,
     ProTableProps,
 } from '@ant-design/pro-components';
-import { Grid } from 'antd';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import type { Key, RefObject } from 'react';
 import { tChoice } from '@/lib/i18n';
 
@@ -161,6 +160,9 @@ type Params = Record<string, unknown>;
 
 type Table<Row> = ProTableProps<Row, Params>;
 
+/** The settings of `ProTable`'s search form. */
+type SearchSettings<Row> = Exclude<Table<Row>['search'], false | undefined>;
+
 /** The props `useInertiaTable` gives `ProTable`: spread them on it. */
 export type InertiaTableProps<Row> = Required<
     Pick<
@@ -173,7 +175,24 @@ export type InertiaTableProps<Row> = Required<
         | 'onReset'
         | 'scroll'
     >
-> & { formRef: RefObject<ProFormInstance | undefined> };
+> & {
+    formRef: RefObject<ProFormInstance | undefined>;
+    search: SearchSettings<Row>;
+};
+
+const noSubscription = () => () => {};
+
+/**
+ * False while React hydrates the server's page, true once it has, and true
+ * from the start for a page the browser renders by itself, after a visit.
+ */
+function useIsHydrated(): boolean {
+    return useSyncExternalStore(
+        noSubscription,
+        () => true,
+        () => false,
+    );
+}
 
 /** What the sort of a table change holds that matters here: antd's `SorterResult`, for any row type. */
 type Sorter = {
@@ -227,12 +246,16 @@ export function sortOrderOf(
  * ];
  * <ProTable rowKey="id" columns={columns} {...table} />
  * ```
+ *
+ * A prop the page sets in place of one of these goes after the spread, and a
+ * change to the search form's settings keeps the glue's:
+ * `search={{ ...table.search, defaultCollapsed: false }}`, or `search={false}`.
  */
 export function useInertiaTable<Row>(
     list: ListProps<Row>,
     propName: string,
 ): InertiaTableProps<Row> {
-    const screens = Grid.useBreakpoint();
+    const isHydrated = useIsHydrated();
     const formRef = useRef<ProFormInstance | undefined>(undefined);
     const filters = Array.isArray(list.filters) ? {} : list.filters;
 
@@ -284,7 +307,10 @@ export function useInertiaTable<Row>(
             // Hiding the pager hides the size menu with it. So a list that fits one
             // page of 50 still shows it: the menu is the way back to 10.
             hideOnSinglePage: list.total <= Math.min(...list.perPageOptions),
-            simple: screens.md !== true,
+            // The same pager on every screen: antd's CSS drops the size menu
+            // and some page numbers on a small one, and the table wraps the
+            // rest. One that changed in JavaScript would jump once the
+            // server's page hydrated.
         },
         onChange: (pagination, _filters, sorter, extra) => {
             if (extra.action === 'paginate') {
@@ -303,6 +329,13 @@ export function useInertiaTable<Row>(
         // the name, so the server's ids would not be the browser's.
         form: { name: `${propName}_search`, initialValues: filters },
         formRef,
+        // Pro's search form lays its fields out by its own width, which it
+        // reads in the browser and takes as 1024px on the server, so the
+        // server's page would not be the one React hydrates. Until React
+        // has hydrated it, the form takes the columns Pro gives 1024px
+        // (three a row, labels beside the fields); then Pro's own, by its
+        // width.
+        search: { labelWidth: 'auto', ...(!isHydrated && { span: 8 }) },
         onSubmit: (params) => visit({ filters: params }),
         onReset: () => visit({ filters: {} }),
         scroll: { x: 'max-content' },
