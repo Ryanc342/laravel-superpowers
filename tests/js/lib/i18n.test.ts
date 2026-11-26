@@ -23,6 +23,20 @@ test('t fills a longer placeholder before the shorter one that starts it', () =>
     );
 });
 
+test('t keeps a value that looks like a replacement pattern as it is', () => {
+    expect(t('Hello :name', { name: 'Ca$$h' })).toBe('Hello Ca$$h');
+    expect(t('Hello :name', { name: 'A$&B' })).toBe('Hello A$&B');
+    expect(t('Hello :name', { name: "$` and $'" })).toBe("Hello $` and $'");
+});
+
+test('t fills every placeholder in one pass, so a value is never read as a placeholder', () => {
+    expect(t(':a / :b', { a: 'x :b', b: 'y' })).toBe('x :b / y');
+});
+
+test('t matches a placeholder name literally', () => {
+    expect(t(':a.b and :axb', { 'a.b': 'x' })).toBe('x and :axb');
+});
+
 test('t fills a number', () => {
     setLanguage('zh_CN', { 'Retry in :seconds s': ':seconds 秒后重试' });
 
@@ -103,6 +117,15 @@ test('tChoice fills the extra placeholders next to :count', () => {
             name: 'Ada',
         }),
     ).toBe('Ada has 3 tasks');
+});
+
+test('tChoice keeps a value that looks like :count or a replacement pattern as it is', () => {
+    expect(tChoice(':name has :count tasks', 3, { name: ':count' })).toBe(
+        ':count has 3 tasks',
+    );
+    expect(tChoice(':name has :count tasks', 3, { name: 'Ca$$h' })).toBe(
+        'Ca$$h has 3 tasks',
+    );
 });
 
 test('a plural with no translation reads in English, even on a Chinese page', () => {

@@ -44,24 +44,43 @@ function translationOf(key: string): string | undefined {
     return typeof sentence === 'string' ? sentence : undefined;
 }
 
-/** Fills `:name`, `:Name` and `:NAME` the way Laravel does, longer names first. */
-function fill(text: string, replace: Replacements): string {
-    return Object.entries(replace)
-        .sort(([a], [b]) => b.length - a.length)
-        .reduce((result, [name, value]) => {
-            const replacement = String(value);
+function upperFirst(text: string): string {
+    return text.charAt(0).toUpperCase() + text.slice(1);
+}
 
-            return result
-                .replaceAll(`:${name}`, replacement)
-                .replaceAll(
-                    `:${name.charAt(0).toUpperCase()}${name.slice(1)}`,
-                    replacement.charAt(0).toUpperCase() + replacement.slice(1),
-                )
-                .replaceAll(
-                    `:${name.toUpperCase()}`,
-                    replacement.toUpperCase(),
-                );
-        }, text);
+function escapeForRegExp(text: string): string {
+    return text.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+}
+
+/**
+ * Fills `:name`, `:Name` and `:NAME` the way Laravel's `makeReplacements` does:
+ * in one pass, longer names first, so a value is never read as a placeholder
+ * itself, and a value is put in as it is (`$&` is not a pattern).
+ */
+function fill(text: string, replace: Replacements): string {
+    const replacements = new Map<string, string>();
+
+    for (const [name, value] of Object.entries(replace)) {
+        const replacement = String(value);
+
+        replacements.set(`:${upperFirst(name)}`, upperFirst(replacement));
+        replacements.set(`:${name.toUpperCase()}`, replacement.toUpperCase());
+        replacements.set(`:${name}`, replacement);
+    }
+
+    if (replacements.size === 0) {
+        return text;
+    }
+
+    const placeholders = [...replacements.keys()]
+        .sort((a, b) => b.length - a.length)
+        .map(escapeForRegExp)
+        .join('|');
+
+    return text.replaceAll(
+        new RegExp(placeholders, 'g'),
+        (placeholder) => replacements.get(placeholder) ?? placeholder,
+    );
 }
 
 export function t(key: string, replace: Replacements = {}): string {
