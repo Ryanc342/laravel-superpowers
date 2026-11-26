@@ -66,13 +66,12 @@ test('a first visit follows the system and is light on a light system', () => {
     expect(root.classList.contains('dark')).toBe(false);
 });
 
-test('setting dark writes the cookie for a year, remembers it and turns the page dark', () => {
+test('setting dark writes the cookie for a year and turns the page dark', () => {
     const { result } = renderHook(() => useAppearance());
 
     act(() => result.current.setAppearance('dark'));
 
     expect(document.cookie).toContain('appearance=dark');
-    expect(localStorage.getItem('appearance')).toBe('dark');
     expect(result.current.appearance).toBe('dark');
     expect(result.current.resolved).toBe('dark');
     expect(root.classList.contains('dark')).toBe(true);
@@ -134,13 +133,24 @@ test('a returning visitor starts with the appearance in the cookie', () => {
     expect(root.classList.contains('dark')).toBe(true);
 });
 
-test('a visitor whose cookie has expired keeps the appearance in local storage', () => {
+test('the choice is kept in the cookie only, and nothing is written to local storage', () => {
+    const write = vi.spyOn(Storage.prototype, 'setItem');
+    const { result } = renderHook(() => useAppearance());
+
+    act(() => result.current.setAppearance('dark'));
+
+    expect(document.cookie).toContain('appearance=dark');
+    expect(write).not.toHaveBeenCalled();
+    expect(localStorage.length).toBe(0);
+});
+
+test('a visitor whose cookie has expired starts with the system, whatever local storage holds', () => {
     localStorage.setItem('appearance', 'dark');
 
     const { result } = renderHook(() => useAppearance());
 
-    expect(result.current.appearance).toBe('dark');
-    expect(root.classList.contains('dark')).toBe(true);
+    expect(result.current.appearance).toBe('system');
+    expect(root.classList.contains('dark')).toBe(false);
 });
 
 test('a cookie that names no appearance is ignored', () => {

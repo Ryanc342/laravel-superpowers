@@ -12,10 +12,10 @@ export type UseAppearance = {
 };
 
 /**
- * The name of the cookie and of the local storage key. The server reads the
- * cookie (`HandleAppearance`) to paint the first page in the right theme.
+ * The name of the cookie that keeps the choice. The server reads it
+ * (`HandleAppearance`) to paint the first page in the right theme.
  */
-const STORAGE_KEY = 'appearance';
+const COOKIE_NAME = 'appearance';
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 
@@ -47,27 +47,16 @@ export function resolveAppearance(
 }
 
 /**
- * The saved choice, in the browser only. The cookie comes first, since the
- * server painted the page by it; local storage keeps the choice after the
- * cookie has expired.
+ * The saved choice, in the browser only: the cookie, which is also what the
+ * server painted the page by. Without a valid one the choice is `system`.
  */
 function savedAppearance(): Appearance {
     const cookie = document.cookie
         .split('; ')
-        .find((entry) => entry.startsWith(`${STORAGE_KEY}=`))
-        ?.slice(STORAGE_KEY.length + 1);
+        .find((entry) => entry.startsWith(`${COOKIE_NAME}=`))
+        ?.slice(COOKIE_NAME.length + 1);
 
-    if (isAppearance(cookie)) {
-        return cookie;
-    }
-
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-
-        return isAppearance(stored) ? stored : 'system';
-    } catch {
-        return 'system';
-    }
+    return isAppearance(cookie) ? cookie : 'system';
 }
 
 function subscribeToChoice(listener: () => void): () => void {
@@ -89,13 +78,7 @@ function browserPrefersDark(): boolean {
 }
 
 function setAppearance(appearance: Appearance): void {
-    document.cookie = `${STORAGE_KEY}=${appearance};path=/;max-age=${COOKIE_MAX_AGE};SameSite=Lax`;
-
-    try {
-        localStorage.setItem(STORAGE_KEY, appearance);
-    } catch {
-        // The cookie alone carries the choice.
-    }
+    document.cookie = `${COOKIE_NAME}=${appearance};path=/;max-age=${COOKIE_MAX_AGE};SameSite=Lax`;
 
     listeners.forEach((listener) => listener());
 }

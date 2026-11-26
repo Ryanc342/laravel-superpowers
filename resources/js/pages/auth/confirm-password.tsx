@@ -40,6 +40,7 @@ export default function ConfirmPassword() {
                 <Form.Item label={t('Password')} name="password" required>
                     <Input.Password
                         name="password"
+                        // oxlint-disable-next-line jsx-a11y/no-autofocus
                         autoFocus
                         autoComplete="current-password"
                     />

@@ -27,7 +27,6 @@ declare module '@inertiajs/core' {
             // The menu's group of page-type examples, in local and testing only: null elsewhere.
             examples: SharedMenuItem[] | null;
             sidebarOpen: boolean;
-            perPageOptions: number[];
             [key: string]: unknown;
         };
     }

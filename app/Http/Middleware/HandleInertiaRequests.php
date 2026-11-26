@@ -63,9 +63,8 @@ class HandleInertiaRequests extends Middleware
             // The menu's group of page-type examples, which exist only in local development and in
             // the tests (EnsureExamplesExist): null anywhere else.
             'examples' => app()->environment(EnsureExamplesExist::ENVIRONMENTS) ? $this->exampleMenu() : null,
+            // Whether the side menu is painted expanded: layouts/app-layout.tsx keeps its state in the sidebar_state cookie.
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
-            // The rows-per-page choices under every paginated list (components/shared/pagination.tsx).
-            'perPageOptions' => [10, 20, 50, 100],
         ];
     }
 

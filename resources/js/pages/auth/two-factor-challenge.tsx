@@ -47,6 +47,7 @@ export default function TwoFactorChallenge() {
                     >
                         <Input
                             name="recovery_code"
+                            // oxlint-disable-next-line jsx-a11y/no-autofocus
                             autoFocus
                             autoComplete="off"
                         />
@@ -55,6 +56,7 @@ export default function TwoFactorChallenge() {
                     <Form.Item name="code">
                         <Input.OTP
                             length={6}
+                            // oxlint-disable-next-line jsx-a11y/no-autofocus
                             autoFocus
                             inputMode="numeric"
                             autoComplete="one-time-code"

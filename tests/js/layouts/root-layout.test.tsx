@@ -53,7 +53,6 @@ afterEach(() => {
     document.documentElement.removeAttribute('lang');
     document.documentElement.classList.remove('dark');
     document.cookie = 'appearance=;path=/;max-age=0';
-    localStorage.clear();
 });
 
 test('a Chinese page gets Chinese sentences, antd text, dates and <html lang>', () => {

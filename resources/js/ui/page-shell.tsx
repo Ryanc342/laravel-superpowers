@@ -1,6 +1,3 @@
-import type { ReactElement } from 'react';
-import { Toaster } from '@/components/ui/sonner';
-import { TooltipProvider } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import RootLayout from '@/layouts/root-layout';
@@ -36,14 +33,4 @@ export function pageLayouts(name: string) {
         default:
             return [RootLayout, AppLayout];
     }
-}
-
-/** What surrounds the app: what the pages not yet built with antd need. */
-export function appProviders(app: ReactElement): ReactElement {
-    return (
-        <TooltipProvider delayDuration={0}>
-            {app}
-            <Toaster />
-        </TooltipProvider>
-    );
 }

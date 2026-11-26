@@ -6,7 +6,7 @@ import type { ReactElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { ServerAppearance } from '@/ui/appearance';
 import type { Appearance } from '@/ui/appearance';
-import { appProviders, pageLayouts, pageTitle } from '@/ui/page-shell';
+import { pageLayouts, pageTitle } from '@/ui/page-shell';
 import { DARK_SCOPE } from '@/ui/theme';
 
 export type PageResolver = (
@@ -77,7 +77,6 @@ export function serverRenderer(
         title: pageTitle,
         layout: pageLayouts,
         strictMode: true,
-        withApp: appProviders,
     }) as Promise<InertiaRender>;
 
     async function renderAs(appearance: Appearance, page: Page) {

@@ -73,33 +73,9 @@ export default defineConfig({
             'react/rules-of-hooks': 'error',
             'react/exhaustive-deps': 'error',
             // It asks for <output> in place of role="status" and the like,
-            // but a live region on a div or span is the standard ARIA pattern
-            // (the shared loading and status components use it).
+            // but a live region on a div or span is the standard ARIA pattern.
             'jsx-a11y/prefer-tag-over-role': 'off',
         },
-        overrides: [
-            {
-                // The starter kit's own auth screens order focus with positive
-                // tabIndex values and autofocus their first field. They stay
-                // as the starter kit ships them, so merging its updates stays
-                // easy; every other file is held to these two rules.
-                files: [
-                    'resources/js/pages/auth/confirm-password.tsx',
-                    'resources/js/pages/auth/forgot-password.tsx',
-                    'resources/js/pages/auth/login.tsx',
-                    'resources/js/pages/auth/register.tsx',
-                    'resources/js/pages/auth/reset-password.tsx',
-                    'resources/js/pages/auth/two-factor-challenge.tsx',
-                    'resources/js/components/passkey-register.tsx',
-                    'resources/js/components/two-factor-recovery-codes.tsx',
-                    'resources/js/components/two-factor-setup-modal.tsx',
-                ],
-                rules: {
-                    'jsx-a11y/tabindex-no-positive': 'off',
-                    'jsx-a11y/no-autofocus': 'off',
-                },
-            },
-        ],
         ignorePatterns: [
             'vendor/**',
             'node_modules/**',
@@ -107,7 +83,6 @@ export default defineConfig({
             'bootstrap/ssr/**',
             'tailwind.config.js',
             'resources/js/actions/**',
-            'resources/js/components/ui/*',
             'resources/js/routes/**',
             'resources/js/wayfinder/**',
         ],
@@ -126,7 +101,6 @@ export default defineConfig({
         ignorePatterns: [
             '.github/**',
             'composer.json',
-            'resources/js/components/ui/*',
             'resources/views/mail/*',
             // Claude Code rewrites it with two-space indents whenever it
             // saves a permission.
@@ -143,7 +117,6 @@ export default defineConfig({
             'CLAUDE.md',
         ],
         sortTailwindcss: {
-            functions: ['clsx', 'cn', 'cva'],
             stylesheet: 'resources/css/app.css',
         },
     },

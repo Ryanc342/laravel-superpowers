@@ -41,6 +41,7 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
                 <Form.Item label={t('Password')} name="password" required>
                     <Input.Password
                         name="password"
+                        // oxlint-disable-next-line jsx-a11y/no-autofocus
                         autoFocus
                         autoComplete="new-password"
                         passwordrules={passwordRules}

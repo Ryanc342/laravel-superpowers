@@ -24,6 +24,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                     <Input
                         name="email"
                         type="email"
+                        // oxlint-disable-next-line jsx-a11y/no-autofocus
                         autoFocus
                         autoComplete="email"
                     />

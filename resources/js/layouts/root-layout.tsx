@@ -37,9 +37,9 @@ function Feedback(): null {
  * a subscription, and a component that reads no props would keep the old
  * sentences after a switch, so a new language renders it afresh.
  *
- * `App` renders no element of its own (`component={false}`): its wrapper
- * would set antd's text colour and 14px font size on every page, including the
- * ones not yet built with antd.
+ * `App`'s wrapper element sets antd's text colour, font and 14px size for
+ * everything inside it, so text outside an antd component follows the theme
+ * too, in dark mode as well.
  */
 export default function RootLayout({
     children,
@@ -64,7 +64,7 @@ export default function RootLayout({
                 theme={resolved === 'dark' ? darkTheme : lightTheme}
                 locale={antdLocaleFor(locale)}
             >
-                <App component={false}>
+                <App>
                     <Feedback />
                     <Fragment key={locale}>{children}</Fragment>
                 </App>

@@ -1,6 +1,6 @@
 import { createInertiaApp } from '@inertiajs/react';
 import 'virtual:antd.css';
-import { appProviders, pageLayouts, pageTitle } from '@/ui/page-shell';
+import { pageLayouts, pageTitle } from '@/ui/page-shell';
 import { resolvePage } from '@/ui/pages';
 
 // The pages are found in ui/pages.ts, which the SSR server shares, so that a
@@ -10,7 +10,6 @@ void createInertiaApp({
     title: pageTitle,
     layout: pageLayouts,
     strictMode: true,
-    withApp: appProviders,
     progress: {
         color: '#4B5563',
     },

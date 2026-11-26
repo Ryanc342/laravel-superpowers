@@ -85,7 +85,6 @@ function page(
                 },
             ],
             sidebarOpen: true,
-            perPageOptions: [10, 20, 50, 100],
             ...props,
         },
     } as unknown as Page;

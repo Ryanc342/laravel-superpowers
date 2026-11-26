@@ -24,7 +24,12 @@ export default function Register({ passwordRules }: { passwordRules: string }) {
 
             <Form {...formProps}>
                 <Form.Item label={t('Name')} name="name" required>
-                    <Input name="name" autoFocus autoComplete="name" />
+                    <Input
+                        name="name"
+                        // oxlint-disable-next-line jsx-a11y/no-autofocus
+                        autoFocus
+                        autoComplete="name"
+                    />
                 </Form.Item>
 
                 <Form.Item label={t('Email address')} name="email" required>
