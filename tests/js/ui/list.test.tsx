@@ -1,3 +1,4 @@
+import { mergeDataIntoQueryString } from '@inertiajs/core';
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns } from '@ant-design/pro-components';
 import {
@@ -52,14 +53,34 @@ afterEach(() => {
     setLanguage('en', []);
 });
 
-const query = (search: string) => new URLSearchParams(search);
+/** A query's values by key; a key that repeats has a list of them, in order. */
+function grouped(query: URLSearchParams): Record<string, string | string[]> {
+    const pairs: Record<string, string | string[]> = {};
+
+    for (const [key, value] of query) {
+        const seen = pairs[key];
+
+        pairs[key] = seen === undefined ? value : [...[seen].flat(), value];
+    }
+
+    return pairs;
+}
+
+/** What a change to the list makes of a URL that has this query. */
+function changed(
+    list: ListProps<Order>,
+    change: Parameters<typeof listQuery>[1],
+    search: string,
+) {
+    return grouped(listQuery(list, change, new URLSearchParams(search)));
+}
 
 test('changing the rows per page goes back to the first page and keeps another list on its page', () => {
     expect(
-        listQuery(
+        changed(
             listProps(),
             { perPage: 50 },
-            query('page=3&items_page=3&status=open'),
+            'page=3&items_page=3&status=open',
         ),
     ).toEqual({
         page: '1',
@@ -71,10 +92,10 @@ test('changing the rows per page goes back to the first page and keeps another l
 
 test('changing the page keeps the rows per page, the sort and the filters', () => {
     expect(
-        listQuery(
+        changed(
             listProps(),
             { page: 3 },
-            query('per_page=50&sort=-total&filter[status]=paid&page=2'),
+            'per_page=50&sort=-total&filter[status]=paid&page=2',
         ),
     ).toEqual({
         page: '3',
@@ -86,27 +107,27 @@ test('changing the page keeps the rows per page, the sort and the filters', () =
 
 test('changing the sort goes back to the first page, and null clears it', () => {
     expect(
-        listQuery(listProps(), { sort: '-total' }, query('page=3&sort=name')),
+        changed(listProps(), { sort: '-total' }, 'page=3&sort=name'),
     ).toEqual({ page: '1', sort: '-total' });
 
-    expect(
-        listQuery(listProps(), { sort: null }, query('page=3&sort=name')),
-    ).toEqual({ page: '1' });
+    expect(changed(listProps(), { sort: null }, 'page=3&sort=name')).toEqual({
+        page: '1',
+    });
 });
 
 test('new filters replace the old ones and send the list back to the first page', () => {
     expect(
-        listQuery(
+        changed(
             listProps(),
             { filters: { status: 'open' } },
-            query('page=3&filter[status]=paid&filter[customer]=Ada&sort=name'),
+            'page=3&filter[status]=paid&filter[customer]=Ada&filter[tags][]=a&sort=name',
         ),
     ).toEqual({ page: '1', sort: 'name', 'filter[status]': 'open' });
 });
 
 test('an empty filter is dropped', () => {
     expect(
-        listQuery(
+        changed(
             listProps(),
             {
                 filters: {
@@ -117,18 +138,18 @@ test('an empty filter is dropped', () => {
                     owner: null,
                 },
             },
-            query(''),
+            '',
         ),
     ).toEqual({ page: '1', 'filter[status]': 'open' });
 
     expect(
-        listQuery(listProps(), { filters: {} }, query('filter[status]=paid')),
+        changed(listProps(), { filters: {} }, 'filter[status]=paid'),
     ).toEqual({ page: '1' });
 });
 
 test('a filter that is a number, a switch, a list or an object is sent as text', () => {
     expect(
-        listQuery(
+        changed(
             listProps(),
             {
                 filters: {
@@ -139,17 +160,71 @@ test('a filter that is a number, a switch, a list or an object is sent as text',
                     created: { from: '2026-11-01', to: '2026-11-30' },
                 },
             },
-            query(''),
+            '',
         ),
     ).toEqual({
         page: '1',
         'filter[min]': '0',
         'filter[archived]': '0',
         'filter[paid]': '1',
-        'filter[tags][0]': 'a',
-        'filter[tags][1]': 'b',
+        'filter[tags][]': ['a', 'b'],
         'filter[created][from]': '2026-11-01',
         'filter[created][to]': '2026-11-30',
+    });
+});
+
+test('a list filter keeps its order and survives a change of page', () => {
+    const first = listQuery(
+        listProps(),
+        {
+            filters: {
+                tags: ['b', 'a', 'c'],
+                range: ['2026-11-01', '2026-11-30'],
+            },
+        },
+        new URLSearchParams('page=4'),
+    );
+
+    // The address bar holds the query, and the next change reads it back.
+    const next = listQuery(
+        listProps(),
+        { page: 2 },
+        new URLSearchParams(first.toString()),
+    );
+
+    expect(grouped(next)).toEqual({
+        page: '2',
+        'filter[tags][]': ['b', 'a', 'c'],
+        'filter[range][]': ['2026-11-01', '2026-11-30'],
+    });
+});
+
+test('another list keeps its repeated and bracketed keys when this one changes', () => {
+    const others =
+        'a[]=1&a[]=2&items_filter[status][]=paid&items_filter[status][]=open&items_page=3&items_sort=-name';
+
+    expect(changed(listProps(), { page: 3 }, `${others}&page=2`)).toEqual({
+        'a[]': ['1', '2'],
+        'items_filter[status][]': ['paid', 'open'],
+        items_page: '3',
+        items_sort: '-name',
+        page: '3',
+    });
+
+    expect(
+        changed(
+            listProps({ prefix: 'orders_' }),
+            { filters: { status: 'open' }, perPage: 10 },
+            `${others}&orders_filter[status][]=x&orders_filter[status][]=y`,
+        ),
+    ).toEqual({
+        'a[]': ['1', '2'],
+        'items_filter[status][]': ['paid', 'open'],
+        items_page: '3',
+        items_sort: '-name',
+        orders_per_page: '10',
+        orders_page: '1',
+        'orders_filter[status]': 'open',
     });
 });
 
@@ -157,10 +232,10 @@ test('a prefix applies to every key of the list and to none of another list', ()
     const orders = listProps({ prefix: 'orders_' });
 
     expect(
-        listQuery(
+        changed(
             orders,
             { perPage: 10 },
-            query('orders_page=3&items_page=3&items_per_page=50&page=4'),
+            'orders_page=3&items_page=3&items_per_page=50&page=4',
         ),
     ).toEqual({
         orders_page: '1',
@@ -171,10 +246,10 @@ test('a prefix applies to every key of the list and to none of another list', ()
     });
 
     expect(
-        listQuery(
+        changed(
             orders,
             { sort: '-total', filters: { status: 'paid' } },
-            query('orders_filter[status]=open&filter[status]=mine'),
+            'orders_filter[status]=open&filter[status]=mine',
         ),
     ).toEqual({
         orders_page: '1',
@@ -185,14 +260,15 @@ test('a prefix applies to every key of the list and to none of another list', ()
 });
 
 test('a page change alone does not touch the other keys, and an explicit page wins', () => {
-    expect(listQuery(listProps(), { page: 1 }, query('page=4&x=1'))).toEqual({
+    expect(changed(listProps(), { page: 1 }, 'page=4&x=1')).toEqual({
         page: '1',
         x: '1',
     });
 
-    expect(
-        listQuery(listProps(), { page: 2, perPage: 50 }, query('page=4')),
-    ).toEqual({ page: '2', per_page: '50' });
+    expect(changed(listProps(), { page: 2, perPage: 50 }, 'page=4')).toEqual({
+        page: '2',
+        per_page: '50',
+    });
 });
 
 /** The props the hook gives ProTable, for a list on a screen as wide as `screens` says. */
@@ -287,15 +363,36 @@ test('a table change visits the list with the state of the URL and reloads only 
 
     expect(get).toHaveBeenCalledTimes(1);
     expect(get).toHaveBeenCalledWith(
-        '/orders',
-        {
-            page: '3',
-            sort: 'name',
-            'filter[status]': 'paid',
-            items_page: '3',
-        },
+        '/orders?page=3&sort=name&filter[status]=paid&items_page=3',
+        {},
         onTable,
     );
+});
+
+test('a visit keeps another list repeated keys as they are and sends them untouched to Inertia', () => {
+    at(
+        '/orders?a[]=1&a[]=2&items_filter[status][]=paid&items_filter[status][]=open&page=2',
+    );
+    const props = tableProps(listProps());
+
+    props.onChange?.({ current: 3, pageSize: 20 }, {}, {}, extra('paginate'));
+
+    expect(get).toHaveBeenCalledWith(
+        '/orders?a[]=1&a[]=2&items_filter[status][]=paid&items_filter[status][]=open&page=3',
+        {},
+        onTable,
+    );
+});
+
+test('Inertia visits an address that has a query as it is when the visit has no data', () => {
+    const [href, data] = mergeDataIntoQueryString(
+        'get',
+        '/orders?a[]=1&a[]=2&filter[tags][]=x&filter[tags][]=y',
+        {},
+    );
+
+    expect(href).toBe('/orders?a[]=1&a[]=2&filter[tags][]=x&filter[tags][]=y');
+    expect(data).toEqual({});
 });
 
 test('picking another page size is a change of rows per page, which resets the page', () => {
@@ -304,11 +401,7 @@ test('picking another page size is a change of rows per page, which resets the p
 
     props.onChange?.({ current: 1, pageSize: 50 }, {}, {}, extra('paginate'));
 
-    expect(get).toHaveBeenCalledWith(
-        '/orders',
-        { page: '1', per_page: '50' },
-        onTable,
-    );
+    expect(get).toHaveBeenCalledWith('/orders?page=1&per_page=50', {}, onTable);
 });
 
 test('sorting a column puts it in the URL, and the direction is a minus sign', () => {
@@ -326,10 +419,10 @@ test('sorting a column puts it in the URL, and the direction is a minus sign', (
     sort('descend');
     sort(null);
 
-    expect(get.mock.calls.map(([, data]) => data)).toEqual([
-        { page: '1', sort: 'total' },
-        { page: '1', sort: '-total' },
-        { page: '1' },
+    expect(get.mock.calls.map(([url]) => url)).toEqual([
+        '/orders?page=1&sort=total',
+        '/orders?page=1&sort=-total',
+        '/orders?page=1',
     ]);
 });
 
@@ -343,7 +436,7 @@ test('a column with a nested data index sorts by its dotted path', () => {
         extra('sort'),
     );
 
-    expect(get.mock.calls[0][1]).toEqual({ page: '1', sort: 'customer.name' });
+    expect(get.mock.calls[0][0]).toBe('/orders?page=1&sort=customer.name');
 });
 
 test('a column filter of the table is not a list filter', () => {
@@ -367,13 +460,21 @@ test('submitting the search form puts its values in the URL, and reset clears th
     props.onReset?.();
 
     expect(get.mock.calls).toEqual([
-        [
-            '/orders',
-            { page: '1', per_page: '50', 'filter[status]': 'open' },
-            onTable,
-        ],
-        ['/orders', { page: '1', per_page: '50' }, onTable],
+        ['/orders?page=1&per_page=50&filter[status]=open', {}, onTable],
+        ['/orders?page=1&per_page=50', {}, onTable],
     ]);
+});
+
+test('a search value that is a list goes to the URL as repeated brackets', () => {
+    const props = tableProps(listProps());
+
+    props.onSubmit?.({ tags: ['a', 'b'], name: 'Order 22' });
+
+    expect(get).toHaveBeenCalledWith(
+        '/orders?page=1&filter[tags][]=a&filter[tags][]=b&filter[name]=Order+22',
+        {},
+        onTable,
+    );
 });
 
 const columns: ProColumns<Order>[] = [
@@ -415,7 +516,7 @@ test('ProTable shows the rows of the page and the total, and a click on a page v
     await userEvent.click(within(screen.getByTitle('3')).getByRole('button'));
 
     expect(get).toHaveBeenCalledTimes(1);
-    expect(get).toHaveBeenCalledWith('/orders', { page: '3' }, onTable);
+    expect(get).toHaveBeenCalledWith('/orders?page=3', {}, onTable);
 });
 
 test('a click on a column title sorts through the URL', async () => {
@@ -424,11 +525,7 @@ test('a click on a column title sorts through the URL', async () => {
 
     await userEvent.click(screen.getByRole('columnheader', { name: /Total/ }));
 
-    expect(get).toHaveBeenCalledWith(
-        '/orders',
-        { page: '1', sort: 'total' },
-        onTable,
-    );
+    expect(get).toHaveBeenCalledWith('/orders?page=1&sort=total', {}, onTable);
 });
 
 test('the search form starts with the filters of the URL, submits them and starts the list over', async () => {
@@ -446,8 +543,8 @@ test('the search form starts with the filters of the URL, submits them and start
 
     expect(get).toHaveBeenCalledTimes(1);
     expect(get).toHaveBeenCalledWith(
-        '/orders',
-        { page: '1', 'filter[name]': 'Order 22' },
+        '/orders?page=1&filter[name]=Order+22',
+        {},
         onTable,
     );
 });
@@ -461,7 +558,7 @@ test('the search form is empty again once reset has cleared the filters', async 
 
     await userEvent.click(screen.getByRole('button', { name: /重\s*置/ }));
 
-    expect(get).toHaveBeenCalledWith('/orders', { page: '1' }, onTable);
+    expect(get).toHaveBeenCalledWith('/orders?page=1', {}, onTable);
 
     // The server answers with the list without filters.
     at('/orders');

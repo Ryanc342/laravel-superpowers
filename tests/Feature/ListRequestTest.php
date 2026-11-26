@@ -29,6 +29,8 @@ class OrdersTestListRequest extends ListRequest
         return [
             'status' => ['in:paid,open'],
             'note' => ['nullable', 'string', 'max:20'],
+            'tags' => ['array'],
+            'tags.*' => ['in:a,b,c'],
         ];
     }
 }
@@ -205,6 +207,30 @@ test('a malformed filter is ignored', function (string $query) {
     'a list' => 'filter[status][]=paid',
     'a nested list' => 'filter[status][a][b]=paid',
     'a filter the list does not have' => 'filter[secret]=1',
+    'a text for a list filter' => 'filter[tags]=a',
+    'a nested list in a list filter' => 'filter[tags][0][]=a',
+    'a value that is not allowed in a list filter' => 'filter[tags][]=zzz',
+]);
+
+test('a filter can be a list, in the order it came', function () {
+    $this->getJson('/test-lists/orders?filter[tags][]=c&filter[tags][]=a&filter[status]=open')
+        ->assertOk()
+        ->assertJsonPath('filters', ['status' => 'open', 'tags' => ['c', 'a']]);
+
+    $this->getJson('/test-lists/orders?filter[tags][0]=b&filter[tags][1]=a')
+        ->assertJsonPath('filters', ['tags' => ['b', 'a']]);
+});
+
+test('an element of a list filter that is not allowed is dropped and the rest stays a list', function (string $query, array $tags) {
+    $this->getJson("/test-lists/orders?{$query}")
+        ->assertOk()
+        ->assertJsonPath('filters', ['tags' => $tags])
+        ->assertJsonPath('total', 45);
+})->with([
+    'the first one' => ['filter[tags][]=zzz&filter[tags][]=b&filter[tags][]=a', ['b', 'a']],
+    'one in the middle' => ['filter[tags][]=a&filter[tags][]=zzz&filter[tags][]=c', ['a', 'c']],
+    'the last one' => ['filter[tags][]=a&filter[tags][]=b&filter[tags][]=zzz', ['a', 'b']],
+    'a nested list among good ones' => ['filter[tags][]=a&filter[tags][1][]=b&filter[tags][]=c', ['a', 'c']],
 ]);
 
 test('a filter with an empty value is not given', function () {
@@ -240,6 +266,12 @@ test('a prefixed list reads its own keys and ignores the plain ones', function (
         ->assertJsonPath('filters', []);
 });
 
+test('a prefixed list reads a list filter and drops a bad element of it', function () {
+    $this->getJson('/test-lists/prefixed?orders_filter[tags][]=zzz&orders_filter[tags][]=a&filter[tags][]=b')
+        ->assertOk()
+        ->assertJsonPath('filters', ['tags' => ['a']]);
+});
+
 test('a bad value of a prefixed list is dropped too', function () {
     $this->getJson('/test-lists/prefixed?orders_page=999&orders_per_page=7&orders_sort=password&orders_filter[status]=nope')
         ->assertOk()
@@ -250,7 +282,7 @@ test('a bad value of a prefixed list is dropped too', function () {
 });
 
 test('the links keep the rest of the query and use the list page name', function () {
-    $next = $this->getJson('/test-lists/prefixed?orders_per_page=10&other_page=3&orders_filter[status]=paid')
+    $next = $this->getJson('/test-lists/prefixed?orders_per_page=10&other_page=3&orders_filter[status]=paid&orders_filter[tags][]=a&orders_filter[tags][]=b')
         ->json('next');
 
     parse_str((string) parse_url($next, PHP_URL_QUERY), $query);
@@ -259,7 +291,7 @@ test('the links keep the rest of the query and use the list page name', function
         'orders_page' => '2',
         'orders_per_page' => '10',
         'other_page' => '3',
-        'orders_filter' => ['status' => 'paid'],
+        'orders_filter' => ['status' => 'paid', 'tags' => ['a', 'b']],
     ]);
 });
 

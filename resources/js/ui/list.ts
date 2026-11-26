@@ -69,83 +69,89 @@ function isEmptyFilter(value: unknown): boolean {
     );
 }
 
+/** Whether a filter value has parts of its own, so a list of them needs the index of each. */
+function isStructured(value: unknown): boolean {
+    return Array.isArray(value) || isPlainObject(value);
+}
+
 /**
- * Writes a filter value under `key` as the text PHP reads back: a list as
- * `key[0]`, `key[1]`, an object as `key[name]`, and a switch as `1` or `0`,
- * which is what Laravel's `boolean` rule accepts.
+ * Adds a filter value to the query under `key`, as the text PHP reads back: a
+ * list of values as `key[]` repeated, in order, an object as `key[name]`, and
+ * a switch as `1` or `0`, which is what Laravel's `boolean` rule accepts.
  */
-function flattenFilter(
-    key: string,
-    value: unknown,
-    into: Record<string, string>,
-): void {
+function addFilter(query: URLSearchParams, key: string, value: unknown): void {
     if (isEmptyFilter(value)) {
         return;
     }
 
     if (Array.isArray(value)) {
         value.forEach((item, index) =>
-            flattenFilter(`${key}[${index}]`, item, into),
+            addFilter(
+                query,
+                isStructured(item) ? `${key}[${index}]` : `${key}[]`,
+                item,
+            ),
         );
     } else if (isPlainObject(value)) {
         for (const [name, item] of Object.entries(value)) {
-            flattenFilter(`${key}[${name}]`, item, into);
+            addFilter(query, `${key}[${name}]`, item);
         }
     } else if (typeof value === 'boolean') {
-        into[key] = value ? '1' : '0';
+        query.append(key, value ? '1' : '0');
     } else {
-        into[key] = String(value);
+        query.append(key, String(value));
     }
 }
 
 /**
- * The query string after a change, as the data of an Inertia visit. It keeps
- * every key the change does not name, including another list's, and writes
- * this list's keys under its prefix. A list goes back to its first page when
- * anything but the page changes, because the page that was shown may not exist
- * any more. Empty filters are left out. A key that repeats (`a[]=1&a[]=2`)
- * keeps only its last value.
+ * The query string after a change. It keeps every key the change does not
+ * name exactly as it was, repeated and bracketed keys of another list
+ * included (`items_filter[status][]=paid&items_filter[status][]=open`), and
+ * writes this list's keys under its prefix. A list goes back to its first page
+ * when anything but the page changes, because the page that was shown may not
+ * exist any more. Empty filters are left out.
  */
 export function listQuery(
     list: ListProps<unknown>,
     change: ListChange,
     current: URLSearchParams,
-): Record<string, string> {
+): URLSearchParams {
     const { prefix } = list;
     const filterPrefix = `${prefix}filter[`;
-    const keepsFilters = change.filters === undefined;
-
-    const query: Record<string, string> = {};
-
-    for (const [key, value] of current) {
-        if (keepsFilters || !key.startsWith(filterPrefix)) {
-            query[key] = value;
-        }
-    }
-
-    for (const [name, value] of Object.entries(change.filters ?? {})) {
-        flattenFilter(`${filterPrefix}${name}]`, value, query);
-    }
-
-    if (change.perPage !== undefined) {
-        query[`${prefix}per_page`] = String(change.perPage);
-    }
-
-    if (change.sort === null || change.sort === '') {
-        delete query[`${prefix}sort`];
-    } else if (change.sort !== undefined) {
-        query[`${prefix}sort`] = change.sort;
-    }
+    const query = new URLSearchParams(current);
 
     const changesTheRows =
         change.perPage !== undefined ||
         change.sort !== undefined ||
         change.filters !== undefined;
 
+    // The page goes first, so a key that is new sits ahead of the rest in the address.
     if (change.page !== undefined) {
-        query[`${prefix}page`] = String(change.page);
+        query.set(`${prefix}page`, String(change.page));
     } else if (changesTheRows) {
-        query[`${prefix}page`] = '1';
+        query.set(`${prefix}page`, '1');
+    }
+
+    if (change.perPage !== undefined) {
+        query.set(`${prefix}per_page`, String(change.perPage));
+    }
+
+    if (change.sort === null || change.sort === '') {
+        query.delete(`${prefix}sort`);
+    } else if (change.sort !== undefined) {
+        query.set(`${prefix}sort`, change.sort);
+    }
+
+    if (change.filters !== undefined) {
+        for (const key of new Set(query.keys())) {
+            if (key.startsWith(filterPrefix)) {
+                query.delete(key);
+            }
+        }
+
+        for (const [name, value] of Object.entries(change.filters)) {
+            addFilter(query, `${filterPrefix}${name}]`, value);
+        }
     }
 
     return query;
@@ -219,9 +225,23 @@ export function useInertiaTable<Row>(
     }, [filtersKey]);
 
     function visit(change: ListChange): void {
+        // Brackets are left as they are, as Inertia writes them. The query is part
+        // of the address and the data is empty, so Inertia does not rebuild it, and
+        // a repeated key (`filter[tags][]=a&filter[tags][]=b`) stays as it is.
+        const search = listQuery(
+            list,
+            change,
+            new URLSearchParams(location.search),
+        )
+            .toString()
+            .replaceAll('%5B', '[')
+            .replaceAll('%5D', ']');
+
         router.get(
-            location.pathname,
-            listQuery(list, change, new URLSearchParams(location.search)),
+            search === ''
+                ? location.pathname
+                : `${location.pathname}?${search}`,
+            {},
             {
                 only: [propName],
                 preserveState: true,

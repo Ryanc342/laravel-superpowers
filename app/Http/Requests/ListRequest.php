@@ -116,7 +116,9 @@ abstract class ListRequest extends FormRequest
 
     /**
      * The filters the list has and the URL gave valid values for, by name
-     * without the prefix. A filter with an empty value is not given.
+     * without the prefix. A filter with an empty value is not given. A filter
+     * the rules allow to be a list (`'tags' => ['array'], 'tags.*' => [...]`)
+     * is a list: an element the rules reject is dropped and the rest stays.
      *
      * @return array<string, mixed>
      */
@@ -124,7 +126,7 @@ abstract class ListRequest extends FormRequest
     {
         $filters = Arr::get($this->validated(), $this->prefix.'filter');
 
-        return is_array($filters) ? array_filter($filters, filled(...)) : [];
+        return is_array($filters) ? array_filter($this->withListsReindexed($filters), filled(...)) : [];
     }
 
     /**
@@ -200,6 +202,22 @@ abstract class ListRequest extends FormRequest
         }
 
         return $rules;
+    }
+
+    /**
+     * The value with every array that has only integer keys renumbered from 0. A
+     * list filter that lost an element to the rules has a gap in its keys, and
+     * would reach the page as an object, not a list.
+     */
+    private function withListsReindexed(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        $value = array_map($this->withListsReindexed(...), $value);
+
+        return array_all(array_keys($value), fn (int|string $key) => is_int($key)) ? array_values($value) : $value;
     }
 
     /**
