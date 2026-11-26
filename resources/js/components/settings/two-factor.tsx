@@ -33,6 +33,10 @@ function sendRequest(
     return new Promise((resolve) =>
         router.visit(route, {
             preserveScroll: true,
+            // `visit` starts the page over unless told otherwise, which would
+            // drop what the page holds (the codes it fetched, whether they
+            // are shown) before `onSuccess` could use it.
+            preserveState: true,
             onSuccess,
             onFinish: () => resolve(),
         }),
@@ -271,7 +275,7 @@ function RecoveryCodes({ twoFactor }: { twoFactor: UseTwoFactorAuthReturn }) {
             <Flex vertical gap="middle">
                 <Typography.Text>
                     {t(
-                        'Recovery codes let you regain access if you lose your 2FA device. Store them in a secure password manager.',
+                        'Recovery codes let you sign in if you lose your 2FA device.',
                     )}
                 </Typography.Text>
                 <Flex gap="small" wrap>
@@ -374,7 +378,7 @@ export default function TwoFactor({
                               'You will be asked for a code from your authenticator app when you sign in.',
                           )
                         : t(
-                              'When you enable two-factor authentication, you will be asked for a code from your authenticator app when you sign in.',
+                              'Ask for a code from your authenticator app when you sign in.',
                           )}
                 </Typography.Text>
 

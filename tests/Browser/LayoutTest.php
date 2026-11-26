@@ -125,3 +125,17 @@ test('a long user name does not make the page wider than a phone', function (str
         ->assertScript('document.documentElement.scrollWidth <= window.visualViewport.width', true)
         ->assertAttribute('@user-menu-button', 'aria-label', $name);
 })->with(['/dashboard', '/settings/profile']);
+
+test('a long user name stays inside the side menu on a desktop', function () {
+    $name = 'Bartholomew Maximilian Featherstonehaugh-Wolfeschlegelstein';
+    $this->actingAs(User::factory()->create(['name' => $name]));
+
+    // Everything in the side menu's footer (the name, the language switch) ends
+    // inside the side menu. The name is cut with an ellipsis, so it is still
+    // all there for a screen reader and, as the tooltip, for the eye.
+    visit('/dashboard')->resize(1280, 800)
+        ->assertPresent('@user-menu-button')
+        ->assertScript("(() => { const sider = document.querySelector('.ant-pro-sider').getBoundingClientRect(); return [...document.querySelectorAll('.ant-pro-sider-actions *')].every((element) => element.getBoundingClientRect().right <= sider.right + 1); })()", true)
+        ->assertScript("document.querySelector('[data-test=\"user-menu-button\"]').textContent", $name)
+        ->assertAttribute('@user-menu-button', 'title', $name);
+});

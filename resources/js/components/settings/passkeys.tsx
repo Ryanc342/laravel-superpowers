@@ -41,7 +41,11 @@ function suggestedName(): string {
         { pattern: /Windows/, name: 'Windows' },
     ].find(({ pattern }) => pattern.test(agent))?.name;
 
-    return [browser, system].filter(Boolean).join(' on ');
+    if (browser && system) {
+        return t(':browser on :system', { browser, system });
+    }
+
+    return browser ?? system ?? '';
 }
 
 /**

@@ -115,21 +115,58 @@ test('keeping two-factor authentication on when the confirmation is cancelled', 
     expect($user->fresh()->two_factor_secret)->not->toBeNull();
 });
 
-test('a user views and regenerates their recovery codes', function () {
+test('a user views and regenerates their recovery codes, and the new ones are shown', function () {
     $user = User::factory()->withTwoFactor()->create();
     $this->actingAs($user);
 
-    visitSecurityPage()
+    $page = visitSecurityPage()
         ->assertDontSee('recovery-code-1')
         ->press('View recovery codes')
         ->assertSee('recovery-code-1')
         ->press('Regenerate codes')
         ->assertSee('Regenerate recovery codes?')
         ->press('Regenerate')
-        ->assertDontSee('recovery-code-1')
-        ->assertNoJavaScriptErrors();
+        ->assertDontSee('recovery-code-1');
 
-    expect(json_decode(decrypt($user->fresh()->two_factor_recovery_codes)))->not->toContain('recovery-code-1');
+    // The old code goes when the new ones are fetched, so the new ones are in
+    // the database by now. They are on the screen, which stays open.
+    $newCodes = json_decode(decrypt($user->fresh()->two_factor_recovery_codes));
+
+    expect($newCodes)->not->toContain('recovery-code-1');
+
+    foreach ($newCodes as $code) {
+        $page->assertSee($code);
+    }
+
+    $page->assertSee('Hide recovery codes')->assertNoJavaScriptErrors();
+});
+
+test('after two-factor authentication is turned off and on again, the recovery codes are the new ones', function () {
+    $user = User::factory()->withTwoFactor()->create();
+    $this->actingAs($user);
+
+    $page = visitSecurityPage()
+        ->press('View recovery codes')
+        ->assertSee('recovery-code-1')
+        ->press('Disable 2FA')
+        ->press('Disable')
+        ->assertSee('Enable 2FA')
+        ->press('Enable 2FA')
+        ->assertSee('Enable two-factor authentication')
+        ->press('Continue')
+        ->assertSee('Verify authentication code');
+
+    $secret = decrypt($user->fresh()->two_factor_secret);
+
+    $page->type(FIRST_CODE_DIGIT, app(Google2FA::class)->getCurrentOtp($secret))
+        ->press('Confirm')
+        ->assertSee('Disable 2FA')
+        ->press('View recovery codes')
+        ->assertDontSee('recovery-code-1');
+
+    $newCodes = json_decode(decrypt($user->fresh()->two_factor_recovery_codes));
+
+    $page->assertSee($newCodes[0]);
 });
 
 test('a user with two-factor authentication logs in with a code from their app', function () {

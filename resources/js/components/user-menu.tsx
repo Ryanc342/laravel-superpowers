@@ -5,6 +5,7 @@ import {
 } from '@ant-design/icons';
 import { Link, router, usePage } from '@inertiajs/react';
 import { Avatar, Button, Dropdown } from 'antd';
+import type { CSSProperties } from 'react';
 import { t } from '@/lib/i18n';
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
@@ -19,11 +20,24 @@ export function signOut(): void {
 }
 
 /**
+ * A name longer than the room it has is cut with an ellipsis: the button and
+ * its text may shrink below the width of the name, which is what keeps the
+ * language switch beside it in the side menu's footer.
+ */
+const BUTTON_STYLE: CSSProperties = { minWidth: 0, maxWidth: '100%' };
+const NAME_STYLE: CSSProperties = {
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+};
+
+/**
  * The signed-in user's menu, in the layout: their settings, then signing
  * out. The button shows the user's avatar, with their name unless `avatarOnly`
  * (the side menu is collapsed, or the screen is a phone's, where a long name
  * would make the header wider than the screen). The name is then the button's
- * accessible name.
+ * accessible name. A name that does not fit is cut, and the button's title
+ * has all of it.
  */
 export default function UserMenu({
     avatarOnly = false,
@@ -65,10 +79,14 @@ export default function UserMenu({
                         icon={<UserOutlined />}
                     />
                 }
+                style={BUTTON_STYLE}
+                title={user.name}
                 aria-label={avatarOnly ? user.name : undefined}
                 data-test="user-menu-button"
             >
-                {avatarOnly ? null : user.name}
+                {avatarOnly ? null : (
+                    <span style={NAME_STYLE}>{user.name}</span>
+                )}
             </Button>
         </Dropdown>
     );
