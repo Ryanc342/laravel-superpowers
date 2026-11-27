@@ -393,9 +393,12 @@ test('the dashboard example loads more activity at the end of the feed, and the 
 
     $entries = "document.querySelectorAll('[data-test=\"activity-entry\"]').length";
 
-    visit('/examples/dashboard')
-        ->assertScript($entries, 10)
-        ->press('@load-more-activity-button')
+    $page = visit('/examples/dashboard')->assertScript($entries, 10);
+
+    // The server rendered the button: a press before React hydrates the page is lost.
+    waitForHydration($page);
+
+    $page->press('@load-more-activity-button')
         ->assertScript($entries, 20)
         ->assertScript('location.search', '')
         ->assertNoJavaScriptErrors()
