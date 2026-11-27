@@ -23,13 +23,15 @@ pest()->extend(TestCase::class)
 | Vite
 |--------------------------------------------------------------------------
 |
-| Feature tests never load Vite's assets, so they need neither the dev
-| server nor a built manifest. Browser tests load the built assets for real.
-| TestCase keeps both suites away from the dev server's public/hot file.
+| TestCase::setUp() keeps every test away from the Vite dev server (public/
+| hot) and replaces Vite with an empty handler, so a test renders a page
+| with neither the dev server nor a built manifest, whether it is a closure
+| or a PHPUnit class. Browser tests load the built assets for real, so they
+| get the real Vite back.
 |
 */
 
-pest()->beforeEach(fn () => $this->withoutVite())->in('Feature');
+pest()->beforeEach(fn () => $this->withVite())->in('Browser');
 
 /*
 |--------------------------------------------------------------------------

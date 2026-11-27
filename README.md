@@ -1,11 +1,13 @@
 # Laravel Superpowers
 
-A Laravel starter for building with AI coding agents. It is the official [Laravel React starter kit](https://github.com/laravel/react-starter-kit) (Laravel, Inertia, React, Ant Design 6 and Pro, Fortify), with Tailwind kept for marketing pages only, set up to be worked on through [superpowers](https://github.com/obra/superpowers) in Claude Code and Codex:
+A toolkit for building Laravel apps with AI coding agents: the official [Laravel React starter kit](https://github.com/laravel/react-starter-kit), unchanged, plus `composer check`, `composer check:browser`, tests on a MySQL database of their own with a lock, the AI workflow ([superpowers](https://github.com/obra/superpowers), [Laravel Boost](https://github.com/laravel/boost) and a Stop hook) for Claude Code and Codex, and two agent skills maintained by their vendors.
 
-- Project rules in `.ai/guidelines/project.md`, which [Laravel Boost](https://github.com/laravel/boost) turns into `CLAUDE.md` and `AGENTS.md`.
-- `composer check` as the definition of done: Pint, PHPStan, Oxfmt + Oxlint, tsc, Vitest and Pest. `composer check:browser` adds the browser tests.
-- A Stop hook that runs `composer check` for the changes a session made, and only those.
-- Tests that run on MySQL in a database of their own, one test run at a time.
+- `composer check` is the definition of done: Pint, PHPStan, Oxfmt + Oxlint, tsc, Vitest and Pest. `composer check:browser` builds the frontend and runs the browser tests, among them a page sweep that opens each page on a desktop and a phone.
+- The tests run on MySQL, in `<DB_DATABASE>_test`, which they create when it is missing. A lock lets one test run use it at a time.
+- The project rules are in `.ai/guidelines/project.md`, which Boost turns into `CLAUDE.md` and `AGENTS.md`. Work goes through the superpowers skills, and a Stop hook runs `composer check` for the changes a session made, and only those.
+- shadcn's `shadcn` skill and Vercel's `web-design-guidelines` skill are installed for both agents.
+
+The template owns no UI code and no UI rules. The starter kit's UI belongs to the project from the start, and the project decides its own UI.
 
 A project started from this template keeps its history, so it can merge later template versions in. [`UPGRADING.md`](UPGRADING.md) lists what to do after each one.
 
@@ -72,24 +74,24 @@ You need PHP 8.4, Composer, Node (the version in `.node-version`), Git, and MySQ
 
 ## Keep a project up to date
 
-Template updates reach a project by merge, never any other way. The rules are in the Branches section of [`.ai/guidelines/project.md`](.ai/guidelines/project.md), which `CLAUDE.md` and `AGENTS.md` repeat. First see which template version the project is on:
+Template updates reach a project by merge, never any other way, and they bring in tooling only. Upstream's UI and app changes no longer reach a project through the template: a project that wants one takes it from laravel/react-starter-kit itself.
+
+First see which template version the project is on:
 
 ```bash
 git tag --merged HEAD --list 'sp-v*' --sort=-v:refname | head -1
 ```
 
-Then merge the template on a branch of its own:
+Then fetch the template's `main` and its `sp-v*` tags, and read its [`UPGRADING.md`](UPGRADING.md). Never pass `--force` when you fetch the template's tags: it would rewrite the project's own tags of the same names.
 
 ```bash
-git switch develop
-git switch -c chore/sync-template-$(date +%F)
-git fetch template --tags
-git merge template/main
+git fetch template main 'refs/tags/sp-v*:refs/tags/sp-v*'
+git show template/main:UPGRADING.md
 ```
 
-Read [`UPGRADING.md`](UPGRADING.md) before you resolve the lock files, and do what it lists for every version newer than the one you were on. Resolve the conflicts as those rules say, for `composer.json`, `composer.lock`, `package-lock.json` and the template's own tooling files, run `composer check` and `composer check:browser`, and merge the branch into `develop`. Never merge the template into `main`.
+Do what it lists for every version newer than the one the project is on, and follow the "Template sync" steps in [`.ai/guidelines/project.md`](.ai/guidelines/project.md), which `CLAUDE.md` and `AGENTS.md` repeat. A project on sp-v1.3.0 follows the sp-v3.0.0 entry, which writes those steps out with every path filled in. If it already ran `git merge template/main` as sp-v1.3.0's rules say, it aborts that merge and starts again, as step 1 of that entry says. Never merge the template into `main`.
 
-Merging the official starter kit's updates into the template itself follows the same rules and is described in the same place.
+Merging the official starter kit's updates into the template itself is the "Upstream sync" section of the same file.
 
 ## License
 

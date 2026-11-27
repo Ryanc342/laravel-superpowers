@@ -21,21 +21,4 @@ return [
 
     'enforce_tests' => true,
 
-    /*
-    |--------------------------------------------------------------------------
-    | Excluded Skills
-    |--------------------------------------------------------------------------
-    |
-    | Boost generates a skill for each package it finds, and boost.json only
-    | records what it generated. App pages are built with Ant Design, and
-    | Tailwind is for marketing pages only, so Boost's Tailwind skill, which
-    | would steer agents to Tailwind for every page, is never generated. The
-    | ant-design-ui skill in .ai/skills says where Tailwind belongs.
-    |
-    */
-
-    'skills' => [
-        'exclude' => ['tailwindcss-development'],
-    ],
-
 ];

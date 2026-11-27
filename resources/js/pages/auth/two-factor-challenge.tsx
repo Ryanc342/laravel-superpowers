@@ -1,92 +1,133 @@
-import { Head, setLayoutProps } from '@inertiajs/react';
-import { Button, Flex, Form, Input } from 'antd';
-import { useState } from 'react';
-import FormAlerts from '@/components/auth/form-alerts';
-import { msg, t } from '@/lib/i18n';
+import { Form, Head, setLayoutProps } from '@inertiajs/react';
+import { REGEXP_ONLY_DIGITS } from 'input-otp';
+import { useMemo, useState } from 'react';
+import InputError from '@/components/input-error';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+    InputOTP,
+    InputOTPGroup,
+    InputOTPSlot,
+} from '@/components/ui/input-otp';
+import { OTP_MAX_LENGTH } from '@/hooks/use-two-factor-auth';
 import { store } from '@/routes/two-factor/login';
-import { useInertiaForm } from '@/ui/form';
-
-/** The page's title and description for each way of confirming the sign-in. */
-const CODE_LAYOUT = {
-    title: msg('Authentication code'),
-    description: msg('Enter the code from your authenticator app'),
-};
-const RECOVERY_LAYOUT = {
-    title: msg('Recovery code'),
-    description: msg('Enter one of your emergency recovery codes'),
-};
 
 export default function TwoFactorChallenge() {
-    const [usesRecoveryCode, setUsesRecoveryCode] = useState(false);
-    const { formProps, processing, unplacedErrors } = useInertiaForm(
-        store(),
-        { code: '', recovery_code: '' },
-        { precognitive: false },
-    );
+    const [showRecoveryInput, setShowRecoveryInput] = useState<boolean>(false);
+    const [code, setCode] = useState<string>('');
 
-    // A visit starts with the code's title (`layout` below), which is also the
-    // server render's. A switch is a click, not a render, so it can set them.
-    const toggleRecoveryCode = (): void => {
-        setLayoutProps(usesRecoveryCode ? CODE_LAYOUT : RECOVERY_LAYOUT);
-        setUsesRecoveryCode(!usesRecoveryCode);
+    const authConfigContent = useMemo<{
+        title: string;
+        description: string;
+        toggleText: string;
+    }>(() => {
+        if (showRecoveryInput) {
+            return {
+                title: 'Recovery code',
+                description:
+                    'Please confirm access to your account by entering one of your emergency recovery codes.',
+                toggleText: 'login using an authentication code',
+            };
+        }
+
+        return {
+            title: 'Authentication code',
+            description:
+                'Enter the authentication code provided by your authenticator application.',
+            toggleText: 'login using a recovery code',
+        };
+    }, [showRecoveryInput]);
+
+    setLayoutProps({
+        title: authConfigContent.title,
+        description: authConfigContent.description,
+    });
+
+    const toggleRecoveryMode = (clearErrors: () => void): void => {
+        setShowRecoveryInput(!showRecoveryInput);
+        clearErrors();
+        setCode('');
     };
 
     return (
         <>
-            <Head title={t('Two-factor authentication')} />
+            <Head title="Two-factor authentication" />
 
-            <FormAlerts errors={unplacedErrors} />
+            <div className="space-y-6">
+                <Form
+                    {...store.form()}
+                    className="space-y-4"
+                    resetOnError
+                    resetOnSuccess={!showRecoveryInput}
+                >
+                    {({ errors, processing, clearErrors }) => (
+                        <>
+                            {showRecoveryInput ? (
+                                <>
+                                    <Input
+                                        name="recovery_code"
+                                        type="text"
+                                        placeholder="Enter recovery code"
+                                        autoFocus={showRecoveryInput}
+                                        required
+                                    />
+                                    <InputError
+                                        message={errors.recovery_code}
+                                    />
+                                </>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center space-y-3 text-center">
+                                    <div className="flex w-full items-center justify-center">
+                                        <InputOTP
+                                            name="code"
+                                            maxLength={OTP_MAX_LENGTH}
+                                            value={code}
+                                            onChange={(value) => setCode(value)}
+                                            disabled={processing}
+                                            pattern={REGEXP_ONLY_DIGITS}
+                                            autoFocus
+                                        >
+                                            <InputOTPGroup>
+                                                {Array.from(
+                                                    { length: OTP_MAX_LENGTH },
+                                                    (_, index) => (
+                                                        <InputOTPSlot
+                                                            key={index}
+                                                            index={index}
+                                                        />
+                                                    ),
+                                                )}
+                                            </InputOTPGroup>
+                                        </InputOTP>
+                                    </div>
+                                    <InputError message={errors.code} />
+                                </div>
+                            )}
 
-            {/* A field that leaves the form takes its value and error with it. */}
-            <Form {...formProps} preserve={false}>
-                {usesRecoveryCode ? (
-                    <Form.Item
-                        label={t('Recovery code')}
-                        name="recovery_code"
-                        required
-                    >
-                        <Input
-                            name="recovery_code"
-                            // oxlint-disable-next-line jsx-a11y/no-autofocus
-                            autoFocus
-                            autoComplete="off"
-                        />
-                    </Form.Item>
-                ) : (
-                    <Form.Item name="code">
-                        <Input.OTP
-                            length={6}
-                            // oxlint-disable-next-line jsx-a11y/no-autofocus
-                            autoFocus
-                            inputMode="numeric"
-                            autoComplete="one-time-code"
-                            aria-label={t('Authentication code')}
-                            data-test="code"
-                            formatter={(value) => value.replaceAll(/\D/g, '')}
-                        />
-                    </Form.Item>
-                )}
+                            <Button
+                                type="submit"
+                                className="w-full"
+                                disabled={processing}
+                            >
+                                Continue
+                            </Button>
 
-                <Form.Item>
-                    <Button
-                        type="primary"
-                        htmlType="submit"
-                        loading={processing}
-                    >
-                        {t('Continue')}
-                    </Button>
-                </Form.Item>
-
-                <Flex justify="center">
-                    <Button type="link" onClick={toggleRecoveryCode}>
-                        {usesRecoveryCode
-                            ? t('Use an authentication code')
-                            : t('Use a recovery code')}
-                    </Button>
-                </Flex>
-            </Form>
+                            <div className="text-center text-sm text-muted-foreground">
+                                <span>or you can </span>
+                                <button
+                                    type="button"
+                                    className="cursor-pointer text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                                    onClick={() =>
+                                        toggleRecoveryMode(clearErrors)
+                                    }
+                                >
+                                    {authConfigContent.toggleText}
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </Form>
+            </div>
         </>
     );
 }
-
-TwoFactorChallenge.layout = CODE_LAYOUT;

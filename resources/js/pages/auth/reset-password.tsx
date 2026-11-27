@@ -1,9 +1,11 @@
-import { Head } from '@inertiajs/react';
-import { Button, Form, Input } from 'antd';
-import FormAlerts from '@/components/auth/form-alerts';
-import { msg, t } from '@/lib/i18n';
+import { Form, Head } from '@inertiajs/react';
+import InputError from '@/components/input-error';
+import PasswordInput from '@/components/password-input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import { update } from '@/routes/password';
-import { useInertiaForm } from '@/ui/form';
 
 type Props = {
     token: string;
@@ -12,67 +14,83 @@ type Props = {
 };
 
 export default function ResetPassword({ token, email, passwordRules }: Props) {
-    // The token has no field. It goes to the server with the form's values.
-    const { formProps, processing, unplacedErrors } = useInertiaForm(
-        update(),
-        { token, email, password: '', password_confirmation: '' },
-        {
-            precognitive: false,
-            resetOnSuccess: ['password', 'password_confirmation'],
-        },
-    );
-
     return (
         <>
-            <Head title={t('Reset password')} />
+            <Head title="Reset password" />
 
-            <FormAlerts errors={unplacedErrors} />
+            <Form
+                {...update.form()}
+                transform={(data) => ({ ...data, token, email })}
+                resetOnSuccess={['password', 'password_confirmation']}
+            >
+                {({ processing, errors }) => (
+                    <div className="grid gap-6">
+                        <div className="grid gap-2">
+                            <Label htmlFor="email">Email</Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                name="email"
+                                autoComplete="email"
+                                value={email}
+                                className="mt-1 block w-full"
+                                readOnly
+                            />
+                            <InputError
+                                message={errors.email}
+                                className="mt-2"
+                            />
+                        </div>
 
-            <Form {...formProps}>
-                <Form.Item label={t('Email address')} name="email">
-                    <Input
-                        name="email"
-                        type="email"
-                        autoComplete="email"
-                        readOnly
-                    />
-                </Form.Item>
+                        <div className="grid gap-2">
+                            <Label htmlFor="password">Password</Label>
+                            <PasswordInput
+                                id="password"
+                                name="password"
+                                autoComplete="new-password"
+                                className="mt-1 block w-full"
+                                autoFocus
+                                placeholder="Password"
+                                passwordrules={passwordRules}
+                            />
+                            <InputError message={errors.password} />
+                        </div>
 
-                <Form.Item label={t('Password')} name="password" required>
-                    <Input.Password
-                        name="password"
-                        // oxlint-disable-next-line jsx-a11y/no-autofocus
-                        autoFocus
-                        autoComplete="new-password"
-                        passwordrules={passwordRules}
-                    />
-                </Form.Item>
+                        <div className="grid gap-2">
+                            <Label htmlFor="password_confirmation">
+                                Confirm password
+                            </Label>
+                            <PasswordInput
+                                id="password_confirmation"
+                                name="password_confirmation"
+                                autoComplete="new-password"
+                                className="mt-1 block w-full"
+                                placeholder="Confirm password"
+                                passwordrules={passwordRules}
+                            />
+                            <InputError
+                                message={errors.password_confirmation}
+                                className="mt-2"
+                            />
+                        </div>
 
-                <Form.Item
-                    label={t('Confirm password')}
-                    name="password_confirmation"
-                    required
-                >
-                    <Input.Password
-                        name="password_confirmation"
-                        autoComplete="new-password"
-                        passwordrules={passwordRules}
-                    />
-                </Form.Item>
-
-                <Form.Item>
-                    <Button
-                        type="primary"
-                        htmlType="submit"
-                        loading={processing}
-                        data-test="reset-password-button"
-                    >
-                        {t('Reset password')}
-                    </Button>
-                </Form.Item>
+                        <Button
+                            type="submit"
+                            className="mt-4 w-full"
+                            disabled={processing}
+                            data-test="reset-password-button"
+                        >
+                            {processing && <Spinner />}
+                            Reset password
+                        </Button>
+                    </div>
+                )}
             </Form>
         </>
     );
 }
 
-ResetPassword.layout = { title: msg('Reset password') };
+ResetPassword.layout = {
+    title: 'Reset password',
+    description: 'Please enter your new password below',
+};

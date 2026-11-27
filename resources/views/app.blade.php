@@ -19,15 +19,14 @@
             })();
         </script>
 
-        {{-- Inline style to set the HTML background color to antd's page background (colorBgLayout), and dark scrollbars and form controls before the app's JavaScript runs --}}
+        {{-- Inline style to set the HTML background color based on our theme in app.css --}}
         <style>
             html {
-                background-color: #f5f5f5;
+                background-color: oklch(1 0 0);
             }
 
             html.dark {
-                background-color: #000000;
-                color-scheme: dark;
+                background-color: oklch(0.145 0 0);
             }
         </style>
 

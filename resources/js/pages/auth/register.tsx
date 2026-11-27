@@ -1,83 +1,120 @@
-import { Head, Link } from '@inertiajs/react';
-import { Button, Flex, Form, Input, Typography } from 'antd';
-import FormAlerts from '@/components/auth/form-alerts';
-import { msg, t } from '@/lib/i18n';
+import { Form, Head } from '@inertiajs/react';
+import InputError from '@/components/input-error';
+import PasswordInput from '@/components/password-input';
+import TextLink from '@/components/text-link';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import { login } from '@/routes';
 import { store } from '@/routes/register';
-import { useInertiaForm } from '@/ui/form';
 
-export default function Register({ passwordRules }: { passwordRules: string }) {
-    const { formProps, processing, unplacedErrors } = useInertiaForm(
-        store(),
-        { name: '', email: '', password: '', password_confirmation: '' },
-        {
-            precognitive: false,
-            resetOnSuccess: ['password', 'password_confirmation'],
-        },
-    );
+type Props = {
+    passwordRules: string;
+};
 
+export default function Register({ passwordRules }: Props) {
     return (
         <>
-            <Head title={t('Register')} />
+            <Head title="Register" />
+            <Form
+                {...store.form()}
+                resetOnSuccess={['password', 'password_confirmation']}
+                disableWhileProcessing
+                className="flex flex-col gap-6"
+            >
+                {({ processing, errors }) => (
+                    <>
+                        <div className="grid gap-6">
+                            <div className="grid gap-2">
+                                <Label htmlFor="name">Name</Label>
+                                <Input
+                                    id="name"
+                                    type="text"
+                                    required
+                                    autoFocus
+                                    tabIndex={1}
+                                    autoComplete="name"
+                                    name="name"
+                                    placeholder="Full name"
+                                />
+                                <InputError
+                                    message={errors.name}
+                                    className="mt-2"
+                                />
+                            </div>
 
-            <FormAlerts errors={unplacedErrors} />
+                            <div className="grid gap-2">
+                                <Label htmlFor="email">Email address</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    required
+                                    tabIndex={2}
+                                    autoComplete="email"
+                                    name="email"
+                                    placeholder="email@example.com"
+                                />
+                                <InputError message={errors.email} />
+                            </div>
 
-            <Form {...formProps}>
-                <Form.Item label={t('Name')} name="name" required>
-                    <Input
-                        name="name"
-                        // oxlint-disable-next-line jsx-a11y/no-autofocus
-                        autoFocus
-                        autoComplete="name"
-                    />
-                </Form.Item>
+                            <div className="grid gap-2">
+                                <Label htmlFor="password">Password</Label>
+                                <PasswordInput
+                                    id="password"
+                                    required
+                                    tabIndex={3}
+                                    autoComplete="new-password"
+                                    name="password"
+                                    placeholder="Password"
+                                    passwordrules={passwordRules}
+                                />
+                                <InputError message={errors.password} />
+                            </div>
 
-                <Form.Item label={t('Email address')} name="email" required>
-                    <Input name="email" type="email" autoComplete="email" />
-                </Form.Item>
+                            <div className="grid gap-2">
+                                <Label htmlFor="password_confirmation">
+                                    Confirm password
+                                </Label>
+                                <PasswordInput
+                                    id="password_confirmation"
+                                    required
+                                    tabIndex={4}
+                                    autoComplete="new-password"
+                                    name="password_confirmation"
+                                    placeholder="Confirm password"
+                                    passwordrules={passwordRules}
+                                />
+                                <InputError
+                                    message={errors.password_confirmation}
+                                />
+                            </div>
 
-                <Form.Item label={t('Password')} name="password" required>
-                    <Input.Password
-                        name="password"
-                        autoComplete="new-password"
-                        passwordrules={passwordRules}
-                    />
-                </Form.Item>
+                            <Button
+                                type="submit"
+                                className="mt-2 w-full"
+                                tabIndex={5}
+                                data-test="register-user-button"
+                            >
+                                {processing && <Spinner />}
+                                Create account
+                            </Button>
+                        </div>
 
-                <Form.Item
-                    label={t('Confirm password')}
-                    name="password_confirmation"
-                    required
-                >
-                    <Input.Password
-                        name="password_confirmation"
-                        autoComplete="new-password"
-                        passwordrules={passwordRules}
-                    />
-                </Form.Item>
-
-                <Form.Item>
-                    <Button
-                        type="primary"
-                        htmlType="submit"
-                        loading={processing}
-                        data-test="register-user-button"
-                    >
-                        {t('Create account')}
-                    </Button>
-                </Form.Item>
-
-                <Flex justify="center" gap="small">
-                    <Typography.Text type="secondary">
-                        {t('Already have an account?')}
-                    </Typography.Text>
-                    <Link as={Typography.Link} href={login()}>
-                        {t('Log in')}
-                    </Link>
-                </Flex>
+                        <div className="text-center text-sm text-muted-foreground">
+                            Already have an account?{' '}
+                            <TextLink href={login()} tabIndex={6}>
+                                Log in
+                            </TextLink>
+                        </div>
+                    </>
+                )}
             </Form>
         </>
     );
 }
 
-Register.layout = { title: msg('Create an account') };
+Register.layout = {
+    title: 'Create an account',
+    description: 'Enter your details below to create your account',
+};
