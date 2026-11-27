@@ -5,14 +5,8 @@ import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
 import { defineConfig, lazyPlugins } from 'vite-plus';
-import { antdStyles } from './resources/js/ui/vite-antd-styles';
-import { buildHasExamples } from './resources/js/ui/vite-examples';
 
 export default defineConfig({
-    define: {
-        // Whether this build has the page-type examples (ui/pages.ts).
-        __EXAMPLES__: JSON.stringify(buildHasExamples()),
-    },
     plugins: lazyPlugins(() => [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
@@ -25,30 +19,11 @@ export default defineConfig({
         }),
         inertia(),
         react({ compiler: true }),
-        antdStyles(),
         tailwindcss(),
         wayfinder({
             formVariants: true,
         }),
     ]),
-    ssr: {
-        // The SSR bundle carries what Node cannot load from node_modules as
-        // the bundler would. Pro's ES build imports antd's locale files
-        // without their extension. Pro's page header and table take the
-        // default export of @rc-component/resize-observer, whose CommonJS
-        // build Node hands over as the whole module, so React gets an object
-        // for a component; its ES build in turn imports @rc-component/util's
-        // files without their extension. The rest stays in node_modules, so
-        // the server has one copy of what antd and Pro share: Pro reads
-        // @rc-component/form's FieldContext, which antd's Form provides.
-        // tests/Browser/PageSweepTest.php renders every page through this
-        // bundle.
-        noExternal: [
-            '@ant-design/pro-components',
-            '@rc-component/resize-observer',
-            '@rc-component/util',
-        ],
-    },
     server: {
         watch: {
             ignored: [
@@ -64,31 +39,9 @@ export default defineConfig({
     // Frontend unit tests: `npm run test` (vp test), part of `composer check`.
     test: {
         include: ['tests/js/**/*.test.{ts,tsx}'],
-        environment: 'jsdom',
-        setupFiles: ['tests/js/setup.ts'],
-        server: {
-            deps: {
-                // Vitest would inline Pro on its own, since its ES build is
-                // not valid Node ESM. Loading it the way Node does, as the SSR
-                // bundle does, lets tests/js/ssr fail when Pro is not bundled.
-                external: ['@ant-design/pro-components'],
-            },
-        },
+        environment: 'node',
     },
     lint: {
-        // Setting plugins replaces Oxlint's default list, so the defaults
-        // (typescript, unicorn, oxc) are named here next to the two added:
-        // react for the rules of hooks, jsx-a11y for accessibility.
-        plugins: ['typescript', 'unicorn', 'oxc', 'react', 'jsx-a11y'],
-        rules: {
-            // In the pedantic category, so not on by default even with the
-            // react plugin enabled.
-            'react/rules-of-hooks': 'error',
-            'react/exhaustive-deps': 'error',
-            // It asks for <output> in place of role="status" and the like,
-            // but a live region on a div or span is the standard ARIA pattern.
-            'jsx-a11y/prefer-tag-over-role': 'off',
-        },
         ignorePatterns: [
             'vendor/**',
             'node_modules/**',
@@ -96,6 +49,7 @@ export default defineConfig({
             'bootstrap/ssr/**',
             'tailwind.config.js',
             'resources/js/actions/**',
+            'resources/js/components/ui/*',
             'resources/js/routes/**',
             'resources/js/wayfinder/**',
         ],
@@ -114,6 +68,7 @@ export default defineConfig({
         ignorePatterns: [
             '.github/**',
             'composer.json',
+            'resources/js/components/ui/*',
             'resources/views/mail/*',
             // Claude Code rewrites it with two-space indents whenever it
             // saves a permission.
@@ -130,6 +85,7 @@ export default defineConfig({
             'CLAUDE.md',
         ],
         sortTailwindcss: {
+            functions: ['clsx', 'cn', 'cva'],
             stylesheet: 'resources/css/app.css',
         },
     },

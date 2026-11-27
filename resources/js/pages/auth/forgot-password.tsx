@@ -1,54 +1,69 @@
-import { Head, Link } from '@inertiajs/react';
-import { Button, Flex, Form, Input, Typography } from 'antd';
-import FormAlerts from '@/components/auth/form-alerts';
-import { msg, t } from '@/lib/i18n';
+// Components
+import { Form, Head } from '@inertiajs/react';
+import { LoaderCircle } from 'lucide-react';
+import InputError from '@/components/input-error';
+import TextLink from '@/components/text-link';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { login } from '@/routes';
 import { email } from '@/routes/password';
-import { useInertiaForm } from '@/ui/form';
 
 export default function ForgotPassword({ status }: { status?: string }) {
-    const { formProps, processing, unplacedErrors } = useInertiaForm(
-        email(),
-        { email: '' },
-        { precognitive: false },
-    );
-
     return (
         <>
-            <Head title={t('Forgot password')} />
+            <Head title="Forgot password" />
 
-            <FormAlerts status={status} errors={unplacedErrors} />
+            {status && (
+                <div className="mb-4 text-center text-sm font-medium text-green-600">
+                    {status}
+                </div>
+            )}
 
-            <Form {...formProps}>
-                <Form.Item label={t('Email address')} name="email" required>
-                    <Input
-                        name="email"
-                        type="email"
-                        // oxlint-disable-next-line jsx-a11y/no-autofocus
-                        autoFocus
-                        autoComplete="email"
-                    />
-                </Form.Item>
+            <div className="space-y-6">
+                <Form {...email.form()}>
+                    {({ processing, errors }) => (
+                        <>
+                            <div className="grid gap-2">
+                                <Label htmlFor="email">Email address</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    name="email"
+                                    autoComplete="off"
+                                    autoFocus
+                                    placeholder="email@example.com"
+                                />
 
-                <Form.Item>
-                    <Button
-                        type="primary"
-                        htmlType="submit"
-                        loading={processing}
-                        data-test="email-password-reset-link-button"
-                    >
-                        {t('Email password reset link')}
-                    </Button>
-                </Form.Item>
+                                <InputError message={errors.email} />
+                            </div>
 
-                <Flex justify="center">
-                    <Link as={Typography.Link} href={login()}>
-                        {t('Back to log in')}
-                    </Link>
-                </Flex>
-            </Form>
+                            <div className="my-6 flex items-center justify-start">
+                                <Button
+                                    className="w-full"
+                                    disabled={processing}
+                                    data-test="email-password-reset-link-button"
+                                >
+                                    {processing && (
+                                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                                    )}
+                                    Email password reset link
+                                </Button>
+                            </div>
+                        </>
+                    )}
+                </Form>
+
+                <div className="space-x-1 text-center text-sm text-muted-foreground">
+                    <span>Or, return to</span>
+                    <TextLink href={login()}>log in</TextLink>
+                </div>
+            </div>
         </>
     );
 }
 
-ForgotPassword.layout = { title: msg('Forgot password') };
+ForgotPassword.layout = {
+    title: 'Forgot password',
+    description: 'Enter your email to receive a password reset link',
+};

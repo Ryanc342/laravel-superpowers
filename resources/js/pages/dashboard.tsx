@@ -1,50 +1,36 @@
-import { PageContainer, StatisticCard } from '@ant-design/pro-components';
 import { Head } from '@inertiajs/react';
-import { Alert, Col, Flex, Row } from 'antd';
-import { msg, t } from '@/lib/i18n';
-import PageTitle from '@/ui/page-title';
+import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
+import { dashboard } from '@/routes';
 
-/**
- * Placeholder figures, so the page shows how a dashboard looks. A project
- * replaces them with its own.
- */
-const figures = [
-    { title: msg('Visits'), value: 12846 },
-    { title: msg('New sign-ups'), value: 328 },
-    { title: msg('Orders'), value: 1204 },
-    { title: msg('Revenue'), value: 86420 },
-];
-
-/**
- * The cards are laid out by antd's `Row` and `Col`, which follow the screen's
- * width in CSS. Pro's `StatisticCard.Group` with a `colSpan` follows it in
- * JavaScript, so the server's page would show the wrong number of columns
- * until the browser's script ran.
- */
 export default function Dashboard() {
     return (
         <>
-            <Head title={t('Dashboard')} />
-
-            <PageContainer title={<PageTitle>{t('Dashboard')}</PageTitle>}>
-                <Flex vertical gap="middle">
-                    <Alert
-                        type="info"
-                        showIcon
-                        title={t('Replace with your own figures')}
-                    />
-
-                    <Row gutter={[16, 16]}>
-                        {figures.map(({ title, value }) => (
-                            <Col key={title} xs={24} sm={12} xl={6}>
-                                <StatisticCard
-                                    statistic={{ title: t(title), value }}
-                                />
-                            </Col>
-                        ))}
-                    </Row>
-                </Flex>
-            </PageContainer>
+            <Head title="Dashboard" />
+            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
+                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+                    </div>
+                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+                    </div>
+                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+                    </div>
+                </div>
+                <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
+                    <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+                </div>
+            </div>
         </>
     );
 }
+
+Dashboard.layout = {
+    breadcrumbs: [
+        {
+            title: 'Dashboard',
+            href: dashboard(),
+        },
+    ],
+};
