@@ -9,7 +9,7 @@
 - Run `composer fix` to apply the fixes Pint, Oxfmt and Oxlint can make on their own, then run `composer check` again.
 - After changing a page, a form or anything a user clicks through, also run `composer check:browser`. It builds the frontend, with no SSR bundle, and runs the browser tests in `tests/Browser`.
 - While working, run the narrowest tests that cover the change (`php artisan test --compact --filter=...`, `npm run test -- <file>`). `composer check` is the final gate.
-- The template ships no UI code and no UI rules: the project decides its own UI. The `shadcn` and `web-design-guidelines` skills it installs are maintained by their vendors, and `skills-lock.json` records them.
+- The template owns no UI code and no UI rules. The starter kit's UI it ships belongs to the project from the start, and the project decides its own UI. The `shadcn` and `web-design-guidelines` skills it installs are maintained by their vendors, and `skills-lock.json` records them.
 - A Stop hook (`.ai/hooks/check.sh`, wired up with a SessionStart hook in `.claude/settings.json` for Claude Code and `.codex/hooks.json` for Codex) runs `composer check` when a turn ends and this session changed files that have not passed it yet. When it reports failures, fix them before finishing. A second failure in a row lets the turn end with a warning.
     - It checks only the worktrees this session works in: the one it started in and every one it was in when an earlier turn ended. Changes that were already there when the session started, and changes in other worktrees, are left alone. `/clear` starts a new session, so changes left before it count as already there.
     - Markdown the session changed is formatted first, with the worktree's own `node_modules/.bin/vp`. When Markdown is all the session changed, `vp check` on those files replaces `composer check`.
@@ -77,26 +77,27 @@
 - Upstream's UI and app changes no longer reach a project through the template. A project that wants one takes it from laravel/react-starter-kit itself.
 - Before you start, read the template's `UPGRADING.md` (`git show template/main:UPGRADING.md`) and do what it lists for each template version (`sp-vX.Y.Z` tag) newer than the last one merged. Some of its steps change the steps below, among them how the lock files are resolved.
 - Sync in this order:
-    1. Cut `chore/sync-template-<YYYY-MM-DD>` from `develop` and run `git merge --no-commit template/main`.
-    2. Take the template's version of every template-owned path: `git restore --source=MERGE_HEAD --staged --worktree -- <each template-owned path>`.
-    3. Put every other path back to the project's version, including files the merge changed cleanly, added or deleted: `git restore --source=HEAD --staged --worktree -- . ':!<each template-owned path>' ':!<each mixed file>'`.
-    4. Merge the mixed files by hand: keep the project's own changes, and take only the template's tooling hunks.
+    1. Cut `chore/sync-template-<YYYY-MM-DD>` from `develop` and run `git merge --no-ff --no-commit template/main`. Without `--no-ff`, git fast-forwards when `develop` is behind the template: there is then no `MERGE_HEAD`, and the template's whole tree, its UI included, is already on the branch.
+    2. Take the template's version of every template-owned path. The paths are the template-owned lists of both versions of this file put together: the project's own, and the template's new one (`git show MERGE_HEAD:.ai/guidelines/project.md`). That way the tooling the template dropped goes too.
+        - Restore each path `MERGE_HEAD` has (`git ls-tree -r --name-only MERGE_HEAD -- <path>` prints it): `git restore --source=MERGE_HEAD --staged --worktree -- <each such path>`.
+        - Remove each path it lacks: `git rm -r -q --ignore-unmatch -- <each such path>`. `git restore` cannot remove them. It stops, and restores nothing, at a path the merge already deleted, at one that neither side has, and at one left in conflict because the project changed what the template deleted.
+    3. Put every other path back to the project's version, including files the merge changed cleanly, added or deleted. First stage the mixed files the merge left in conflict, markers and all (`git diff --name-only --diff-filter=U` lists them): `git add -A -- <each such file>`. `git restore` stops, and restores nothing, while a path it leaves out is still in conflict. Then run `git restore --source=HEAD --staged --worktree -- . ':!<each path of step 2>' ':!<each mixed file of both versions>'`.
+    4. Merge the mixed files by hand: keep the project's own changes, take only the template's tooling hunks, and leave no conflict marker behind.
     5. Resolve the lock files as the next two rules say.
     6. Run `php artisan boost:update`.
     7. Run `composer check` and `composer check:browser`, then merge into `develop`.
-- Take both lists from the template's new version of this file (`git show MERGE_HEAD:.ai/guidelines/project.md`). A release can add or drop paths, and `git restore` stops at a path the template no longer has.
 - For `composer.lock`, start from the project's version, which step 3 puts back. Then run `composer update <the packages whose constraints the template changed> --no-scripts`, then `php artisan package:discover` and `php artisan boost:update`. Never add `-W`. When other packages must move too, use `--with-dependencies` and name the package.
 - Treat `package-lock.json` the same way: start from the project's version, merge `package.json` by hand, then run `npm update <the packages the template changed>`. Never add `--force` or `--legacy-peer-deps`.
 
 ### Upstream sync
 
-- Only laravel-superpowers has an `upstream` remote (laravel/react-starter-kit). Merge its updates on a branch of their own: cut `chore/sync-upstream-<YYYY-MM-DD>` from `develop`, `git merge upstream/main`, run both checks, merge into `develop`.
+- Only laravel-superpowers has an `upstream` remote (laravel/react-starter-kit). Merge its updates on a branch of their own: cut `chore/sync-upstream-<YYYY-MM-DD>` from `develop`, `git merge --no-ff upstream/main`, run both checks, merge into `develop`.
 - Take upstream's changes as they come, its UI and app code included. "Ours" is the template and "theirs" is upstream. Resolve conflicts like this:
     - Template-owned and mixed files: keep the template's tooling, and take upstream's changes to the rest.
-    - Every other file: upstream's.
     - Versions of tools and dependencies: the newer official one.
     - chisel stays removed: keep its files deleted and `laravel/chisel` out of `composer.json`. Strip any chisel marker the merge brings back by deleting only the comment (`/* @chisel-x */`, `/* @end-chisel-x */`, `{/* ... */}` in JSX, `<!-- ... -->`, `{{-- ... --}}`) and keeping all the code around and between the markers. Delete a whole line only when the marker is all that is on it; `UPGRADING.md` has an example of a line shared with code.
     - `.github/workflows/check.yml` stays, and upstream's `tests.yml` stays deleted.
+    - Everything else: keep the changes of both sides. The template changes no UI or app file beyond the stripped chisel markers, so upstream's UI and app changes come through whole.
 
 ## Git Worktrees
 
