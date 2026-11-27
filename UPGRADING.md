@@ -58,7 +58,8 @@ The merge stops with conflicts in files the project changed: UI and app files, t
         tests/Feature/SweptPagesTest.php tests/Feature/TestDatabaseTest.php tests/Feature/ViteIsolationTest.php \
         tests/Unit/ArchTest.php tests/Unit/AgentGuidanceTest.php tests/Unit/TemplateTestHelpersTest.php \
         tests/js/ai-hooks/ .ai/hooks/check.sh .agents/skills/shadcn/ .agents/skills/web-design-guidelines/ \
-        .claude/skills/shadcn .claude/skills/web-design-guidelines .codex/hooks.json .node-version UPGRADING.md
+        .claude/skills/shadcn .claude/skills/web-design-guidelines .codex/hooks.json .node-version UPGRADING.md \
+        tests/process-watchdog.sh tests/js/test-runner/process-watchdog.test.ts
     ```
 
     A file it lists holds changes of the project's own, which this step drops. Keep a copy (`git show HEAD:<file>`), and move the change into a file of the project's own after this step.
@@ -98,7 +99,7 @@ git restore --source=HEAD --staged --worktree -- . \
 
 ### 4. Merge the mixed files by hand
 
-A mixed file that merged without a conflict already holds every change the template made, the ones a project skips below among them. `git diff --cached HEAD -- <file>` shows what the merge changed in the project's version, and `git diff sp-v1.3.0 MERGE_HEAD -- <file>` shows the template's side alone. Step 3 staged the conflicted ones with their markers. This finds them, and must print nothing when you are done:
+A mixed file that merged without a conflict already holds every change the template made, the ones a project skips below among them. Where the template removed something the project never edited, the clean merge removed it from the project too. So "keep" below often means "put back from `HEAD`". In the projects merged so far, a clean merge took `vite.config.ts`'s `test` block and its lint `plugins`, `rules` and `overrides`, and `package.json`'s `jsdom`, `@testing-library/react` and `@radix-ui/react-popover`. Check every mixed file, not only the conflicted ones. `git diff --cached HEAD -- <file>` shows what the merge changed in the project's version, and `git diff sp-v1.3.0 MERGE_HEAD -- <file>` shows the template's side alone. Step 3 staged the conflicted ones with their markers. This finds them, and must print nothing when you are done:
 
 ```bash
 git grep -l '^<<<<<<<' -- \
