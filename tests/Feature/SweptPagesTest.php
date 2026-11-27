@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /*
  * The page sweep's lists. A project may leave one of them empty, but not both.
@@ -16,7 +17,11 @@ test('every swept page is a GET route', function (?string $path) {
         $this->markTestSkipped('The sweep lists no page: "the sweep has pages to open" fails.');
     }
 
-    $route = app('router')->getRoutes()->match(Request::create(strtok($path, '?'), 'GET'));
+    try {
+        $route = app('router')->getRoutes()->match(Request::create((string) parse_url($path, PHP_URL_PATH), 'GET'));
+    } catch (HttpException) {
+        $this->fail("No GET route matches {$path}, which the page sweep lists. The sweep's page lists are the project's: declare projectSweptPages() and projectSweptGuestPages() in a tests/Support/*.php file of the project's own, and list the pages the app has.");
+    }
 
     expect($route->methods())->toContain('GET');
 })->with(fn () => [...array_values(projectSweptPages()), ...array_values(projectSweptGuestPages())] ?: ['no page' => null]);
