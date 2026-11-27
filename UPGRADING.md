@@ -114,12 +114,11 @@ git grep -l '^<<<<<<<' -- \
     - `lint`: take the template's lint ignore for the vendor skills. The template dropped its `plugins`, `rules` and `overrides` because it owns no UI: keep them if the project wants them.
     - `fmt.ignorePatterns`: take the new `skills-lock.json` entry. The `.worktrees` watch ignore came with sp-v1.3.0: keep it.
 - `composer.json`: take the `check:browser` script, which now builds with `npm run build:dev` so that React's development warnings reach the console and fail the page sweep, and its description. It builds no SSR bundle: sp-v2.0.0's `npx vp build --ssr` is gone.
-- `phpunit.xml`: take the new `<env name="APP_LOCALE" value="en"/>`, which runs the tests in English whatever `.env` says. Leave it out if the project's tests expect another language.
 - `.github/workflows/check.yml`: take the new "Build for production" step.
 - `skills-lock.json`: new. Take the template's.
 - `.ai/guidelines/project.md`: take the template's text, and keep the project's own sections.
 - `.env.example` and `config/boost.php`: the template has not changed them since sp-v1.3.0. Keep the project's, with its own `APP_LOCALE` and, if it has one, its own `skills.exclude`. The template's `config/boost.php` excludes no skill, so Boost's `tailwindcss-development` skill stays. This replaces sp-v2.0.0's advice to keep `skills.exclude`.
-- `tsconfig.json`, `.gitignore`, `phpstan.neon`, `.claude/settings.json`, `.codex/config.toml` and `.mcp.json`: no template change since sp-v1.3.0.
+- `tsconfig.json`, `.gitignore`, `phpunit.xml`, `phpstan.neon`, `.claude/settings.json`, `.codex/config.toml` and `.mcp.json`: no template change since sp-v1.3.0.
 
 ### 5. Keep the helpers the project's tests call
 
