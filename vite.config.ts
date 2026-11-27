@@ -83,6 +83,9 @@ export default defineConfig({
             'AGENTS.md',
             'boost.json',
             'CLAUDE.md',
+            // Written by the skills CLI (npx skills add), which would undo
+            // any reformatting.
+            'skills-lock.json',
         ],
         sortTailwindcss: {
             functions: ['clsx', 'cn', 'cva'],
