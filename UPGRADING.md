@@ -2,6 +2,200 @@
 
 What to do in a project started from laravel-superpowers after it merges a template version. There is one section per version (`sp-vX.Y.Z` tag), newest first. Do what every section newer than the version you were on lists, oldest first. [`.ai/guidelines/project.md`](.ai/guidelines/project.md) has the rules for the merge itself.
 
+## sp-v3.0.0
+
+The template is a toolkit now: Laravel's React starter kit, unchanged (laravel/react-starter-kit at `50a9f6c`), plus the tooling. It owns no UI code and no UI rules. The tooling is `composer check` and `composer check:browser`, the MySQL test database and its lock, the Stop hook, the project rules that Boost turns into `CLAUDE.md` and `AGENTS.md`, and two agent skills maintained by their vendors, `shadcn` and `web-design-guidelines`, which `skills-lock.json` records. The process watchdog is gone. The page sweep is new to a project on sp-v1.3.0 (step 8).
+
+This entry is for a project on sp-v1.3.0. No project merged sp-v2.0.0, so its steps do not apply: skip that section and do this one.
+
+A template sync now brings in tooling only. Upstream's UI and app changes no longer reach a project through the template: a project that wants one takes it from laravel/react-starter-kit itself. The merge alone would replace or delete the project's UI with the starter kit's, so steps 2 and 3 take the template's tooling and put everything else back. The v1 UI (`resources/js/components/shared`, `.ai/skills/frontend-components`, the edited `resources/js/components/ui/*`, the `app.css` tokens, the v1 UI tests and `tests/js/setup.ts`) stays, and is the project's now.
+
+Steps 1 to 4, 6, 7 and 9 are the "Template sync" steps of [`.ai/guidelines/project.md`](.ai/guidelines/project.md), with the paths of sp-v3.0.0 and sp-v1.3.0 filled in. If `template/main` is newer than sp-v3.0.0, check the lists against `git show MERGE_HEAD:.ai/guidelines/project.md` before you run them.
+
+### The template-owned paths of sp-v1.3.0
+
+sp-v1.3.0's `project.md` has no "The template owns these paths" list. These were its template-owned paths, for step 2 of the template sync:
+
+- `tests/Pest.php`
+- `tests/bootstrap.php`
+- `tests/TestCase.php`
+- `tests/Support/Template/`
+- `tests/process-watchdog.sh`
+- `tests/js/test-runner/process-watchdog.test.ts`
+- `.ai/hooks/check.sh`
+- `.codex/hooks.json`
+
+sp-v3.0.0 lists `tests/Pest.php`, `tests/bootstrap.php` and `tests/TestCase.php` as mixed, so they stay mixed, and keep the project's own additions (step 4). The hooks block of `.claude/settings.json`, which sp-v1.3.0 also gave the template, is part of a mixed file.
+
+### 1. Merge
+
+```bash
+git switch develop
+git switch -c chore/sync-template-$(date +%F)
+git fetch template --tags
+git merge --no-ff --no-commit template/main
+```
+
+The merge stops with conflicts in UI and app files the project changed. Leave them: step 3 puts every one of them back.
+
+### 2. Take the template-owned paths
+
+- Check that the project changed none of the files this step takes whole. This prints nothing when it did not:
+
+    ```bash
+    git diff --stat sp-v1.3.0 HEAD -- \
+        tests/Support/Template/ tests/Browser/PageSweepTest.php tests/Browser/BrowserActionTimeoutTest.php \
+        tests/Feature/SweptPagesTest.php tests/Feature/TestDatabaseTest.php tests/Feature/ViteIsolationTest.php \
+        tests/Unit/ArchTest.php tests/Unit/AgentGuidanceTest.php tests/Unit/TemplateTestHelpersTest.php \
+        tests/js/ai-hooks/ .ai/hooks/check.sh .agents/skills/shadcn/ .agents/skills/web-design-guidelines/ \
+        .claude/skills/shadcn .claude/skills/web-design-guidelines .codex/hooks.json .node-version UPGRADING.md
+    ```
+
+    A file it lists holds changes of the project's own, which this step drops. Keep a copy (`git show HEAD:<file>`), and move the change into a file of the project's own after this step.
+
+- Restore every template-owned path the template has, and remove the two watchdog files it dropped:
+
+    ```bash
+    git restore --source=MERGE_HEAD --staged --worktree -- \
+        tests/Support/Template/ tests/Browser/PageSweepTest.php tests/Browser/BrowserActionTimeoutTest.php \
+        tests/Feature/SweptPagesTest.php tests/Feature/TestDatabaseTest.php tests/Feature/ViteIsolationTest.php \
+        tests/Unit/ArchTest.php tests/Unit/AgentGuidanceTest.php tests/Unit/TemplateTestHelpersTest.php \
+        tests/js/ai-hooks/ .ai/hooks/check.sh .agents/skills/shadcn/ .agents/skills/web-design-guidelines/ \
+        .claude/skills/shadcn .claude/skills/web-design-guidelines .codex/hooks.json .node-version UPGRADING.md
+    git rm -r -q --ignore-unmatch -- tests/process-watchdog.sh tests/js/test-runner/process-watchdog.test.ts
+    ```
+
+### 3. Put everything else back
+
+Stage the mixed files the merge left in conflict, markers and all, then put every other path back to the project's version:
+
+```bash
+git diff --name-only --diff-filter=U -z -- \
+    tests/Pest.php tests/bootstrap.php tests/TestCase.php composer.json package.json vite.config.ts \
+    tsconfig.json .gitignore phpunit.xml .env.example config/boost.php phpstan.neon .claude/settings.json \
+    .codex/config.toml .mcp.json .github/workflows/check.yml .ai/guidelines/project.md skills-lock.json |
+    xargs -0 -r git add -A --
+git restore --source=HEAD --staged --worktree -- . \
+    ':!tests/Support/Template/' ':!tests/Browser/PageSweepTest.php' ':!tests/Browser/BrowserActionTimeoutTest.php' \
+    ':!tests/Feature/SweptPagesTest.php' ':!tests/Feature/TestDatabaseTest.php' ':!tests/Feature/ViteIsolationTest.php' \
+    ':!tests/Unit/ArchTest.php' ':!tests/Unit/AgentGuidanceTest.php' ':!tests/Unit/TemplateTestHelpersTest.php' \
+    ':!tests/js/ai-hooks/' ':!.ai/hooks/check.sh' ':!.agents/skills/shadcn/' ':!.agents/skills/web-design-guidelines/' \
+    ':!.claude/skills/shadcn' ':!.claude/skills/web-design-guidelines' ':!.codex/hooks.json' ':!.node-version' \
+    ':!UPGRADING.md' ':!tests/process-watchdog.sh' ':!tests/js/test-runner/process-watchdog.test.ts' \
+    ':!tests/Pest.php' ':!tests/bootstrap.php' ':!tests/TestCase.php' ':!composer.json' ':!package.json' \
+    ':!vite.config.ts' ':!tsconfig.json' ':!.gitignore' ':!phpunit.xml' ':!.env.example' ':!config/boost.php' \
+    ':!phpstan.neon' ':!.claude/settings.json' ':!.codex/config.toml' ':!.mcp.json' ':!.github/workflows/check.yml' \
+    ':!.ai/guidelines/project.md' ':!skills-lock.json'
+```
+
+`git diff --cached --name-status HEAD` must now list only the paths of step 2 and the mixed files: nothing under `resources/`, `app/`, `routes/`, `database/` or `lang/`.
+
+### 4. Merge the mixed files by hand
+
+A mixed file that merged without a conflict already holds every change the template made, the ones a project skips below among them. `git diff --cached HEAD -- <file>` shows what the merge changed in the project's version, and `git diff sp-v1.3.0 MERGE_HEAD -- <file>` shows the template's side alone. Step 3 staged the conflicted ones with their markers. This finds them, and must print nothing when you are done:
+
+```bash
+git grep -l '^<<<<<<<' -- \
+    tests/Pest.php tests/bootstrap.php tests/TestCase.php composer.json package.json vite.config.ts \
+    tsconfig.json .gitignore phpunit.xml .env.example config/boost.php phpstan.neon .claude/settings.json \
+    .codex/config.toml .mcp.json .github/workflows/check.yml .ai/guidelines/project.md skills-lock.json
+```
+
+- `tests/Pest.php`, `tests/TestCase.php` and `tests/bootstrap.php`: take the template's changes, and keep the project's own `pest()` configuration, `TestCase` methods and bootstrap steps. `TestCase::setUp()` now calls `withoutVite()` for every test, and `tests/Pest.php` gives the browser tests the real Vite back with `withVite()`, in place of its old `withoutVite()` for `Feature`. `tests/bootstrap.php` no longer starts the watchdog.
+- `package.json`: take the `build:dev` script. Keep `jsdom`, `@testing-library/*`, `@radix-ui/react-popover` and every other UI package the project uses: the template removed them only because its own UI and tests no longer use them. `playwright`, the `test` script and `name` came with sp-v1.3.0, so keep the project's.
+- `vite.config.ts`:
+    - `test`: keep the project's `environment: 'jsdom'` and `setupFiles: ['tests/js/setup.ts']` while its own JS tests need jsdom, and skip the template's `environment: 'node'`. The template's tests in `tests/js/ai-hooks` set `// @vitest-environment node` themselves.
+    - `lint`: the template dropped its `plugins`, `rules` and `overrides` (React's hook rules and jsx-a11y), because it owns no UI. Keep them if the project wants them for its own UI, and then add `'.agents/skills/**'` to `lint.ignorePatterns`: jsx-a11y fails on a showcase file of the `shadcn` skill.
+    - `fmt.ignorePatterns`: take the new `skills-lock.json` entry. The `.worktrees` watch ignore came with sp-v1.3.0: keep it.
+- `composer.json`: take the `check:browser` script, which now builds with `npm run build:dev` so that React's development warnings reach the console and fail the page sweep, and its description. It builds no SSR bundle: sp-v2.0.0's `npx vp build --ssr` is gone.
+- `phpunit.xml`: take `<env name="APP_LOCALE" value="en"/>`, which runs the tests in English whatever `.env` says, unless the project's tests expect another language.
+- `.github/workflows/check.yml`: take the new "Build for production" step.
+- `skills-lock.json`: new. Take the template's.
+- `.ai/guidelines/project.md`: take the template's text, and keep the project's own sections.
+- `.env.example` and `config/boost.php`: the template has not changed them since sp-v1.3.0. Keep the project's, with its own `APP_LOCALE` and, if it has one, its own `skills.exclude`. The template's `config/boost.php` excludes no skill, so Boost's `tailwindcss-development` skill stays. This replaces sp-v2.0.0's advice to keep `skills.exclude`.
+- `tsconfig.json`, `.gitignore`, `phpstan.neon`, `.claude/settings.json`, `.codex/config.toml` and `.mcp.json`: no template change since sp-v1.3.0.
+
+### 5. Keep the helpers the project's tests call
+
+sp-v1.3.0's `tests/Support/Template/browser.php` declared `visitSecurityPage()`, its only helper. sp-v3.0.0's does not, and step 2 replaced the file. The starter kit's browser tests that came with sp-v1.3.0 (`tests/Browser/PasskeysTest.php`, `SettingsTest.php` and `TwoFactorAuthenticationTest.php`) are the project's now, and they call it. The first command below lists the calls, and the second the project's own declaration. When the first prints a line and the second prints none, copy sp-v1.3.0's helper into a file of the project's own:
+
+```bash
+git grep -n 'visitSecurityPage' -- tests ':!tests/Support/Template/'
+git grep -n 'function visitSecurityPage' -- tests/Support ':!tests/Support/Template/'
+git show sp-v1.3.0:tests/Support/Template/browser.php > tests/Support/security-page.php
+git add tests/Support/security-page.php
+```
+
+Then change the copy's opening comment: the file is the project's.
+
+### 6. Lock files
+
+sp-v3.0.0 changes no Composer constraint and no npm package version that a project keeps. `composer.lock` and `package-lock.json` stay as step 3 put them back, and the lock-file rules need no `composer update` or `npm update`. If step 4 dropped a package from `package.json` (`jsdom`, say, once no test of the project's needs it), run `npm uninstall <package>`.
+
+### 7. Agent guidance
+
+Generate `CLAUDE.md`, `AGENTS.md`, `boost.json` and Boost's skills from the new `project.md`. Never pass `-q`. `git status` must then show no template file rewritten besides those generated ones, and Boost leaves `.claude/skills/shadcn` and `.claude/skills/web-design-guidelines` alone:
+
+```bash
+php artisan boost:update
+git status --short
+```
+
+`.ai/skills/frontend-components` is the project's now. Keep it as the project's own UI notes, or delete it and run `php artisan boost:update` again.
+
+### 8. The page sweep
+
+`tests/Browser/PageSweepTest.php` is new. It opens the pages `projectSweptPages()` (signed in as a verified user) and `projectSweptGuestPages()` (as a guest) return, on a desktop and a phone. A page fails when it does not mount the app, ends on another path, raises a JavaScript error or writes anything to the console.
+
+A project on sp-v1.3.0 has neither function, so the template's defaults in `tests/Support/Template/browser.php` apply: the starter kit's dashboard, settings and sign-in pages. If the project removed or moved one of those pages, or wants its own pages swept, declare both functions in a `tests/Support/*.php` of its own. Each replaces its default, so it lists the starter-kit pages the project keeps as well as the project's own. `tests/Feature/SweptPagesTest.php` checks that every path is a GET route.
+
+```php
+<?php
+
+/**
+ * The signed-in pages the page sweep opens.
+ *
+ * @return array<string, string>
+ */
+function projectSweptPages(): array
+{
+    return [
+        'dashboard' => '/dashboard',
+        'profile settings' => '/settings/profile',
+        'security settings' => '/settings/security',
+        'appearance settings' => '/settings/appearance',
+        'password confirmation' => '/user/confirm-password',
+        'the invoices' => '/invoices',
+    ];
+}
+
+/**
+ * The pages the page sweep opens as a guest.
+ *
+ * @return array<string, string>
+ */
+function projectSweptGuestPages(): array
+{
+    return [
+        'welcome' => '/',
+        'login' => '/login',
+        'registration' => '/register',
+        'forgot password' => '/forgot-password',
+        'password reset' => '/reset-password/a-token?email=taylor%40example.com',
+        'the pricing page' => '/pricing',
+    ];
+}
+```
+
+### 9. Check
+
+```bash
+composer check
+composer check:browser
+```
+
+Run both. When both pass, commit the merge and merge the branch into `develop`.
+
 ## sp-v2.0.0
 
 The front end is rebuilt on Ant Design 6 (`antd`) and Ant Design Pro (`@ant-design/pro-components`, a pinned beta). shadcn/ui, Radix, Sonner, lucide-react and the template's own `components/shared` and `components/ui` are removed. A page is made of antd and Pro components, which a thin glue in `resources/js/ui/` wires to Laravel and Inertia: lists (`useInertiaTable` with `ListRequest`), forms that the server checks while the user types (`useInertiaForm`), dialogs that become sheets on a phone, flash messages and the appearance. The app's look is `resources/js/theme.ts` and its menu is `resources/js/navigation.ts`. Chinese and English are both built in, and Chinese is the default: every sentence is keyed by its English text (`t()` in React, `__()` in PHP), and the template's Chinese is in `lang/template/zh_CN.json`. Tailwind stays for the welcome page and a project's own marketing pages only. The template also ships an example of every page type under `/examples` (in `local` and `testing` only), a page sweep that renders every page on the server and opens it on a desktop and on a phone, and the `ant-design-ui` skill, which replaces `frontend-components`. No Composer package changes.
