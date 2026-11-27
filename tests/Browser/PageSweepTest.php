@@ -16,6 +16,8 @@ use Symfony\Component\HttpFoundation\Response;
  * browser.php has the starter kit's pages; a project's own functions of those
  * names replace them). A page:
  *
+ * - answers with a status below 400, so neither an error page nor a page
+ *   the app does not have passes, even when it renders through Inertia;
  * - mounts the Inertia app in the browser (the build the sweep loads has no
  *   server-side rendering);
  * - ends up on the path that was asked for, and not on a redirect;
@@ -45,11 +47,19 @@ beforeEach(function () {
     // The security page asks for the password first; the page itself is what is checked here.
     $this->withoutMiddleware(RequirePassword::class);
 
-    app()->instance('record-the-console', new class
+    app()->instance('the-sweep-recorder', new class
     {
+        /**
+         * The status of the first response to each path, by path.
+         *
+         * @var array<string, int>
+         */
+        public array $statuses = [];
+
         public function handle(Request $request, Closure $next): Response
         {
             $response = $next($request);
+            $this->statuses[$request->getPathInfo()] ??= $response->getStatusCode();
             $html = $response->getContent();
 
             if (is_string($html) && str_contains($html, '<head>')) {
@@ -59,8 +69,8 @@ beforeEach(function () {
             return $response;
         }
     });
-    // Through the kernel: it gives the router its groups again when it is first made.
-    app(HttpKernel::class)->appendMiddlewareToGroup('web', 'record-the-console');
+    // Around every route, so it also sees the answer to a path no route matches.
+    app(HttpKernel::class)->pushMiddleware('the-sweep-recorder');
 });
 
 /**
@@ -99,10 +109,18 @@ function waitForHydration(object $page): void
 function sweep(string $path, string $device): void
 {
     $page = $device === 'phone' ? visit($path)->on()->mobile() : visit($path);
+    $page->url(); // Opens it.
+
+    $status = app('the-sweep-recorder')->statuses[(string) parse_url($path, PHP_URL_PATH)] ?? null;
+    $hint = $status === 404 ? ' If the app has no such page, list only the pages it has in projectSweptPages() and projectSweptGuestPages() in tests/Support/*.php.' : '';
+
+    expect($status)
+        ->not->toBeNull("The sweep saw no answer to {$path}.")
+        ->toBeLessThan(400, "{$path} answered with HTTP {$status}.{$hint}");
 
     waitForHydration($page);
 
-    $page->assertPathIs((string) strtok($path, '?'))
+    $page->assertPathIs((string) parse_url($path, PHP_URL_PATH))
         ->assertNoJavaScriptErrors()
         ->assertNoConsoleLogs();
 }
