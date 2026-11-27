@@ -108,7 +108,7 @@ git grep -l '^<<<<<<<' -- \
 ```
 
 - `tests/Pest.php`, `tests/TestCase.php` and `tests/bootstrap.php`: take the template's changes, and keep the project's own `pest()` configuration, `TestCase` methods and bootstrap steps. `TestCase::setUp()` now calls `withoutVite()` for every test, and `tests/Pest.php` gives the browser tests the real Vite back with `withVite()`, in place of its old `withoutVite()` for `Feature`. `tests/bootstrap.php` no longer starts the watchdog.
-- `package.json`: take the `build:dev` script. Keep `jsdom`, `@testing-library/*`, `@radix-ui/react-popover` and every other UI package the project uses: the template removed them only because its own UI and tests no longer use them. `playwright`, the `test` script and `name` came with sp-v1.3.0, so keep the project's.
+- `package.json`: take the `build:dev` script and the `packageManager` field, which keeps the shadcn CLI on npm. Keep `jsdom`, `@testing-library/*`, `@radix-ui/react-popover` and every other UI package the project uses: the template removed them only because its own UI and tests no longer use them. `playwright`, the `test` script and `name` came with sp-v1.3.0, so keep the project's.
 - `vite.config.ts`:
     - `test`: keep the project's `environment: 'jsdom'` and `setupFiles: ['tests/js/setup.ts']` while its own JS tests need jsdom, and skip the template's `environment: 'node'`. The template's tests in `tests/js/ai-hooks` set `// @vitest-environment node` themselves.
     - `lint`: take the template's lint ignore for the vendor skills. The template dropped its `plugins`, `rules` and `overrides` because it owns no UI: keep them if the project wants them.
