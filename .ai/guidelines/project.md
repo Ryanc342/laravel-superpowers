@@ -128,6 +128,11 @@
 - The template's own helpers are in `tests/Support/Template/`, which belongs to the template. They load after yours, and each is declared only when no function of its name exists yet, so a function of yours with the same name, in `tests/Pest.php` or `tests/Support`, replaces the template's.
 - The page sweep (`tests/Browser/PageSweepTest.php`) opens the pages `projectSweptPages()` and `projectSweptGuestPages()` return, on a desktop and a phone: the first list signed in as a verified user, the second as a guest. A page fails when it answers with a status of 400 or more, does not mount the app, ends on another path, raises a JavaScript error or writes anything to the console.
 - The sweep has no page list of its own. The template's defaults, in `tests/Support/Template/browser.php`, list the starter kit's pages. A `projectSweptPages()` or `projectSweptGuestPages()` of yours in `tests/Support/*.php` replaces the default, so it must list the starter-kit pages the project keeps as well as its own. Either may return `[]`, and the sweep then skips that list, but not both. `tests/Feature/SweptPagesTest.php` checks that every listed path is a GET route, and names the lists to change when one is not.
+- The sweep opens every path on the test server's own host. It signs in as a user that `User::factory()` creates, with no role of its own. Some projects need more:
+    - Pages on another host, such as a tenant's subdomain: in `tests/Pest.php`, give `PageSweepTest.php` a `beforeEach` that sets the host with `pest()->browser()->withHost(...)`, and an `afterEach` that resets it.
+    - Pages behind a role: give the sweep's user that role there.
+
+    Configure it with `->in('Browser/PageSweepTest.php')`, so other tests keep their own setup. Never edit the sweep itself.
 
 ## Architecture Rules
 
