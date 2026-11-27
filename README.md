@@ -82,14 +82,14 @@ First see which template version the project is on:
 git tag --merged HEAD --list 'sp-v*' --sort=-v:refname | head -1
 ```
 
-Then fetch the template and read its [`UPGRADING.md`](UPGRADING.md):
+Then fetch the template's `main` and its `sp-v*` tags, and read its [`UPGRADING.md`](UPGRADING.md). Never pass `--force` when you fetch the template's tags: it would rewrite the project's own tags of the same names.
 
 ```bash
-git fetch template --tags
+git fetch template main 'refs/tags/sp-v*:refs/tags/sp-v*'
 git show template/main:UPGRADING.md
 ```
 
-Do what it lists for every version newer than the one the project is on, and follow the "Template sync" steps in [`.ai/guidelines/project.md`](.ai/guidelines/project.md), which `CLAUDE.md` and `AGENTS.md` repeat. A project on sp-v1.3.0 follows the sp-v3.0.0 entry, which writes those steps out with every path filled in. Never merge the template into `main`.
+Do what it lists for every version newer than the one the project is on, and follow the "Template sync" steps in [`.ai/guidelines/project.md`](.ai/guidelines/project.md), which `CLAUDE.md` and `AGENTS.md` repeat. A project on sp-v1.3.0 follows the sp-v3.0.0 entry, which writes those steps out with every path filled in. If it already ran `git merge template/main` as sp-v1.3.0's rules say, it aborts that merge and starts again, as step 1 of that entry says. Never merge the template into `main`.
 
 Merging the official starter kit's updates into the template itself is the "Upstream sync" section of the same file.
 

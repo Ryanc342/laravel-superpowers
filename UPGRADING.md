@@ -29,10 +29,20 @@ sp-v3.0.0 lists `tests/Pest.php`, `tests/bootstrap.php` and `tests/TestCase.php`
 
 ### 1. Merge
 
+If you already ran `git merge template/main`, as sp-v1.3.0's rules say, start again here. Abort that merge, go back to `develop` and delete that sync branch. Keep no conflict you resolved in it: sp-v1.3.0's rules take `tests/Pest.php` whole, which drops the project's own setup.
+
+```bash
+git merge --abort
+git switch develop
+git branch -D chore/sync-template-<YYYY-MM-DD>
+```
+
+Then merge again, fetching only `main` and the `sp-v*` tags. Never pass `--force` when you fetch the template's tags: it would rewrite the project's own tags of the same names.
+
 ```bash
 git switch develop
 git switch -c chore/sync-template-$(date +%F)
-git fetch template --tags
+git fetch template main 'refs/tags/sp-v*:refs/tags/sp-v*'
 git merge --no-ff --no-commit template/main
 ```
 
