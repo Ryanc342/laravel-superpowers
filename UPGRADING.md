@@ -77,7 +77,7 @@ The merge stops with conflicts in files the project changed: UI and app files, t
 
 ### 3. Put everything else back
 
-Stage every path the merge left in conflict, markers and all, then put every path but those of step 2 and the mixed files back to the project's version. The restore replaces the staged markers with the project's version, and removes a file the project deleted and the template changed:
+Stage every path the merge left in conflict, markers and all, then put every path but those of step 2 and the mixed files back to the project's version. The restore replaces the staged markers with the project's version, and removes a file the project deleted and the template changed. Run both from the repository root: `git diff` prints paths from the root, and `.` covers the whole tree only there.
 
 ```bash
 git diff --name-only --diff-filter=U -z | xargs -0 -r git add -A --
@@ -152,7 +152,7 @@ git status --short
 
 `tests/Browser/PageSweepTest.php` is new. "Test Runs" in `project.md` says which pages it opens and what fails a page.
 
-A project on sp-v1.3.0 has neither `projectSweptPages()` nor `projectSweptGuestPages()`, so the template's defaults in `tests/Support/Template/browser.php` apply: the starter kit's dashboard, settings and sign-in pages. If the project removed or moved one of those pages, or wants its own pages swept, declare both functions in a `tests/Support/*.php` of its own. Each replaces its default, so it lists the starter-kit pages the project keeps as well as the project's own:
+A project on sp-v1.3.0 has neither `projectSweptPages()` nor `projectSweptGuestPages()`, so the template's defaults in `tests/Support/Template/browser.php` apply: the starter kit's dashboard, settings and sign-in pages. If the project removed or moved one of those pages, or wants its own pages swept, declare both functions in a `tests/Support/*.php` of its own. Each replaces its default, so it lists the starter-kit pages the project keeps as well as the project's own. Either may return `[]`, and the sweep then skips that list, but not both:
 
 ```php
 <?php

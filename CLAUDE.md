@@ -70,21 +70,24 @@
 - Boost generates `CLAUDE.md`, `AGENTS.md`, `boost.json` and its own skills in `.claude/skills/` and `.agents/skills/`. A template sync keeps the project's version of them, and `php artisan boost:update` regenerates them.
 - Everything else is the project's, including all UI and app code.
 - A template-owned test holds for any UI a project has. One that fails after a project changes its UI is a template bug: report it, and do not edit it.
+    - The page sweep's page lists are the exception: they are the project's. The template's defaults name the starter kit's pages, so the sweep and `tests/Feature/SweptPagesTest.php` fail by design once a project removes or moves one of them. Change the lists (`projectSweptPages()` and `projectSweptGuestPages()` in `tests/Support/*.php`, as "Test Runs" says), not the test.
 
 ### Template sync
 
 - Projects started from laravel-superpowers have a `template` remote. Template updates come only from `template/main`, and they bring in tooling only. Never merge the template straight into `main`.
 - Upstream's UI and app changes no longer reach a project through the template. A project that wants one takes it from laravel/react-starter-kit itself.
-- Before you start, read the template's `UPGRADING.md` (`git show template/main:UPGRADING.md`) and do what it lists for each template version (`sp-vX.Y.Z` tag) newer than the last one merged. Some of its steps change the steps below, among them how the lock files are resolved.
 - Sync in this order:
-    1. Cut `chore/sync-template-<YYYY-MM-DD>` from `develop` and run `git merge --no-ff --no-commit template/main`. Without `--no-ff`, git fast-forwards when `develop` is behind the template: there is then no `MERGE_HEAD`, and the template's whole tree, its UI included, is already on the branch.
+    1. Fetch the template, read its upgrade notes, and merge it:
+        - Fetch the template's `main` and its `sp-v*` tags: `git fetch template main 'refs/tags/sp-v*:refs/tags/sp-v*'`. Never pass `--force` when you fetch the template's tags: it would rewrite the project's own tags of the same names.
+        - Read the template's `UPGRADING.md` (`git show template/main:UPGRADING.md`) and do what it lists for each template version (`sp-vX.Y.Z` tag) newer than the last one merged. Some of its steps change the steps below, among them how the lock files are resolved.
+        - Cut `chore/sync-template-<YYYY-MM-DD>` from `develop` and run `git merge --no-ff --no-commit template/main`. Without `--no-ff`, git fast-forwards when `develop` is behind the template: there is then no `MERGE_HEAD`, and the template's whole tree, its UI included, is already on the branch.
     2. Take the template's version of every template-owned path.
         - The paths are two lists put together, so the tooling the template dropped goes too: the "The template owns these paths" list in the project's current version of this file, and the same list in the template's new one (`git show MERGE_HEAD:.ai/guidelines/project.md`).
         - A project's version from before sp-v3.0.0 has no such list. Use the paths that `UPGRADING.md`'s sp-v3.0.0 entry names instead. Never use an older ownership sentence or table: they named UI paths and whole folders.
         - A path the template's new version lists as mixed stays mixed, even if an old list named it.
         - Restore each path `MERGE_HEAD` has (`git ls-tree -r --name-only MERGE_HEAD -- <path>` prints it): `git restore --source=MERGE_HEAD --staged --worktree -- <each such path>`.
         - Remove each path it lacks: `git rm -r -q --ignore-unmatch -- <each such path>`. `git restore` cannot remove them. It stops, and restores nothing, at a path the merge already deleted, at one that neither side has, and at one left in conflict because the project changed what the template deleted.
-    3. Put every other path back to the project's version, including files the merge changed cleanly, added or deleted. First stage every path the merge left in conflict, markers and all (`git diff --name-only --diff-filter=U` lists them): `git add -A -- <each such path>`. `git restore` stops, and restores nothing, while a path is still in conflict that it leaves out or that `HEAD` lacks, such as a file the project deleted and the template changed. Then run `git restore --source=HEAD --staged --worktree -- . ':!<each path of step 2>' ':!<each mixed file of both versions>'`.
+    3. Put every other path back to the project's version, including files the merge changed cleanly, added or deleted. Run this step from the repository root: `git diff` prints paths from the root, and `.` covers the whole tree only there. First stage every path the merge left in conflict, markers and all (`git diff --name-only --diff-filter=U` lists them): `git add -A -- <each such path>`. `git restore` stops, and restores nothing, while a path is still in conflict that it leaves out or that `HEAD` lacks, such as a file the project deleted and the template changed. Then run `git restore --source=HEAD --staged --worktree -- . ':!<each path of step 2>' ':!<each mixed file of both versions>'`.
     4. Merge the mixed files by hand: keep the project's own changes, take only the template's tooling hunks, and leave no conflict marker behind. Step 3 staged the conflicted ones, so they no longer show as unmerged: `git grep -l '^<<<<<<<' -- <each mixed file>` finds them.
     5. Resolve the lock files as the next two rules say.
     6. Run `php artisan boost:update`.
@@ -94,13 +97,19 @@
 
 ### Upstream sync
 
-- Only laravel-superpowers has an `upstream` remote (laravel/react-starter-kit). Merge its updates on a branch of their own: cut `chore/sync-upstream-<YYYY-MM-DD>` from `develop`, `git merge --no-ff upstream/main`, run both checks, merge into `develop`.
-- Take upstream's changes as they come, its UI and app code included. "Ours" is the template and "theirs" is upstream. Resolve conflicts like this:
+- Only laravel-superpowers has an `upstream` remote (laravel/react-starter-kit). Merge its updates on a branch of their own, in this order:
+    1. Run `git fetch upstream`, cut `chore/sync-upstream-<YYYY-MM-DD>` from `develop` and run `git merge --no-ff --no-commit upstream/main`.
+    2. Resolve the conflicts as the next rule says.
+    3. Bring the lock files up to date. Upstream commits neither `composer.lock` nor `package-lock.json`, so start from the template's own. Run `composer update <the packages whose constraints changed> --no-scripts`, then `php artisan package:discover` and `php artisan boost:update`, by the template sync's rule for `composer.lock` (never `-W`, and `--with-dependencies` with the package named when others must move too). Then run `npm install`. Never add `--force` or `--legacy-peer-deps`.
+    4. Run `composer check` and `composer check:browser`. Commit the merge with both lock files, and merge into `develop`.
+- Take upstream's changes, its UI and app code included. "Ours" is the template and "theirs" is upstream. Resolve conflicts like this:
+    - A UI or app file takes upstream's version: `git checkout --theirs -- <file>`, or `git rm -- <file>` when upstream deleted it. These are `components.json`, the files under `resources/`, `app/`, `bootstrap/`, `routes/`, `database/` and `config/` (other than `config/boost.php`), and upstream's tests: `tests/Feature/Auth/`, `tests/Feature/Settings/`, `tests/Feature/DashboardTest.php`, `tests/Feature/ExampleTest.php` and `tests/Unit/ExampleTest.php`. chisel's files among them stay deleted, as the chisel rule below says. Then strip the chisel markers by that rule, and run `composer fix`.
+    - `README.md`: ours.
+    - `.github/workflows/`: only `check.yml` is the template's. Upstream's `tests.yml` stays deleted, and a workflow upstream adds stays out (`git rm -- <file>`).
     - Template-owned and mixed files: keep the template's tooling, and take upstream's changes to the rest.
     - Versions of tools and dependencies: the newer official one.
     - chisel stays removed: keep its files deleted and `laravel/chisel` out of `composer.json`. Strip any chisel marker the merge brings back by deleting only the comment (`/* @chisel-x */`, `/* @end-chisel-x */`, `{/* ... */}` in JSX, `<!-- ... -->`, `{{-- ... --}}`) and keeping all the code around and between the markers. Delete a whole line only when the marker is all that is on it; `UPGRADING.md` has an example of a line shared with code.
-    - `.github/workflows/check.yml` stays, and upstream's `tests.yml` stays deleted.
-    - Everything else: keep the changes of both sides. The template changes no UI or app file beyond the stripped chisel markers, so upstream's UI and app changes come through whole.
+    - Everything else: keep the changes of both sides.
 
 ## Git Worktrees
 
@@ -119,8 +128,8 @@
 - One test run uses a test database at a time. `tests/bootstrap.php` takes a MySQL lock on it, and a second run waits `TEST_DATABASE_LOCK_WAIT` seconds (600 by default) for the lock before it gives up. `TEST_DATABASE_LOCK_WAIT=0` makes it give up at once.
 - Put your project's own Pest helper functions, custom expectations and classes in `tests/Support/*.php`. `tests/Pest.php` loads every file there. Keep `pest()` and `uses()` configuration in `tests/Pest.php`, with the rest of the suite's setup. Do not edit `tests/Pest.php` for helpers: the template's setup is in that file too, and changes to it conflict at template syncs.
 - The template's own helpers are in `tests/Support/Template/`, which belongs to the template. They load after yours, and each is declared only when no function of its name exists yet, so a function of yours with the same name, in `tests/Pest.php` or `tests/Support`, replaces the template's.
-- The page sweep (`tests/Browser/PageSweepTest.php`) opens the pages `projectSweptPages()` and `projectSweptGuestPages()` return, on a desktop and a phone: the first list signed in as a verified user, the second as a guest. A page fails when it does not mount the app, ends on another path, raises a JavaScript error or writes anything to the console.
-- The sweep has no page list of its own. The template's defaults, in `tests/Support/Template/browser.php`, list the starter kit's pages. A `projectSweptPages()` or `projectSweptGuestPages()` of yours in `tests/Support/*.php` replaces the default, so it must list the starter-kit pages the project keeps as well as its own. `tests/Feature/SweptPagesTest.php` checks that every listed path is a GET route.
+- The page sweep (`tests/Browser/PageSweepTest.php`) opens the pages `projectSweptPages()` and `projectSweptGuestPages()` return, on a desktop and a phone: the first list signed in as a verified user, the second as a guest. A page fails when it answers with a status of 400 or more, does not mount the app, ends on another path, raises a JavaScript error or writes anything to the console.
+- The sweep has no page list of its own. The template's defaults, in `tests/Support/Template/browser.php`, list the starter kit's pages. A `projectSweptPages()` or `projectSweptGuestPages()` of yours in `tests/Support/*.php` replaces the default, so it must list the starter-kit pages the project keeps as well as its own. Either may return `[]`, and the sweep then skips that list, but not both. `tests/Feature/SweptPagesTest.php` checks that every listed path is a GET route, and names the lists to change when one is not.
 
 ## Architecture Rules
 
