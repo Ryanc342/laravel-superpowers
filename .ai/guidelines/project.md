@@ -27,9 +27,6 @@
 ### Template-owned and mixed files
 
 - The template owns these paths. A project does not edit them, and a template sync takes them whole from the template:
-    - `tests/Pest.php`
-    - `tests/bootstrap.php`
-    - `tests/TestCase.php`
     - `tests/Support/Template/`
     - `tests/Browser/PageSweepTest.php`
     - `tests/Browser/BrowserActionTimeoutTest.php`
@@ -49,6 +46,9 @@
     - `.node-version`
     - `UPGRADING.md`
 - Mixed files hold the template's tooling and the project's own changes. A template sync takes only the template's tooling hunks, merged by hand, and keeps the rest of the project's version:
+    - `tests/Pest.php` (it keeps the project's own `pest()` and `uses()` configuration)
+    - `tests/bootstrap.php`
+    - `tests/TestCase.php`
     - `composer.json`
     - `package.json`
     - `vite.config.ts`
@@ -114,7 +114,7 @@
 - Never stop processes by name: no `pkill -f`, no `killall`, no `kill $(pgrep ...)`. They also hit the test runs of other projects.
 - Stop a stuck test run only by the process group of the command you started: `kill -- -<pgid>`, with the group from `ps -o pgid= -p <pid>`, and only when it differs from your own shell's group, `ps -o pgid= -p $$`. That stops Pest with it. Killing only the PID of `composer` or `php artisan test` leaves Pest running to the end of the suite, still holding the test database.
 - One test run uses a test database at a time. `tests/bootstrap.php` takes a MySQL lock on it, and a second run waits `TEST_DATABASE_LOCK_WAIT` seconds (600 by default) for the lock before it gives up. `TEST_DATABASE_LOCK_WAIT=0` makes it give up at once.
-- Put your project's own Pest helper functions, custom expectations and classes in `tests/Support/*.php`. `tests/Pest.php` loads every file there. Keep `pest()` and `uses()` configuration in `tests/Pest.php`, with the rest of the suite's setup. Do not edit `tests/Pest.php` for helpers: the template owns that file, and changes to it conflict at template syncs.
+- Put your project's own Pest helper functions, custom expectations and classes in `tests/Support/*.php`. `tests/Pest.php` loads every file there. Keep `pest()` and `uses()` configuration in `tests/Pest.php`, with the rest of the suite's setup. Do not edit `tests/Pest.php` for helpers: the template's setup is in that file too, and changes to it conflict at template syncs.
 - The template's own helpers are in `tests/Support/Template/`, which belongs to the template. They load after yours, and each is declared only when no function of its name exists yet, so a function of yours with the same name, in `tests/Pest.php` or `tests/Support`, replaces the template's.
 - The page sweep (`tests/Browser/PageSweepTest.php`) opens the pages `projectSweptPages()` and `projectSweptGuestPages()` return, on a desktop and a phone: the first list signed in as a verified user, the second as a guest. A page fails when it does not mount the app, ends on another path, raises a JavaScript error or writes anything to the console.
 - The sweep has no page list of its own. The template's defaults, in `tests/Support/Template/browser.php`, list the starter kit's pages. A `projectSweptPages()` or `projectSweptGuestPages()` of yours in `tests/Support/*.php` replaces the default, so it must list the starter-kit pages the project keeps as well as its own. `tests/Feature/SweptPagesTest.php` checks that every listed path is a GET route.
