@@ -78,11 +78,14 @@
 - Before you start, read the template's `UPGRADING.md` (`git show template/main:UPGRADING.md`) and do what it lists for each template version (`sp-vX.Y.Z` tag) newer than the last one merged. Some of its steps change the steps below, among them how the lock files are resolved.
 - Sync in this order:
     1. Cut `chore/sync-template-<YYYY-MM-DD>` from `develop` and run `git merge --no-ff --no-commit template/main`. Without `--no-ff`, git fast-forwards when `develop` is behind the template: there is then no `MERGE_HEAD`, and the template's whole tree, its UI included, is already on the branch.
-    2. Take the template's version of every template-owned path. The paths are the template-owned lists of both versions of this file put together: the project's own, and the template's new one (`git show MERGE_HEAD:.ai/guidelines/project.md`). That way the tooling the template dropped goes too.
+    2. Take the template's version of every template-owned path.
+        - The paths are two lists put together, so the tooling the template dropped goes too: the "The template owns these paths" list in the project's current version of this file, and the same list in the template's new one (`git show MERGE_HEAD:.ai/guidelines/project.md`).
+        - A project's version from before sp-v3.0.0 has no such list. Use the paths that `UPGRADING.md`'s sp-v3.0.0 entry names instead. Never use an older ownership sentence or table: they named UI paths and whole folders.
+        - A path the template's new version lists as mixed stays mixed, even if an old list named it.
         - Restore each path `MERGE_HEAD` has (`git ls-tree -r --name-only MERGE_HEAD -- <path>` prints it): `git restore --source=MERGE_HEAD --staged --worktree -- <each such path>`.
         - Remove each path it lacks: `git rm -r -q --ignore-unmatch -- <each such path>`. `git restore` cannot remove them. It stops, and restores nothing, at a path the merge already deleted, at one that neither side has, and at one left in conflict because the project changed what the template deleted.
     3. Put every other path back to the project's version, including files the merge changed cleanly, added or deleted. First stage the mixed files the merge left in conflict, markers and all (`git diff --name-only --diff-filter=U` lists them): `git add -A -- <each such file>`. `git restore` stops, and restores nothing, while a path it leaves out is still in conflict. Then run `git restore --source=HEAD --staged --worktree -- . ':!<each path of step 2>' ':!<each mixed file of both versions>'`.
-    4. Merge the mixed files by hand: keep the project's own changes, take only the template's tooling hunks, and leave no conflict marker behind.
+    4. Merge the mixed files by hand: keep the project's own changes, take only the template's tooling hunks, and leave no conflict marker behind. Step 3 staged the conflicted ones, so they no longer show as unmerged: `git grep -l '^<<<<<<<' -- <each mixed file>` finds them.
     5. Resolve the lock files as the next two rules say.
     6. Run `php artisan boost:update`.
     7. Run `composer check` and `composer check:browser`, then merge into `develop`.
