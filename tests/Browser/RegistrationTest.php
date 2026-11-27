@@ -4,6 +4,8 @@ use App\Models\User;
 use Laravel\Fortify\Features;
 
 test('a visitor creates an account', function () {
+    $this->skipUnlessFortifyHas(Features::registration());
+
     visit('/register')
         ->type('name', 'Taylor Otwell')
         ->type('email', 'taylor@example.com')
@@ -17,10 +19,14 @@ test('a visitor creates an account', function () {
 });
 
 test('the registration page renders without JavaScript errors', function () {
+    $this->skipUnlessFortifyHas(Features::registration());
+
     visit('/register')->assertNoJavaScriptErrors();
 });
 
 test('the login page links to registration', function () {
+    $this->skipUnlessFortifyHas(Features::registration());
+
     visit('/login')
         ->assertSee("Don't have an account?")
         ->assertSee('Sign up');

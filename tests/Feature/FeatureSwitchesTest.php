@@ -6,28 +6,26 @@ use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
 
+/*
+ * A project turns a feature off by leaving it out of config/fortify.php, so
+ * these tests expect the switches it has, and a test that needs a feature on
+ * skips while the project has it off.
+ */
+
 test('the features prop says which Fortify features are on', function () {
     $this->get(route('home'))
-        ->assertInertia(fn (Assert $page) => $page->where('features', [
-            'registration' => true,
-            'resetPasswords' => true,
-            'emailVerification' => true,
-            'twoFactorAuthentication' => true,
-            'passkeys' => true,
-        ]));
+        ->assertInertia(fn (Assert $page) => $page->where('features', fortifyFeatureFlags()));
 });
 
-test('turning a feature off sets its flag to false and leaves the others on', function (string $flag, string $feature) {
+test('turning a feature off sets its flag to false and leaves the others as they were', function (string $flag, string $feature) {
+    $this->skipUnlessFortifyHas($feature);
+
+    $flagsBefore = fortifyFeatureFlags();
+
     turnFortifyFeatureOff($feature);
 
     $this->get(route('home'))
-        ->assertInertia(fn (Assert $page) => $page->where('features', [
-            'registration' => $flag !== 'registration',
-            'resetPasswords' => $flag !== 'resetPasswords',
-            'emailVerification' => $flag !== 'emailVerification',
-            'twoFactorAuthentication' => $flag !== 'twoFactorAuthentication',
-            'passkeys' => $flag !== 'passkeys',
-        ]));
+        ->assertInertia(fn (Assert $page) => $page->where('features', [...$flagsBefore, $flag => false]));
 })->with([
     'registration' => ['registration', Features::registration()],
     'password reset' => ['resetPasswords', Features::resetPasswords()],
@@ -45,6 +43,8 @@ test('with email verification off an unverified user reaches the dashboard', fun
 });
 
 test('with email verification off registering sends no verification mail', function () {
+    $this->skipUnlessFortifyHas(Features::registration());
+
     turnFortifyFeatureOff(Features::emailVerification());
     Notification::fake();
 
@@ -60,12 +60,17 @@ test('with email verification off registering sends no verification mail', funct
 });
 
 test('with email verification on an unverified user is sent to the notice', function () {
+    $this->skipUnlessFortifyHas(Features::emailVerification());
+
     $this->actingAs(User::factory()->unverified()->create())
         ->get(route('dashboard'))
         ->assertRedirect(route('verification.notice'));
 });
 
 test('with email verification on registering sends the verification mail', function () {
+    $this->skipUnlessFortifyHas(Features::registration());
+    $this->skipUnlessFortifyHas(Features::emailVerification());
+
     Notification::fake();
 
     $this->post(route('register.store'), [
@@ -79,7 +84,9 @@ test('with email verification on registering sends the verification mail', funct
 });
 
 test("the profile page's mustVerifyEmail follows the email verification feature", function (bool $emailVerificationIsOn) {
-    if (! $emailVerificationIsOn) {
+    if ($emailVerificationIsOn) {
+        $this->skipUnlessFortifyHas(Features::emailVerification());
+    } else {
         turnFortifyFeatureOff(Features::emailVerification());
     }
 

@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Laravel\Fortify\Features;
 
 test('a user updates their profile', function () {
     $user = User::factory()->create();
@@ -47,6 +48,8 @@ test('an email that another user has is refused while typing, and is not saved',
 });
 
 test('a user with an unverified email can ask for a new verification link', function () {
+    $this->skipUnlessFortifyHas(Features::emailVerification());
+
     $this->actingAs(User::factory()->unverified()->create());
 
     visit('/settings/profile')

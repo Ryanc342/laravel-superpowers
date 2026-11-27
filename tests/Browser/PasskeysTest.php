@@ -9,6 +9,8 @@ use Laravel\Fortify\Features;
  * section of the security page works.
  */
 test('the security page shows the passkeys section', function () {
+    $this->skipUnlessFortifyHas(Features::passkeys());
+
     $this->actingAs(User::factory()->create());
 
     visitSecurityPage()
@@ -18,6 +20,8 @@ test('the security page shows the passkeys section', function () {
 });
 
 test('a user removes a passkey after confirming it', function () {
+    $this->skipUnlessFortifyHas(Features::passkeys());
+
     $user = User::factory()->create();
     $user->passkeys()->create([
         'name' => 'Work laptop',
@@ -37,6 +41,8 @@ test('a user removes a passkey after confirming it', function () {
 });
 
 test('a passkey stays when removing it is cancelled', function () {
+    $this->skipUnlessFortifyHas(Features::passkeys());
+
     $user = User::factory()->create();
     $user->passkeys()->create([
         'name' => 'Work laptop',
@@ -63,6 +69,8 @@ test('turning passkeys off hides the passkeys section of the security page', fun
 });
 
 test('the login page offers to sign in with a passkey', function () {
+    $this->skipUnlessFortifyHas(Features::passkeys());
+
     visit('/login')->assertSee('Sign in with a passkey');
 });
 

@@ -65,7 +65,8 @@ function sweptPages(): array
  * The template's pages outside the signed-in app, by what they are, with who
  * opens them: a guest, a user whose email address is not verified yet, or a
  * signed-in user. A project lists its own guest pages in
- * `projectSweptGuestPages()`.
+ * `projectSweptGuestPages()`. The sweep skips a page whose Fortify feature
+ * the project turned off (`fortifyFeatureOfPage()`).
  *
  * @return array<string, array{string, 'guest'|'unverified user'|'user'}>
  */
@@ -260,6 +261,11 @@ test('a signed-in page renders on the server, hydrates cleanly, has one h1 and i
 })->with(pagesToSweep())->with(['desktop', 'phone']);
 
 test('a page outside the app renders on the server, hydrates cleanly, has one h1 and is no wider than the screen', function (string $path, string $visitor, string $device) {
+    // A project may turn a Fortify feature off, and Fortify then has no route for its pages.
+    if (($feature = fortifyFeatureOfPage($path)) !== null) {
+        $this->skipUnlessFortifyHas($feature, "{$path} is a page of the Fortify feature [{$feature}], which is not enabled.");
+    }
+
     match ($visitor) {
         'unverified user' => $this->actingAs(User::factory()->unverified()->create()),
         'user' => $this->actingAs(User::factory()->create()),

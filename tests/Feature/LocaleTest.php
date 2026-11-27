@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 use Illuminate\Translation\FileLoader;
 use Illuminate\Translation\Translator;
 use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Fortify\Features;
 
 test('a guest without a cookie gets the configured default', function () {
     config(['app.locale' => 'zh_CN']);
@@ -170,6 +171,8 @@ test("the project's lang/zh_CN.json wins over the template's on the same key", f
 });
 
 test('the verification mail is in Chinese for a Chinese user', function () {
+    $this->skipUnlessFortifyHas(Features::emailVerification());
+
     Notification::fake();
     $user = User::factory()->unverified()->create(['locale' => 'zh_CN']);
 
@@ -187,6 +190,8 @@ test('the verification mail is in Chinese for a Chinese user', function () {
 });
 
 test('the password reset mail is in Chinese for a Chinese user', function () {
+    $this->skipUnlessFortifyHas(Features::resetPasswords());
+
     Notification::fake();
     $user = User::factory()->create(['locale' => 'zh_CN']);
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Laravel\Fortify\Features;
 use PragmaRX\Google2FA\Google2FA;
 
 /*
@@ -14,6 +15,10 @@ const FIRST_CODE_DIGIT = '[data-test="code"] input >> nth=0';
  * out, so one made right after a click waits for the heading to change.
  */
 const PAGE_HEADINGS = "[...document.querySelectorAll('h1')].map((heading) => heading.textContent)";
+
+beforeEach(function () {
+    $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
+});
 
 test('a user turns on two-factor authentication', function () {
     $user = User::factory()->create();

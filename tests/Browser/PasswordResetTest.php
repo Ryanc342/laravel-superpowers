@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Password;
 use Laravel\Fortify\Features;
 
 test('a user asks for a password reset link', function () {
+    $this->skipUnlessFortifyHas(Features::resetPasswords());
+
     $user = User::factory()->create();
 
     visit('/forgot-password')
@@ -15,6 +17,8 @@ test('a user asks for a password reset link', function () {
 });
 
 test('a user chooses a new password from the reset link', function () {
+    $this->skipUnlessFortifyHas(Features::resetPasswords());
+
     $user = User::factory()->create();
     $token = Password::broker()->createToken($user);
 
@@ -29,6 +33,8 @@ test('a user chooses a new password from the reset link', function () {
 });
 
 test('the login page links to the forgot password page', function () {
+    $this->skipUnlessFortifyHas(Features::resetPasswords());
+
     visit('/login')
         ->click('Forgot password?')
         ->assertPathIs('/forgot-password');
@@ -43,6 +49,8 @@ test('password reset turned off hides the forgot password link', function () {
 });
 
 test('an invalid reset link shows its error under the email field', function () {
+    $this->skipUnlessFortifyHas(Features::resetPasswords());
+
     $user = User::factory()->create();
 
     visit('/reset-password/not-a-real-token?email='.urlencode($user->email))
