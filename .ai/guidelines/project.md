@@ -143,3 +143,4 @@
 
 - `CLAUDE.md` and `AGENTS.md` are generated from this file and the Boost guidelines by `php artisan boost:update`. Edit `.ai/guidelines/project.md` and run the command; never edit those two by hand.
 - `.ai/rules/index.md` is generated from the rule files in `.ai/rules` by `php artisan boost:index-rules`. After a merge conflict in `.ai/rules`, resolve the rule files and run the command again.
+- Install a skill with the skills CLI, for both agents: `DO_NOT_TRACK=1 npx skills add <source> --skill <name> --agent claude-code codex -y`. Commit `.agents/skills/<name>`, its `.claude/skills/<name>` link and `skills-lock.json`. `tests/Unit/AgentGuidanceTest.php` checks that every skill in `skills-lock.json` is there for both agents.
