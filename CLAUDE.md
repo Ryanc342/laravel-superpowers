@@ -105,7 +105,7 @@
 - Take upstream's changes, its UI and app code included. "Ours" is the template and "theirs" is upstream. Resolve conflicts like this:
     - A UI or app file takes upstream's version: `git checkout --theirs -- <file>`, or `git rm -- <file>` when upstream deleted it. These are `components.json`, the files under `resources/`, `app/`, `bootstrap/`, `routes/`, `database/` and `config/` (other than `config/boost.php`), and upstream's tests: `tests/Feature/Auth/`, `tests/Feature/Settings/`, `tests/Feature/DashboardTest.php`, `tests/Feature/ExampleTest.php` and `tests/Unit/ExampleTest.php`. chisel's files among them stay deleted, as the chisel rule below says. Then strip the chisel markers by that rule, and run `composer fix`.
     - `README.md`: ours.
-    - `.github/workflows/`: only `check.yml` is the template's. Upstream's `tests.yml` stays deleted, and a workflow upstream adds stays out (`git rm -- <file>`).
+    - `.github/workflows/`: only `check.yml` is the template's. Upstream's `tests.yml` stays deleted, and a workflow upstream adds stays out: the merge has staged it, so remove it with `git rm -f -- <file>`.
     - Template-owned and mixed files: keep the template's tooling, and take upstream's changes to the rest.
     - Versions of tools and dependencies: the newer official one.
     - chisel stays removed: keep its files deleted and `laravel/chisel` out of `composer.json`. Strip any chisel marker the merge brings back by deleting only the comment (`/* @chisel-x */`, `/* @end-chisel-x */`, `{/* ... */}` in JSX, `<!-- ... -->`, `{{-- ... --}}`) and keeping all the code around and between the markers. Delete a whole line only when the marker is all that is on it; `UPGRADING.md` has an example of a line shared with code.
