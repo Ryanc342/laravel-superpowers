@@ -111,7 +111,7 @@ git grep -l '^<<<<<<<' -- \
 - `package.json`: take the `build:dev` script. Keep `jsdom`, `@testing-library/*`, `@radix-ui/react-popover` and every other UI package the project uses: the template removed them only because its own UI and tests no longer use them. `playwright`, the `test` script and `name` came with sp-v1.3.0, so keep the project's.
 - `vite.config.ts`:
     - `test`: keep the project's `environment: 'jsdom'` and `setupFiles: ['tests/js/setup.ts']` while its own JS tests need jsdom, and skip the template's `environment: 'node'`. The template's tests in `tests/js/ai-hooks` set `// @vitest-environment node` themselves.
-    - `lint`: the template dropped its `plugins`, `rules` and `overrides` (React's hook rules and jsx-a11y), because it owns no UI. Keep them if the project wants them for its own UI, and then add `'.agents/skills/**'` to `lint.ignorePatterns`: jsx-a11y fails on a showcase file of the `shadcn` skill.
+    - `lint`: take the template's lint ignore for the vendor skills. The template dropped its `plugins`, `rules` and `overrides` because it owns no UI: keep them if the project wants them.
     - `fmt.ignorePatterns`: take the new `skills-lock.json` entry. The `.worktrees` watch ignore came with sp-v1.3.0: keep it.
 - `composer.json`: take the `check:browser` script, which now builds with `npm run build:dev` so that React's development warnings reach the console and fail the page sweep, and its description. It builds no SSR bundle: sp-v2.0.0's `npx vp build --ssr` is gone.
 - `phpunit.xml`: take the new `<env name="APP_LOCALE" value="en"/>`, which runs the tests in English whatever `.env` says. Leave it out if the project's tests expect another language.

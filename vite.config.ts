@@ -52,6 +52,10 @@ export default defineConfig({
             'resources/js/components/ui/*',
             'resources/js/routes/**',
             'resources/js/wayfinder/**',
+            // Skills written by Laravel Boost and the skills CLI: their
+            // example files are not the project's code.
+            '.agents/skills/**',
+            '.claude/skills/**',
         ],
         options: {
             denyWarnings: true,
@@ -74,7 +78,8 @@ export default defineConfig({
             // saves a permission.
             '.claude/settings.json',
             // Written by Laravel Boost (boost:install, boost:update and its
-            // record-rule tool), which would undo any reformatting.
+            // record-rule tool) and, in the skills folders, by the skills CLI
+            // (npx skills add), which would undo any reformatting.
             '.agents/skills/**',
             '.ai/rules/**',
             '.claude/skills/**',
