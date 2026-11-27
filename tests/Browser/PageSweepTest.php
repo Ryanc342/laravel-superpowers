@@ -4,6 +4,7 @@ use App\Models\User;
 use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Pest\Browser\Api\On;
 use Pest\Browser\Api\PendingAwaitablePage;
 use Symfony\Component\HttpFoundation\Response;
@@ -106,20 +107,31 @@ function sweep(string $path, string $device): void
         ->assertNoConsoleLogs();
 }
 
-test('a signed-in page mounts the app and raises no JavaScript error or console message', function (string $path, string $device) {
+// A project may leave one list empty: Pest fails on an empty dataset, so an
+// empty list gives a single case, which is skipped.
+test('a signed-in page mounts the app and raises no JavaScript error or console message', function (?string $path, string $device) {
+    if ($path === null) {
+        $this->markTestSkipped('projectSweptPages() lists no page.');
+    }
+
     $this->actingAs(User::factory()->create());
 
     sweep($path, $device);
-})->with(projectSweptPages())->with(['desktop', 'phone']);
+})->with(projectSweptPages() ?: ['no page' => null])->with(['desktop', 'phone']);
 
-test('a guest page mounts the app and raises no JavaScript error or console message', function (string $path, string $device) {
+test('a guest page mounts the app and raises no JavaScript error or console message', function (?string $path, string $device) {
+    if ($path === null) {
+        $this->markTestSkipped('projectSweptGuestPages() lists no page.');
+    }
+
     sweep($path, $device);
-})->with(projectSweptGuestPages())->with(['desktop', 'phone']);
+})->with(projectSweptGuestPages() ?: ['no page' => null])->with(['desktop', 'phone']);
 
 test('the sweep records what a page writes with console.warn and console.error', function () {
-    $this->actingAs(User::factory()->create());
+    // A page of the test's own: the project may have no page this could rely on.
+    Route::middleware('web')->get('/the-sweep-console-recorder', fn () => '<html><head></head><body></body></html>');
 
-    $page = visit('/settings/profile');
+    $page = visit('/the-sweep-console-recorder');
     $page->script("console.warn('a warning'); console.error('an error')");
 
     $page->assertScript('window.__pestBrowser.consoleLogs.map(({ message }) => message)', ['warn: a warning', 'error: an error']);
