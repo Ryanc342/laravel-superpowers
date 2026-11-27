@@ -116,7 +116,7 @@ Use them (`resources/js/ui/dialog.tsx`) instead of `Modal` and `ModalForm`: on a
 
 ## Fortify feature switches
 
-The `features` shared prop says which of Fortify's features `config/fortify.php` has on: `registration`, `resetPasswords`, `emailVerification`, `twoFactorAuthentication` and `passkeys`. Every way into a feature (a link, a button, a section, a notice) renders only while its feature is on, as in `resources/js/pages/auth/login.tsx`.
+The `features` shared prop says which of Fortify's features `config/fortify.php` has on: `registration`, `resetPasswords`, `emailVerification`, `twoFactorAuthentication` and `passkeys`. Every way into a feature (a link, a button, a section, a notice) renders only while its feature is on, as in `resources/js/pages/auth/login.tsx`. A test that needs a feature on skips while it is off, `$this->skipUnlessFortifyHas(Features::registration())`, as in `tests/Browser/RegistrationTest.php`.
 
 ## Where the app departs from Ant Design
 

@@ -55,6 +55,8 @@ A project that needs to change a template-owned page copies it into a page of it
 
 A template-owned test never names a project-owned value: its colour, its menu entries, its dashboard or its welcome page. A project that changes `theme.ts`, `navigation.ts`, `dashboard.tsx` or `welcome.tsx` edits the project-owned tests above that pin them. A template-owned test that fails after such a change is a template bug: report it, and do not edit it. One exception: `tests/js/theme-background.test.ts` fails when the page background in `theme.ts` (`colorBgLayout`) and the colours `resources/views/app.blade.php` paints before the stylesheet loads differ. The fix is to change those colours in the view, not the test.
 
+A template-owned test also holds for any set of Fortify features. A test that needs a feature the project left out of `config/fortify.php` skips and names it (`skipUnlessFortifyHas()` in `tests/TestCase.php`), the page sweep skips that feature's pages, and the tests of the `features` prop expect what `config/fortify.php` has. A template-owned test that fails only because a feature is off is a template bug as well.
+
 ## Git Worktrees
 
 - superpowers creates worktrees in `.worktrees/`, which git ignores.

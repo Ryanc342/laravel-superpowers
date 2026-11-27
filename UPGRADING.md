@@ -2,6 +2,10 @@
 
 What to do in a project started from laravel-superpowers after it merges a template version. There is one section per version (`sp-vX.Y.Z` tag), newest first. Do what every section newer than the version you were on lists, oldest first. [`.ai/guidelines/project.md`](.ai/guidelines/project.md) has the rules for the merge itself.
 
+## sp-v2.0.1 (unreleased)
+
+Nothing to do. The template's tests now hold for a project that turned a Fortify feature off in `config/fortify.php` (registration, password reset, email verification, two-factor authentication or passkeys), as step 8 of sp-v2.0.0 says to. A test that needs a feature that is off skips and names it, the page sweep skips that feature's pages, and the tests of the `features` prop expect the switches `config/fortify.php` has instead of every feature on.
+
 ## sp-v2.0.0
 
 The front end is rebuilt on Ant Design 6 (`antd`) and Ant Design Pro (`@ant-design/pro-components`, a pinned beta). shadcn/ui, Radix, Sonner, lucide-react and the template's own `components/shared` and `components/ui` are removed. A page is made of antd and Pro components, which a thin glue in `resources/js/ui/` wires to Laravel and Inertia: lists (`useInertiaTable` with `ListRequest`), forms that the server checks while the user types (`useInertiaForm`), dialogs that become sheets on a phone, flash messages and the appearance. The app's look is `resources/js/theme.ts` and its menu is `resources/js/navigation.ts`. Chinese and English are both built in, and Chinese is the default: every sentence is keyed by its English text (`t()` in React, `__()` in PHP), and the template's Chinese is in `lang/template/zh_CN.json`. Tailwind stays for the welcome page and a project's own marketing pages only. The template also ships an example of every page type under `/examples` (in `local` and `testing` only), a page sweep that renders every page on the server and opens it on a desktop and on a phone, and the `ant-design-ui` skill, which replaces `frontend-components`. No Composer package changes.
