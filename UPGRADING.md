@@ -36,7 +36,7 @@ git fetch template --tags
 git merge --no-ff --no-commit template/main
 ```
 
-The merge stops with conflicts in UI and app files the project changed. Leave them: step 3 puts every one of them back.
+The merge stops with conflicts in files the project changed: UI and app files, tests, `README.md` and `package-lock.json` among them. Leave them: step 3 puts every one of them back.
 
 ### 2. Take the template-owned paths
 
@@ -108,7 +108,7 @@ git grep -l '^<<<<<<<' -- \
     - `lint`: the template dropped its `plugins`, `rules` and `overrides` (React's hook rules and jsx-a11y), because it owns no UI. Keep them if the project wants them for its own UI, and then add `'.agents/skills/**'` to `lint.ignorePatterns`: jsx-a11y fails on a showcase file of the `shadcn` skill.
     - `fmt.ignorePatterns`: take the new `skills-lock.json` entry. The `.worktrees` watch ignore came with sp-v1.3.0: keep it.
 - `composer.json`: take the `check:browser` script, which now builds with `npm run build:dev` so that React's development warnings reach the console and fail the page sweep, and its description. It builds no SSR bundle: sp-v2.0.0's `npx vp build --ssr` is gone.
-- `phpunit.xml`: take `<env name="APP_LOCALE" value="en"/>`, which runs the tests in English whatever `.env` says, unless the project's tests expect another language.
+- `phpunit.xml`: take the new `<env name="APP_LOCALE" value="en"/>`, which runs the tests in English whatever `.env` says. Leave it out if the project's tests expect another language.
 - `.github/workflows/check.yml`: take the new "Build for production" step.
 - `skills-lock.json`: new. Take the template's.
 - `.ai/guidelines/project.md`: take the template's text, and keep the project's own sections.
@@ -145,9 +145,9 @@ git status --short
 
 ### 8. The page sweep
 
-`tests/Browser/PageSweepTest.php` is new. It opens the pages `projectSweptPages()` (signed in as a verified user) and `projectSweptGuestPages()` (as a guest) return, on a desktop and a phone. A page fails when it does not mount the app, ends on another path, raises a JavaScript error or writes anything to the console.
+`tests/Browser/PageSweepTest.php` is new. "Test Runs" in `project.md` says which pages it opens and what fails a page.
 
-A project on sp-v1.3.0 has neither function, so the template's defaults in `tests/Support/Template/browser.php` apply: the starter kit's dashboard, settings and sign-in pages. If the project removed or moved one of those pages, or wants its own pages swept, declare both functions in a `tests/Support/*.php` of its own. Each replaces its default, so it lists the starter-kit pages the project keeps as well as the project's own. `tests/Feature/SweptPagesTest.php` checks that every path is a GET route.
+A project on sp-v1.3.0 has neither `projectSweptPages()` nor `projectSweptGuestPages()`, so the template's defaults in `tests/Support/Template/browser.php` apply: the starter kit's dashboard, settings and sign-in pages. If the project removed or moved one of those pages, or wants its own pages swept, declare both functions in a `tests/Support/*.php` of its own. Each replaces its default, so it lists the starter-kit pages the project keeps as well as the project's own:
 
 ```php
 <?php
