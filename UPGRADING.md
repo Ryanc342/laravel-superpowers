@@ -67,14 +67,10 @@ The merge stops with conflicts in files the project changed: UI and app files, t
 
 ### 3. Put everything else back
 
-Stage the mixed files the merge left in conflict, markers and all, then put every other path back to the project's version:
+Stage every path the merge left in conflict, markers and all, then put every path but those of step 2 and the mixed files back to the project's version. The restore replaces the staged markers with the project's version, and removes a file the project deleted and the template changed:
 
 ```bash
-git diff --name-only --diff-filter=U -z -- \
-    tests/Pest.php tests/bootstrap.php tests/TestCase.php composer.json package.json vite.config.ts \
-    tsconfig.json .gitignore phpunit.xml .env.example config/boost.php phpstan.neon .claude/settings.json \
-    .codex/config.toml .mcp.json .github/workflows/check.yml .ai/guidelines/project.md skills-lock.json |
-    xargs -0 -r git add -A --
+git diff --name-only --diff-filter=U -z | xargs -0 -r git add -A --
 git restore --source=HEAD --staged --worktree -- . \
     ':!tests/Support/Template/' ':!tests/Browser/PageSweepTest.php' ':!tests/Browser/BrowserActionTimeoutTest.php' \
     ':!tests/Feature/SweptPagesTest.php' ':!tests/Feature/TestDatabaseTest.php' ':!tests/Feature/ViteIsolationTest.php' \
