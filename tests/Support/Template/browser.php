@@ -14,7 +14,9 @@ if (! function_exists('projectSweptPages')) {
      * user, on a desktop and on a phone. A project declares its own
      * `projectSweptPages()` in a tests/Support/*.php file, which replaces this
      * one, so it lists every signed-in page of its app, the starter kit's
-     * ones it keeps among them: `['the invoices' => '/invoices']`.
+     * ones it keeps among them: `['the invoices' => '/invoices']`. It may
+     * return `[]`, and the sweep then skips this list, as long as
+     * `projectSweptGuestPages()` lists a page.
      *
      * @return array<string, string>
      */
@@ -37,7 +39,8 @@ if (! function_exists('projectSweptGuestPages')) {
      * kit's welcome page and its sign-in pages. A project declares its own
      * `projectSweptGuestPages()` next to its `projectSweptPages()`, which
      * replaces this one, so it lists every page a guest opens in its app:
-     * `['the pricing page' => '/pricing']`.
+     * `['the pricing page' => '/pricing']`. It may return `[]`, and the sweep
+     * then skips this list, as long as `projectSweptPages()` lists a page.
      *
      * @return array<string, string>
      */
