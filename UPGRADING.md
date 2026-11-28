@@ -4,10 +4,9 @@ What to do in a project started from laravel-superpowers after it merges a templ
 
 ## sp-v3.2.0
 
-shadcn CLI 4.23 writes `import { cn } from "cn"` into every component it adds and brings the `cn` package, while the starter kit's `resources/js/lib/utils.ts` builds `cn` from `clsx` and `tailwind-merge`. A project with both runs two implementations of `cn`. The project rules now tell agents to notice this when they change UI, and to propose `npx shadcn@latest migrate cn` with approval.
+Components from shadcn CLI 4.23 import `cn` from the `cn` package, while the starter kit's `resources/js/lib/utils.ts` builds `cn` from `clsx` and `tailwind-merge`. The project rules now tell agents to ask for approval to migrate when a component they add brings the `cn` package.
 
-- `.ai/guidelines/project.md` is mixed. In step 4 of the template sync, take the new "Definition of Done" bullet that begins "Components the CLI adds import `cn`" by hand.
-- Do not migrate during the sync. The next UI task proposes the migration and asks first.
+- `.ai/guidelines/project.md` is mixed. In step 4 of the template sync, take the new "Definition of Done" bullet that begins "If a component the CLI adds brings the `cn` package" by hand. A project whose `lib/utils.ts` already re-exports `cn` from the package has nothing to migrate.
 
 A project on sp-v3.1.0 does this during the template sync and has nothing else to do.
 
