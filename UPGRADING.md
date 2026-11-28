@@ -2,6 +2,14 @@
 
 What to do in a project started from laravel-superpowers after it merges a template version. There is one section per version (`sp-vX.Y.Z` tag), newest first. Do what every section newer than the version you were on lists, oldest first. [`.ai/guidelines/project.md`](.ai/guidelines/project.md) has the rules for the merge itself.
 
+## sp-v3.2.0
+
+Components from shadcn CLI 4.23 import `cn` from the `cn` package, while the starter kit's `resources/js/lib/utils.ts` builds `cn` from `clsx` and `tailwind-merge`. The project rules now tell agents to ask for approval to migrate when a component they add brings the `cn` package.
+
+- `.ai/guidelines/project.md` is mixed. In step 4 of the template sync, take the new "Definition of Done" bullet that begins "If a component the CLI adds brings the `cn` package" by hand. A project whose `lib/utils.ts` already re-exports `cn` from the package has nothing to migrate.
+
+A project on sp-v3.1.0 does this during the template sync and has nothing else to do.
+
 ## sp-v3.1.0
 
 The project rules now tell agents when to use the two vendor skills: `shadcn` before writing or changing UI, and `web-design-guidelines` before a task that changed UI is reported done and in every review of a diff that changes UI. Until now, agents used them only when a plan or a prompt named them.
