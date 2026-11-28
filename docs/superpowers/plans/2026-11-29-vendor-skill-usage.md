@@ -32,12 +32,14 @@
 ### Task 1: The guidance, README and upgrade note
 
 **Files:**
+
 - Modify: `.ai/guidelines/project.md:9` (the "owns no UI code and no UI rules" bullet). Add two bullets after it.
 - Regenerate: `CLAUDE.md`, `AGENTS.md`
 - Modify: `README.md:8` and `README.md:13`
 - Modify: `UPGRADING.md`. Add a `## sp-v3.1.0` section above `## sp-v3.0.1`.
 
 **Interfaces:**
+
 - Produces: the three bullet texts below. Task 2's probes run against them, and UPGRADING names them by their opening words.
 
 - [ ] **Step 1: Replace `.ai/guidelines/project.md:9` with these three bullets, verbatim**
@@ -56,7 +58,7 @@ Expected: only `.ai/guidelines/project.md`, `CLAUDE.md` and `AGENTS.md` are modi
 
 - [ ] **Step 3: Check that the bullets reached both generated files**
 
-Run: `grep -c -E 'invoke the `shadcn` skill|Invoke the `web-design-guidelines` skill' CLAUDE.md AGENTS.md`
+Run: `grep -c -E 'invoke the `shadcn`skill|Invoke the`web-design-guidelines` skill' CLAUDE.md AGENTS.md`
 
 Expected: `CLAUDE.md:2` and `AGENTS.md:2`.
 
@@ -100,6 +102,7 @@ The fixtures and scripts from the 2026-11-29 check are in the scratchpad. Call i
 **Files:** none in the repository. Everything happens in `.worktrees/probe-*`, and those are removed at the end.
 
 **Interfaces:**
+
 - Consumes: Task 1's commit on `feature/vendor-skill-usage`.
 
 - [ ] **Step 1: Build five probe worktrees from the branch's HEAD**
