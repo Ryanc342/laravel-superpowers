@@ -2,6 +2,17 @@
 
 What to do in a project started from laravel-superpowers after it merges a template version. There is one section per version (`sp-vX.Y.Z` tag), newest first. Do what every section newer than the version you were on lists, oldest first. [`.ai/guidelines/project.md`](.ai/guidelines/project.md) has the rules for the merge itself.
 
+## sp-v3.1.0
+
+The project rules now tell agents when to use the two vendor skills: `shadcn` before writing or changing UI, and `web-design-guidelines` before a task that changed UI is reported done and in every review of a diff that changes UI. Until now, agents used them only when a plan or a prompt named them.
+
+Both steps belong to step 4 of the template sync, where the mixed files are merged by hand:
+
+- `.ai/guidelines/project.md` is mixed. In step 4 of the template sync, take the template's three "Definition of Done" bullets that begin "The template owns no UI code. Its only UI rules", "UI here means" and "Invoke the `web-design-guidelines` skill". They replace the old bullet "The template owns no UI code and no UI rules".
+- In the same step, if the project already tells agents to use these skills, in `.ai/guidelines/project.md`, a skill of its own or `.ai/rules`, remove what the new bullets now say. Edit the source file, never a copy that Boost generates in `CLAUDE.md`, `AGENTS.md`, `.claude/skills` or `.agents/skills`. Keep only what is the project's own, such as its preset or how its components are wired. If a whole rule file in `.ai/rules` goes, run `php artisan boost:index-rules`.
+
+Step 6 of the sync, `php artisan boost:update`, then regenerates the copies. A project on sp-v3.0.1 does both steps during the template sync and has nothing else to do.
+
 ## sp-v3.0.1
 
 Notes only, no change to the tooling. The first syncs to sp-v3.0.0 found three gaps in the notes:
