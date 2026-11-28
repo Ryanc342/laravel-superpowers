@@ -2,6 +2,16 @@
 
 What to do in a project started from laravel-superpowers after it merges a template version. There is one section per version (`sp-vX.Y.Z` tag), newest first. Do what every section newer than the version you were on lists, oldest first. [`.ai/guidelines/project.md`](.ai/guidelines/project.md) has the rules for the merge itself.
 
+## sp-v3.0.1
+
+Notes only, no change to the tooling. The first syncs to sp-v3.0.0 found three gaps in the notes:
+
+- "Test Runs" in `.ai/guidelines/project.md` says how to sweep pages on another host, such as a tenant's subdomain, and pages behind a role. The file is mixed: take that hunk by hand, as step 4 of the template sync says.
+- Step 2 of the sp-v3.0.0 entry also checks `tests/process-watchdog.sh` and `tests/js/test-runner/process-watchdog.test.ts` for changes of the project's own.
+- Step 4 of the sp-v3.0.0 entry says that a clean merge also removes what the template removed and the project never edited, so "keep" often means "put back from `HEAD`".
+
+A project on sp-v3.0.0 runs the template sync and has nothing else to do. A project on sp-v1.3.0 does only the sp-v3.0.0 entry, which already has these fixes.
+
 ## sp-v3.0.0
 
 The template is a toolkit now: Laravel's React starter kit, unchanged (laravel/react-starter-kit at `50a9f6c`), plus the tooling. It owns no UI code and no UI rules. The tooling is `composer check` and `composer check:browser`, the MySQL test database and its lock, the Stop hook, the project rules that Boost turns into `CLAUDE.md` and `AGENTS.md`, and two agent skills maintained by their vendors, `shadcn` and `web-design-guidelines`, which `skills-lock.json` records. The process watchdog is gone. The page sweep is new to a project on sp-v1.3.0 (step 8).
