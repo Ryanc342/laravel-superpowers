@@ -5,9 +5,9 @@ A toolkit for building Laravel apps with AI coding agents: the official [Laravel
 - `composer check` is the definition of done: Pint, PHPStan, Oxfmt + Oxlint, tsc, Vitest and Pest. `composer check:browser` builds the frontend and runs the browser tests, among them a page sweep that opens each page on a desktop and a phone.
 - The tests run on MySQL, in `<DB_DATABASE>_test`, which they create when it is missing. A lock lets one test run use it at a time.
 - The project rules are in `.ai/guidelines/project.md`, which Boost turns into `CLAUDE.md` and `AGENTS.md`. Work goes through the superpowers skills, and a Stop hook runs `composer check` for the changes a session made, and only those.
-- shadcn's `shadcn` skill and Vercel's `web-design-guidelines` skill are installed for both agents.
+- shadcn's `shadcn` skill and Vercel's `web-design-guidelines` skill are installed for both agents. The project rules say when agents use them: `shadcn` before any UI change, and `web-design-guidelines` before a UI change is done and in every review of one.
 
-The template owns no UI code and no UI rules. The starter kit's UI belongs to the project from the start, and the project decides its own UI.
+The template owns no UI code, and its only UI rules are when to use those two skills. The starter kit's UI belongs to the project from the start, and the project decides the rest of its UI.
 
 A project started from this template keeps its history, so it can merge later template versions in. [`UPGRADING.md`](UPGRADING.md) lists what to do after each one.
 
